@@ -1,0 +1,56 @@
+.rai-section {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  background: #f4f3ee;
+  color: #1a1c23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 64px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(26, 28, 35, 0.08);
+}
+
+.rai-container {
+  max-width: 1000px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.rai-tag {
+  font-family: var(--heading);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #3b82f6;
+  text-transform: uppercase;
+}
+
+.rai-title {
+  font-family: var(--heading);
+  font-size: clamp(42px, 6vw, 88px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: #1a1c23;
+}
+
+.rai-description {
+  font-family: var(--sans);
+  font-size: clamp(17px, 1.8vw, 22px);
+  line-height: 1.7;
+  color: #475569;
+  max-width: 680px;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .rai-section {
+    padding: 80px 24px;
+  }
+}

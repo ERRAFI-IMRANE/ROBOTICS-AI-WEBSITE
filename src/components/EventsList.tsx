@@ -1,0 +1,212 @@
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+
+export interface EventRow {
+  id: string | number;
+  data?: {
+    title?: string;
+    date?: string;
+    image?: string;
+    [key: string]: any;
+  } | null;
+  image_url?: string | null;
+  created_at?: string;
+}
+
+interface EventsListProps {
+  onLoaded?: () => void;
+}
+
+const CARD_SIZES = ["medium", "smaller", "large", "small"];
+const OFFSETS = ["50px", "-80px", "60px", "-40px", "30px", "-90px", "70px", "-50px", "40px", "-60px"];
+
+const MONTH_MAP: Record<string, number> = {
+  jan: 0, janv: 0, janvier: 0, january: 0,
+  feb: 1, fevr: 1, février: 1, fevrier: 1, february: 1,
+  mar: 2, mars: 2, march: 2,
+  apr: 3, avr: 3, avril: 3, april: 3,
+  may: 4, mai: 4,
+  jun: 5, juin: 5, june: 5,
+  jul: 6, juil: 6, juillet: 6, july: 6,
+  aug: 7, aout: 7, août: 7, august: 7,
+  sep: 8, sept: 8, septembre: 8, september: 8,
+  oct: 9, octo: 9, octobre: 9, october: 9,
+  nov: 10, nove: 10, novembre: 10, november: 10,
+  dec: 11, dece: 11, décembre: 11, decembre: 11, december: 11,
+};
+
+export function parseEventDate(item: EventRow): number {
+  const dateStr = item.data?.date || "";
+  const titleStr = item.data?.title || "";
+
+  // 1. Extract 4-digit year from date string or title
+  let year: number | null = null;
+  const dateYearMatch = dateStr.match(/\b(20\d{2})\b/);
+  if (dateYearMatch) {
+    year = parseInt(dateYearMatch[1], 10);
+  } else {
+    const titleYearMatch = titleStr.match(/\b(20\d{2})\b/);
+    if (titleYearMatch) {
+      year = parseInt(titleYearMatch[1], 10);
+    }
+  }
+
+  if (!year && item.created_at) {
+    const parsedCreated = new Date(item.created_at).getFullYear();
+    if (!isNaN(parsedCreated)) {
+      year = parsedCreated;
+    }
+  }
+
+  if (!year) year = 2000;
+
+  // 2. Extract month
+  let month = 0;
+  const words = dateStr
+    .toLowerCase()
+    .replace(/[^a-zàâçéèêëîïôûùüÿñæœ]/g, " ")
+    .split(/\s+/);
+
+  for (const word of words) {
+    if (MONTH_MAP[word] !== undefined) {
+      month = MONTH_MAP[word];
+      break;
+    }
+  }
+
+  // 3. Extract day number
+  let day = 1;
+  const dayMatch = dateStr.match(/(\d{1,2})(?:\s*-\s*\d{1,2})?/);
+  if (dayMatch) {
+    day = parseInt(dayMatch[1], 10);
+  }
+
+  return new Date(Date.UTC(year, month, day)).getTime();
+}
+
+export default function EventsList({ onLoaded }: EventsListProps) {
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        setLoading(true);
+        setError(null);
+        const { data, error: fetchErr } = await supabase
+          .from("events")
+          .select("*");
+
+        if (fetchErr) {
+          console.error("Error fetching events from Supabase:", fetchErr);
+          setError(fetchErr.message);
+        } else if (data) {
+          // Sort events from newest to oldest by event date
+          const sortedEvents = [...data].sort((a, b) => parseEventDate(b) - parseEventDate(a));
+          setEvents(sortedEvents);
+        }
+      } catch (err: any) {
+        console.error("Unexpected error fetching events:", err);
+        setError(err?.message || "Failed to load events");
+      } finally {
+        setLoading(false);
+        if (onLoaded) {
+          setTimeout(onLoaded, 100);
+        }
+      }
+    }
+
+    fetchEvents();
+  }, [onLoaded]);
+
+  if (loading) {
+    return (
+      <div className="events-loading" style={{ padding: "40px", color: "#94a3b8", fontSize: "16px" }}>
+        Loading events from Supabase...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="events-error" style={{ padding: "40px", color: "#ef4444", fontSize: "14px" }}>
+        Unable to load events ({error})
+      </div>
+    );
+  }
+
+  if (!events.length) {
+    return (
+      <div className="events-empty" style={{ padding: "40px", color: "#94a3b8", fontSize: "16px" }}>
+        No events found.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {events.map((item, index) => {
+        // Extract title, date, image from jsonb data column or direct columns
+        const title = item.data?.title || "UNTITLED EVENT";
+        const date = item.data?.date || "";
+        const image =
+          item.image_url ||
+          item.data?.image ||
+          "/events/summit.png";
+
+        const size = CARD_SIZES[index % CARD_SIZES.length];
+        const offsetY = OFFSETS[index % OFFSETS.length];
+        const isImgTop = parseInt(offsetY) < 0;
+
+        return (
+          <div
+            key={item.id || index}
+            className={`event-card-wrapper size-${size} ${isImgTop ? "img-top" : "img-bottom"
+              }`}
+            style={{ transform: `translateY(${offsetY})` }}
+          >
+            <a
+              href="#events"
+              className="event-card-link"
+              aria-label={`View details for ${title}`}
+            >
+              <div className="event-image-container">
+                <img
+                  src={image}
+                  alt={title}
+                  loading="lazy"
+                  className="event-img"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    (e.target as HTMLImageElement).src = "/events/summit.png";
+                  }}
+                />
+                <div className="event-img-overlay" />
+              </div>
+
+              <div className="event-card-text">
+                {date && (
+                  <div className="event-meta">
+                    <span className="event-date">{date}</span>
+                  </div>
+                )}
+                <div className="event-card-info">
+                  <h3 className="event-card-title">
+                    {title.split("").map((char, ci) => (
+                      <span key={ci} className="event-title-char">
+                        {char === " " ? "\u00A0" : char}
+                      </span>
+                    ))}
+                    <span className="event-typing-cursor" aria-hidden="true" />
+                  </h3>
+                  <span className="event-link-arrow">↗</span>
+                </div>
+              </div>
+            </a>
+          </div>
+        );
+      })}
+    </>
+  );
+}

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=Space+Grotesk:wght@500;600&display=swap');
+
 .rai-section {
   position: relative;
   z-index: 2;
@@ -7,50 +9,142 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 120px 64px;
+  padding: 60px 24px;
   box-sizing: border-box;
   border-top: 1px solid rgba(26, 28, 35, 0.08);
+  overflow: hidden;
 }
 
 .rai-container {
-  max-width: 1000px;
+  position: relative;
+  max-width: 1400px;
   width: 100%;
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Topographic Contour Line Background Pattern */
+.topographic-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  color: rgba(26, 28, 35, 0.08);
+}
+
+.topographic-bg svg {
+  width: 100%;
+  height: 100%;
+}
+
+.rai-club-sign-img {
+  max-width: 35%;
+  max-height: 48vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  opacity: 1 !important;
+  position: relative;
+  top: -40vh;
+  z-index: 1;
+}
+
+.rai-side-img {
+  position: absolute;
+  max-width: 58vw;
+  max-height: 78vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  opacity: 1 !important;
+  will-change: transform;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.rai-left-img {
+  top: 15%;
+  left: -8%;
+}
+
+.rai-right-img {
+  top: 15%;
+  right: -8%;
+}
+
+/* Center Split Text Overlay */
+.rai-text-center-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  z-index: 3;
+  width: 100%;
+}
+
+.rai-text-half {
   display: flex;
   flex-direction: column;
+  will-change: transform;
+}
+
+.rai-text-left-half {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.rai-text-right-half {
   align-items: flex-start;
-  gap: 24px;
+  text-align: left;
 }
 
-.rai-tag {
-  font-family: var(--heading);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 3px;
-  color: #3b82f6;
+.rai-text-row {
+  display: flex;
+  align-items: center;
+  line-height: 0.95;
+}
+
+.rai-word-part {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(3.5rem, 8.5vw, 9.5rem);
+  font-weight: 600;
   text-transform: uppercase;
-}
-
-.rai-title {
-  font-family: var(--heading);
-  font-size: clamp(42px, 6vw, 88px);
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  margin: 0;
+  letter-spacing: -0.01em;
   color: #1a1c23;
+  white-space: nowrap;
 }
 
-.rai-description {
-  font-family: var(--sans);
-  font-size: clamp(17px, 1.8vw, 22px);
-  line-height: 1.7;
-  color: #475569;
-  max-width: 680px;
-  margin: 0;
+.rai-word-blue {
+  color: #1d4ed8;
 }
 
 @media (max-width: 768px) {
   .rai-section {
-    padding: 80px 24px;
+    padding: 40px 16px;
+  }
+
+  .rai-club-sign-img {
+    max-width: 60%;
+    max-height: 42vh;
+    top: -2vh;
+  }
+
+  .rai-side-img {
+    max-width: 65vw;
+    max-height: 58vh;
+    top: 3%;
+  }
+
+  .rai-word-part {
+    font-size: clamp(2.5rem, 11vw, 5.5rem);
   }
 }

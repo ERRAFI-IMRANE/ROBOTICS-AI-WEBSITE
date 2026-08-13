@@ -801,6 +801,10 @@ export default function HeroSection() {
       animFrameId = requestAnimationFrame(frame);
     }).catch((err) => {
       console.error("Liquid reveal image load error:", err);
+      if (!running) return;
+      resize();
+      t0 = prevT = performance.now();
+      animFrameId = requestAnimationFrame(frame);
     });
 
     return () => {

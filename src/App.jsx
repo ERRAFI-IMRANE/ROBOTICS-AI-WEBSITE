@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
 import HeroSection from "./components/HeroSection/HeroSection";
 import HeroHeader from "./components/HeroHeader/HeroHeader";
 import AboutSection from "./components/AboutSection/AboutSection";
@@ -21,6 +22,23 @@ export default function App() {
     const header = heroHeaderRef.current;
     const darkOverlay = darkOverlayRef.current;
     if (!wrapper || !inner || !header || !darkOverlay) return;
+
+    // Initialize Lenis smooth scroll engine for fluid scrolling animation between sections
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 2,
+    });
+
+    lenis.on("scroll", ScrollTrigger.update);
+
+    const updateTicker = (time) => {
+      lenis.raf(time * 1000);
+    };
+
+    gsap.ticker.add(updateTicker);
+    gsap.ticker.lagSmoothing(0);
 
     // Pin the hero and zoom-out on scroll
     const tl = gsap.timeline({
@@ -56,6 +74,8 @@ export default function App() {
     }, 0);
 
     return () => {
+      gsap.ticker.remove(updateTicker);
+      lenis.destroy();
       tl.scrollTrigger?.kill();
       tl.kill();
     };

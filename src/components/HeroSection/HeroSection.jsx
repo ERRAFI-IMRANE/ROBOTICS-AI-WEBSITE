@@ -540,11 +540,23 @@ export default function HeroSection() {
       if (simA) { gl.deleteTexture(simA.tex); gl.deleteFramebuffer(simA.fbo); }
       if (simB) { gl.deleteTexture(simB.tex); gl.deleteFramebuffer(simB.fbo); }
       SW = nw; SH = nh;
-      const filter = PACKED ? gl.NEAREST : gl.LINEAR;
+      let filter = PACKED ? gl.NEAREST : gl.LINEAR;
       simA = makeTarget(SW, SH, simType, simInternal, filter);
       simB = makeTarget(SW, SH, simType, simInternal, filter);
-      read = simA; write = simB;
-      clearSim();
+      if (!simA || !simB) {
+        simType = gl.UNSIGNED_BYTE;
+        simInternal = gl.RGBA;
+        PACKED = true;
+        filter = gl.NEAREST;
+        if (simA) { gl.deleteTexture(simA.tex); gl.deleteFramebuffer(simA.fbo); }
+        if (simB) { gl.deleteTexture(simB.tex); gl.deleteFramebuffer(simB.fbo); }
+        simA = makeTarget(SW, SH, simType, simInternal, filter);
+        simB = makeTarget(SW, SH, simType, simInternal, filter);
+      }
+      if (simA && simB) {
+        read = simA; write = simB;
+        clearSim();
+      }
     }
 
     function clearSim() {
@@ -567,7 +579,7 @@ export default function HeroSection() {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
       return t;
     }
 
@@ -631,6 +643,7 @@ export default function HeroSection() {
     }
 
     function simStep(ax, ay, bx, by, amp, dipole) {
+      if (!read || !write || !read.tex || !write.fbo) return;
       gl.useProgram(progSim);
       gl.bindFramebuffer(gl.FRAMEBUFFER, write.fbo);
       gl.viewport(0, 0, SW, SH);
@@ -705,6 +718,7 @@ export default function HeroSection() {
     }
 
     function stepComposite(now) {
+      if (!read || !read.tex || !noiseRT || !noiseRT.tex) return;
       const time = (now - t0) / 1000;
       gl.useProgram(progComp);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);

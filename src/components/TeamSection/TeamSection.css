@@ -1,0 +1,410 @@
+.team-section {
+  position: relative;
+  z-index: 3;
+  background-color: #0c0d12;
+  color: #f3f4f6;
+  min-height: 100vh;
+  padding: 90px 48px 140px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(59, 130, 246, 0.12);
+}
+
+/* Ambient Background Glow */
+.team-bg-glow {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.09) 0%, rgba(59, 130, 246, 0.03) 40%, transparent 70%);
+  pointer-events: none;
+  filter: blur(120px);
+  z-index: 1;
+}
+
+.team-container {
+  position: relative;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  z-index: 2;
+}
+
+/* Split Header: Left Title + Right Description */
+.team-split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 48px;
+  margin-bottom: 36px;
+}
+
+/* 2-Line Title on the Left */
+.team-main-title {
+  flex: 1 1 45%;
+  max-width: 520px;
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.6rem, 2.7vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.team-title-line {
+  display: block;
+}
+
+.title-part-white {
+  color: #ffffff;
+}
+
+.title-part-blue {
+  color: #3b82f6;
+  text-shadow: 0 0 24px rgba(59, 130, 246, 0.35);
+}
+
+/* Shorter Description on the Right */
+.team-description-wrapper {
+  flex: 1 1 50%;
+  max-width: 520px;
+}
+
+.team-description-text {
+  font-family: 'Space Grotesk', 'Outfit', sans-serif;
+  font-size: clamp(0.95rem, 1.15vw, 1.1rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: rgba(226, 232, 240, 0.75);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Minimalist Centered Year Filter Bar */
+.team-filter-bar-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 50px;
+}
+
+.team-filter-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.team-filter-pill {
+  background: transparent;
+  border: none;
+  color: rgba(226, 232, 240, 0.5);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 7px 22px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.team-filter-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.team-filter-pill.is-active {
+  color: #ffffff;
+  background: #2563eb;
+  box-shadow: 0 2px 14px rgba(37, 99, 235, 0.5);
+}
+
+/* Staggered Alternating Masonry Grid */
+.team-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.team-showcase-col {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Columns 1 & 3 are aligned at the top */
+.team-col-1,
+.team-col-3 {
+  margin-top: 0px;
+}
+
+/* Columns 2 & 4 start exactly at 50% (middle) of the square cards in columns 1 & 3 */
+.team-col-2,
+.team-col-4 {
+  margin-top: 50%;
+}
+
+/* Square (1:1) Notched Card */
+.team-showcase-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  border-radius: 10px;
+  overflow: visible;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.team-showcase-card:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+/* SVG Frame & Border Path */
+.team-card-svg-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.team-card-path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.35s ease, filter 0.35s ease;
+}
+
+/* All Cards have glowing Cyber-Blue Hover */
+.team-showcase-card:hover .team-card-path {
+  stroke: #3b82f6;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 14px rgba(59, 130, 246, 0.5));
+}
+
+/* Card Content Container - Strictly Clipped to Notched Shape */
+.team-card-content {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  overflow: hidden;
+  clip-path: url(#teamCardClip);
+  -webkit-clip-path: url(#teamCardClip);
+}
+
+/* Full-bleed Card Media (No padding, clipped to notched card shape) */
+.team-card-media-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.team-card-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 15%;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.team-card-media-default {
+  z-index: 1;
+}
+
+/* Hover Original Media with Water Point / Liquid Droplet Wipe from Top */
+.team-card-media-hover {
+  z-index: 2;
+  /* Starts as a focused water point at top center */
+  clip-path: circle(0% at 50% 0%);
+  opacity: 0;
+  transition: clip-path 0.7s cubic-bezier(0.25, 1, 0.3, 1), opacity 0.35s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: clip-path, transform;
+}
+
+.team-showcase-card:hover .team-card-media-default {
+  transform: scale(1.05);
+}
+
+.team-showcase-card:hover .team-card-media-hover {
+  clip-path: circle(150% at 50% 0%);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+/* Bottom Info Bar: Left Name + Right Social Icons */
+.team-card-bottom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 32px 14px 10px 14px;
+  background: linear-gradient(to top, rgba(10, 12, 18, 0.95) 0%, rgba(10, 12, 18, 0.6) 45%, transparent 100%);
+  z-index: 3;
+}
+
+/* Bottom Left: Name & Role (Directly in marked area) */
+.team-card-name-group {
+  display: flex;
+  flex-direction: column;
+  max-width: 150px;
+  padding-bottom: 24px; /* Sits cleanly above the higher bottom-left card notch */
+}
+
+.team-card-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-card-role {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #60a5fa;
+  margin-top: 2px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bottom Right Notch: Pure White Social Icons */
+.team-card-socials-notch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 4px; /* Sits right inside the lower notch tab */
+  z-index: 5;
+}
+
+.team-notch-social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: transform 0.2s ease, color 0.2s ease, filter 0.2s ease;
+  text-decoration: none;
+  opacity: 0.92;
+}
+
+.team-notch-social-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.team-notch-social-link:hover {
+  color: #3b82f6;
+  opacity: 1;
+  transform: translateY(-2px) scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+}
+
+/* Responsive Grid */
+@media (max-width: 1200px) {
+  .team-showcase-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+
+  .team-col-4 {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .team-section {
+    padding: 60px 20px 80px;
+  }
+
+  .team-split-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 25px;
+  }
+
+  .team-main-title {
+    max-width: 100%;
+    font-size: clamp(1.45rem, 6.5vw, 2.1rem);
+  }
+
+  .team-description-wrapper {
+    max-width: 100%;
+  }
+
+  .team-filter-bar-wrapper {
+    margin-bottom: 30px;
+  }
+
+  .team-showcase-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .team-col-1,
+  .team-col-3 {
+    margin-top: 0px;
+  }
+
+  .team-col-2,
+  .team-col-4 {
+    margin-top: 50%;
+  }
+}
+
+@media (max-width: 540px) {
+  .team-filter-pill {
+    padding: 6px 16px;
+    font-size: 0.8rem;
+  }
+
+  .team-showcase-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-col-1,
+  .team-col-2,
+  .team-col-3,
+  .team-col-4 {
+    margin-top: 0;
+  }
+}

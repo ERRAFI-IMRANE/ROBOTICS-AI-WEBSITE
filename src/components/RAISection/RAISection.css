@@ -29,15 +29,104 @@
 /* Topographic Contour Line Background Pattern */
 .topographic-bg {
   position: absolute;
-  inset: 0;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
   pointer-events: none;
   z-index: 1;
-  color: rgba(26, 28, 35, 0.08);
+  color: rgba(29, 78, 216, 0.08);
+  overflow: hidden;
 }
 
 .topographic-bg svg {
   width: 100%;
   height: 100%;
+  overflow: visible;
+}
+
+.topo-path {
+  transform-origin: center center;
+  will-change: transform, stroke-dashoffset;
+}
+
+.topo-path-1 {
+  animation: topoDashFlow 6s linear infinite, topoWaveDrift1 4.5s ease-in-out infinite alternate;
+}
+
+.topo-path-2 {
+  animation: topoWaveDrift2 5.5s ease-in-out infinite alternate;
+  color: rgba(26, 28, 35, 0.07);
+}
+
+.topo-path-3 {
+  animation: topoDashFlowRev 7s linear infinite, topoWaveDrift3 5s ease-in-out infinite alternate;
+}
+
+.topo-path-4 {
+  animation: topoDashFlow 8s linear infinite, topoWaveDrift1 6s ease-in-out infinite alternate-reverse;
+  color: rgba(29, 78, 216, 0.05);
+}
+
+@keyframes topoDashFlow {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: 240;
+  }
+}
+
+@keyframes topoDashFlowRev {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+@keyframes topoWaveDrift1 {
+  0% {
+    transform: translateY(0px) scaleY(1);
+  }
+
+  50% {
+    transform: translateY(-20px) scaleY(1.05);
+  }
+
+  100% {
+    transform: translateY(18px) scaleY(0.95);
+  }
+}
+
+@keyframes topoWaveDrift2 {
+  0% {
+    transform: translateY(0px) scaleY(1) skewX(0deg);
+  }
+
+  50% {
+    transform: translateY(22px) scaleY(0.93) skewX(0.6deg);
+  }
+
+  100% {
+    transform: translateY(-16px) scaleY(1.07) skewX(-0.6deg);
+  }
+}
+
+@keyframes topoWaveDrift3 {
+  0% {
+    transform: translateY(0px) scaleY(1);
+  }
+
+  50% {
+    transform: translateY(-24px) scaleY(1.04);
+  }
+
+  100% {
+    transform: translateY(16px) scaleY(0.96);
+  }
 }
 
 .rai-club-sign-img {
@@ -69,7 +158,7 @@
 
 .rai-left-img {
   top: 15%;
-  left: -8%;
+  left: -8.45%;
 }
 
 .rai-right-img {
@@ -81,7 +170,7 @@
 .rai-text-center-wrapper {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: calc(50% + 24px);
   transform: translate(-50%, -50%);
   display: flex;
   justify-content: center;
@@ -127,6 +216,105 @@
   color: #1d4ed8;
 }
 
+.rai-subtext-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  transform: translateX(-24px);
+}
+
+.rai-text-left-half .rai-subtext-row {
+  justify-content: flex-end;
+}
+
+.rai-text-right-half .rai-subtext-row {
+  justify-content: flex-start;
+}
+
+.rai-subtext-first {
+  margin-top: clamp(28px, 4vh, 48px);
+}
+
+.rai-subtext-part {
+  font-family: 'Space Grotesk', 'Outfit', sans-serif;
+  font-size: clamp(0.8rem, 1.15vw, 1.3rem);
+  font-weight: 500;
+  line-height: 1.55;
+  color: rgba(26, 28, 35, 0.76);
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: -0.015em;
+}
+
+.rai-text-left-half .rai-subtext-first .rai-subtext-part {
+  letter-spacing: 0.075em;
+}
+
+.rai-text-right-half .rai-subtext-first .rai-subtext-part {
+  letter-spacing: 0.035em;
+}
+
+.rai-subtext-row:not(.rai-subtext-first) .rai-subtext-part {
+  letter-spacing: 0.02em;
+}
+
+.rai-btn-row {
+  display: flex;
+  align-items: center;
+  margin-top: clamp(16px, 2.5vh, 28px);
+  width: 100%;
+  transform: translateX(-38px);
+}
+
+.rai-btn-row-left {
+  justify-content: flex-end;
+  padding-right: 10px;
+}
+
+.rai-btn-row-right {
+  justify-content: flex-start;
+  padding-left: 10px;
+}
+
+.rai-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-family: 'Space Grotesk', 'Outfit', sans-serif;
+  font-size: clamp(0.72rem, 0.9vw, 0.86rem);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 9999px;
+  box-shadow: 0 3px 10px rgba(29, 78, 216, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rai-btn:hover {
+  background: #1e40af;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(29, 78, 216, 0.35);
+}
+
+.rai-btn:active {
+  transform: translateY(0);
+}
+
+.rai-btn-arrow {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.25s ease;
+}
+
+.rai-btn:hover .rai-btn-arrow {
+  transform: translateX(3px);
+}
+
 @media (max-width: 768px) {
   .rai-section {
     padding: 40px 16px;
@@ -147,4 +335,71 @@
   .rai-word-part {
     font-size: clamp(2.5rem, 11vw, 5.5rem);
   }
+
+  .rai-text-center-wrapper {
+    left: calc(50% + 12px);
+  }
+
+  .rai-subtext-row {
+    transform: translateX(-10px);
+  }
+
+  .rai-subtext-first {
+    margin-top: 14px;
+  }
+
+  .rai-subtext-part {
+    font-size: clamp(0.48rem, 2.35vw, 0.76rem);
+    line-height: 1.4;
+  }
+
+  .rai-btn-row {
+    margin-top: 12px;
+    transform: translateX(-18px);
+  }
+
+  .rai-btn-row-left {
+    padding-right: 4px;
+  }
+
+  .rai-btn-row-right {
+    padding-left: 4px;
+  }
+
+  .rai-btn {
+    padding: 6px 12px;
+    font-size: 0.65rem;
+    gap: 4px;
+  }
+
+  .rai-btn-arrow {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Full-screen Swipe-up Container */
+.rai-swipe-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
+  z-index: 20;
+  overflow: hidden;
+  will-change: transform;
+  pointer-events: auto;
+}
+
+.rai-swipe-img {
+  width: 100vw;
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 100vh;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  user-select: none;
 }

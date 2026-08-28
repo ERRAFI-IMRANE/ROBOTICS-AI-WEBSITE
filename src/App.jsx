@@ -7,6 +7,7 @@ import HeroHeader from "./components/HeroHeader/HeroHeader";
 import AboutSection from "./components/AboutSection/AboutSection";
 import EventsSection from "./components/EventsSection/EventsSection";
 import RAISection from "./components/RAISection/RAISection";
+import TeamSection from "./components/TeamSection/TeamSection";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -136,8 +137,11 @@ export default function App() {
       {/* Events Section — upcoming workshops and hackathons */}
       <EventsSection />
 
-      {/* RAI Section — Club introduction */}
+      {/* RAI Section — Club introduction & Swipe Image */}
       <RAISection />
+
+      {/* Team Section — Dark mode leadership and members */}
+      <TeamSection />
     </div>
   );
 }

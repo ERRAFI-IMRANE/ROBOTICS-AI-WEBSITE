@@ -10,6 +10,7 @@ import RAISection from "./components/RAISection/RAISection";
 import TeamSection from "./components/TeamSection/TeamSection";
 import WhyJoinSection from "./components/WhyJoinSection/WhyJoinSection";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -150,6 +151,9 @@ export default function App() {
 
       {/* Vercel Speed Insights for real-time performance monitoring */}
       <SpeedInsights />
+
+      {/* Vercel Web Analytics for tracking visitor data */}
+      <Analytics />
     </div>
   );
 }

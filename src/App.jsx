@@ -9,6 +9,7 @@ import EventsSection from "./components/EventsSection/EventsSection";
 import RAISection from "./components/RAISection/RAISection";
 import TeamSection from "./components/TeamSection/TeamSection";
 import WhyJoinSection from "./components/WhyJoinSection/WhyJoinSection";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -146,6 +147,9 @@ export default function App() {
 
       {/* Why Join Us Section — Student Club Experience & Innovation */}
       <WhyJoinSection />
+
+      {/* Vercel Speed Insights for real-time performance monitoring */}
+      <SpeedInsights />
     </div>
   );
 }

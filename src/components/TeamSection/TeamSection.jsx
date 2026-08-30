@@ -322,7 +322,7 @@ export default function TeamSection() {
       <svg className="team-svg-defs" aria-hidden="true" style={{ position: "absolute", width: 0, height: 0, pointerEvents: "none" }}>
         <defs>
           <clipPath id="teamCardClip" clipPathUnits="objectBoundingBox">
-            <path d="M 0.0333,0 H 0.9667 A 0.0333,0.0333 0 0 1 1,0.0333 V 0.9667 A 0.0333,0.0333 0 0 1 0.9667,1 H 0.5833 C 0.54,1 0.52,0.92 0.4733,0.92 H 0.0333 A 0.0333,0.0333 0 0 1 0,0.8867 V 0.0333 A 0.0333,0.0333 0 0 1 0.0333,0 Z" />
+            <path d="M 0.0167,0 H 0.9833 A 0.0167,0.0167 0 0 1 1,0.0167 V 0.9833 A 0.0167,0.0167 0 0 1 0.9833,1 H 0.5833 C 0.54,1 0.52,0.92 0.4733,0.92 H 0.0167 A 0.0167,0.0167 0 0 1 0,0.9033 V 0.0167 A 0.0167,0.0167 0 0 1 0.0167,0 Z" />
           </clipPath>
         </defs>
       </svg>
@@ -391,7 +391,7 @@ export default function TeamSection() {
                     >
                       <path
                         className="team-card-path"
-                        d="M 10,0 H 290 A 10,10 0 0 1 300,10 V 290 A 10,10 0 0 1 290,300 H 175 C 162,300 156,276 142,276 H 10 A 10,10 0 0 1 0,266 V 10 A 10,10 0 0 1 10,0 Z"
+                        d="M 5,0 H 295 A 5,5 0 0 1 300,5 V 295 A 5,5 0 0 1 295,300 H 175 C 162,300 156,276 142,276 H 5 A 5,5 0 0 1 0,271 V 5 A 5,5 0 0 1 5,0 Z"
                       />
                     </svg>
 
@@ -472,6 +472,46 @@ export default function TeamSection() {
               })}
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Organic Wave Transition ending Dark Mode */}
+      <div className="team-bottom-wave-wrapper" aria-hidden="true">
+        <svg
+          className="team-bottom-wave-svg"
+          viewBox="0 0 1440 180"
+          preserveAspectRatio="none"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M-10,75 C320,145 620,12 920,88 C1180,145 1340,65 1450,82 L1450,220 L-10,220 Z"
+            fill="#f4f3ee"
+          />
+        </svg>
+      </div>
+
+      {/* Light Mode Section / Team Appreciation & Footer */}
+      <div className="team-light-section">
+        <div className="team-light-container">
+          <div className="team-thanks-content">
+            {/* Robotics and AI Club Logo */}
+            <img
+              src="/RAI/club-icon-light.png"
+              alt="Robotics & AI Club Logo"
+              className="team-thanks-logo"
+              loading="lazy"
+            />
+
+            {/* Centered Thanks Title & Subtext */}
+            <h3 className="team-thanks-title">
+              Special Thanks to All the Team
+            </h3>
+
+            <p className="team-thanks-text">
+              Huge gratitude to all our passionate members, mentors, alumni, and contributors who dedicate their time, talent, and energy to building intelligent systems and pushing the boundaries of robotics and AI at EST Safi.
+            </p>
+          </div>
         </div>
       </div>
     </section>

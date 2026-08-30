@@ -8,6 +8,7 @@ import AboutSection from "./components/AboutSection/AboutSection";
 import EventsSection from "./components/EventsSection/EventsSection";
 import RAISection from "./components/RAISection/RAISection";
 import TeamSection from "./components/TeamSection/TeamSection";
+import WhyJoinSection from "./components/WhyJoinSection/WhyJoinSection";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -142,6 +143,9 @@ export default function App() {
 
       {/* Team Section — Dark mode leadership and members */}
       <TeamSection />
+
+      {/* Why Join Us Section — Student Club Experience & Innovation */}
+      <WhyJoinSection />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -9,17 +9,48 @@ import EventsSection from "./components/EventsSection/EventsSection";
 import RAISection from "./components/RAISection/RAISection";
 import TeamSection from "./components/TeamSection/TeamSection";
 import WhyJoinSection from "./components/WhyJoinSection/WhyJoinSection";
+import Footer from "./components/Footer/Footer";
+import AdminDashboard from "./components/Admin/AdminDashboard";
+import AdminAuthModal from "./components/Admin/AdminAuthModal";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export default function App() {
+  const [isAdminView, setIsAdminView] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.location.hash === "#admin" || window.location.search.includes("view=admin");
+  });
+
   const heroWrapperRef = useRef(null);
   const heroInnerRef = useRef(null);
   const heroHeaderRef = useRef(null);
   const darkOverlayRef = useRef(null);
 
   useEffect(() => {
+    const handleRouteCheck = () => {
+      const isHashAdmin = window.location.hash === "#admin";
+      const isQueryAdmin = window.location.search.includes("view=admin");
+
+      if (isHashAdmin || isQueryAdmin) {
+        setIsAdminView(true);
+      } else {
+        setIsAdminView(false);
+      }
+    };
+
+    handleRouteCheck();
+    window.addEventListener("hashchange", handleRouteCheck);
+    window.addEventListener("popstate", handleRouteCheck);
+    return () => {
+      window.removeEventListener("hashchange", handleRouteCheck);
+      window.removeEventListener("popstate", handleRouteCheck);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isAdminView) return;
+
     const wrapper = heroWrapperRef.current;
     const inner = heroInnerRef.current;
     const header = heroHeaderRef.current;
@@ -85,9 +116,22 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-scroll-container">
-      {/* Hero Wrapper — pinned during scroll zoom-out */}
-      <div ref={heroWrapperRef} className="hero-zoom-wrapper">
+    <>
+      {/* Admin Dashboard Overlay — renders as top-level fixed overlay */}
+      {isAdminView && (
+        <div className="admin-app-wrapper">
+          <AdminDashboard
+            onClose={() => {
+              window.location.hash = "";
+              setIsAdminView(false);
+            }}
+          />
+        </div>
+      )}
+
+      <div className="app-scroll-container">
+        {/* Hero Wrapper — pinned during scroll zoom-out */}
+        <div ref={heroWrapperRef} className="hero-zoom-wrapper">
         {/* Subtle topographic contour lines background */}
         <div className="hero-topo-bg" aria-hidden="true">
           <svg viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -148,8 +192,17 @@ export default function App() {
       {/* Why Join Us Section — Student Club Experience & Innovation */}
       <WhyJoinSection />
 
-      {/* Vercel Speed Insights for real-time performance monitoring */}
-      <SpeedInsights />
-    </div>
+      {/* Footer — Navigation, university affiliation and admin gateway */}
+      <Footer
+        onOpenAdmin={() => {
+          window.location.hash = "admin";
+          setIsAdminView(true);
+        }}
+      />
+
+        {/* Vercel Speed Insights for real-time performance monitoring */}
+        <SpeedInsights />
+      </div>
+    </>
   );
 }

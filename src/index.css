@@ -80,6 +80,21 @@ body {
   background: #0a0e1a;
 }
 
+/* ---- Admin Dashboard full-viewport wrapper ---- */
+.admin-app-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999999;
+  background: #0a0c14;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
 .hero-zoom-wrapper {
   position: relative;
   z-index: 3;

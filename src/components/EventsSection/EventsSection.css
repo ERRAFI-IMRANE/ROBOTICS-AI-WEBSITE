@@ -3,10 +3,11 @@
   position: relative;
   width: 100%;
   height: 100vh;
+  min-height: 650px;
   overflow: hidden;
   background-color: #0a0e1a;
   color: #f0f2f5;
-  transition: color 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.8s cubic-bezier(0.16, 1, 0.3, 1), color 0.8s ease;
   display: flex;
   align-items: center;
   z-index: 3;
@@ -36,7 +37,7 @@
 }
 
 .events-tag-badge {
-  font-family: var(--heading);
+  font-family: var(--heading, sans-serif);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 3px;
@@ -44,31 +45,32 @@
   text-transform: uppercase;
 }
 
-/* Horizontal Track — starts with first card on right half of screen */
+/* Horizontal Track — perfectly smooth horizontal translation */
 .events-horizontal-track {
   display: flex;
   align-items: center;
   height: 100%;
-  /* Large initial padding pushes first card to the right side of the screen */
-  padding-left: calc(52vw);
-  padding-right: 60px;
-  gap: 75px;
+  padding-left: 28vw;
+  padding-right: 180px;
+  gap: 56px;
   position: relative;
   z-index: 2;
   will-change: transform;
+  overflow: visible;
 }
 
 /* Event Card Wrapper */
 .event-card-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   position: relative;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
+  will-change: transform;
 }
 
-/* Refined Square Image Card Sizes (Smaller, Small, Medium, Large) */
+/* Refined Square Image Card Sizes */
 .size-smaller {
   width: 220px;
 }
@@ -79,29 +81,29 @@
 }
 
 .size-small {
-  width: 280px;
+  width: 260px;
 }
 
 .size-small .event-image-container {
-  height: 280px;
+  height: 260px;
   aspect-ratio: 1 / 1;
 }
 
 .size-medium {
-  width: 360px;
+  width: 320px;
 }
 
 .size-medium .event-image-container {
-  height: 360px;
+  height: 320px;
   aspect-ratio: 1 / 1;
 }
 
 .size-large {
-  width: 450px;
+  width: 380px;
 }
 
 .size-large .event-image-container {
-  height: 450px;
+  height: 380px;
   aspect-ratio: 1 / 1;
 }
 
@@ -115,7 +117,7 @@
 .event-meta {
   display: flex;
   align-items: center;
-  font-family: var(--heading);
+  font-family: var(--heading, sans-serif);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -158,12 +160,12 @@
 .event-image-container {
   position: relative;
   width: 100%;
-  border-radius: 0px;
-  /* Sharp 90-degree corners */
+  border-radius: 4px;
   overflow: hidden;
   background: #1e293b;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
-  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .event-img {
@@ -171,29 +173,30 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 0px;
-  /* Sharp 90-degree corners */
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .event-img-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top,
-      rgba(10, 14, 26, 0.45) 0%,
-      transparent 60%);
-  opacity: 0.5;
-  transition: opacity 0.4s ease;
+  background: linear-gradient(
+    to top,
+    rgba(10, 14, 26, 0.5) 0%,
+    transparent 60%
+  );
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
 }
 
 /* Card Hover State */
 .event-card-link:hover .event-image-container {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.32);
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .event-card-link:hover .event-img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 
 /* Info Bar: Single Line Title & Arrow */
@@ -207,10 +210,10 @@
 }
 
 .event-card-title {
-  font-family: var(--heading);
+  font-family: var(--heading, sans-serif);
   font-size: 14px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: 700;
+  line-height: 1.3;
   letter-spacing: -0.01em;
   margin: 0;
   color: currentColor;
@@ -222,71 +225,65 @@
 
 .event-title-char {
   display: inline;
-  opacity: 0;
-  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1;
 }
 
 .event-typing-cursor {
   display: inline-block;
-  width: 3px;
+  width: 2px;
   height: 0.85em;
   background-color: #3b82f6;
   margin-left: 2px;
   vertical-align: middle;
   border-radius: 1px;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.9), 0 0 3px #ffffff;
-  animation: cursorBlink 1.0s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.8);
   opacity: 0;
 }
 
 .event-link-arrow {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: #3b82f6;
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease;
   flex-shrink: 0;
 }
 
 .event-card-link:hover .event-link-arrow {
-  transform: translate(3px, -3px);
+  transform: translate(2px, -2px);
 }
 
 /* Responsive Scaling */
 @media (max-width: 900px) {
   .events-horizontal-track {
-    padding-left: 30px;
-    gap: 40px;
+    padding-left: 20px;
+    gap: 36px;
   }
 
   .size-smaller {
     width: 180px;
   }
-
   .size-smaller .event-image-container {
     height: 180px;
   }
 
   .size-small {
-    width: 220px;
+    width: 210px;
   }
-
   .size-small .event-image-container {
-    height: 220px;
+    height: 210px;
   }
 
   .size-medium {
-    width: 280px;
+    width: 250px;
   }
-
   .size-medium .event-image-container {
-    height: 280px;
+    height: 250px;
   }
 
   .size-large {
-    width: 340px;
+    width: 290px;
   }
-
   .size-large .event-image-container {
-    height: 340px;
+    height: 290px;
   }
 }

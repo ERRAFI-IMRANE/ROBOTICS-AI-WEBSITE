@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import EventsList from "../EventsList";
@@ -10,119 +10,42 @@ export default function EventsSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
 
+  const refreshScroll = useCallback(() => {
+    ScrollTrigger.refresh();
+  }, []);
+
   useEffect(() => {
     const section = sectionRef.current;
     const track = trackRef.current;
     if (!section || !track) return;
 
-    // track.scrollWidth already includes padding-left: 52vw and padding-right: 200px.
-    // x_end = -(scrollWidth - innerWidth) scrolls until the right edge of the track
-    // (= right edge of last card + 200px padding-right) aligns with the viewport's right edge.
-    const getXEnd = () => -(track.scrollWidth - window.innerWidth);
+    const getScrollDistance = () => Math.max(0, track.scrollWidth - window.innerWidth + 60);
 
-    // Automatically triggers title typing when an event card's image enters the screen,
-    // typing continuously character-by-character without requiring further scrolling.
-    const updateTitleReveals = () => {
-      const cards = track.querySelectorAll(".event-card-wrapper");
-      const winW = window.innerWidth;
-      const triggerThreshold = winW * 0.90; // Triggers as soon as card image enters screen
-
-      cards.forEach((card) => {
-        const rect = card.getBoundingClientRect();
-        const isVisible = rect.left < triggerThreshold && rect.right > 0;
-
-        if (isVisible) {
-          if (card.dataset.typingStarted !== "true") {
-            card.dataset.typingStarted = "true";
-
-            if (card._typingTimer) clearInterval(card._typingTimer);
-
-            const chars = card.querySelectorAll(".event-title-char");
-            const cursor = card.querySelector(".event-typing-cursor");
-            const total = chars.length;
-
-            if (total > 0) {
-              chars.forEach((c) => (c.style.opacity = "0"));
-              if (cursor && chars[0] && chars[0].parentNode) {
-                chars[0].insertAdjacentElement("beforebegin", cursor);
-                cursor.style.display = "inline-block";
-                cursor.style.opacity = "1";
-              }
-
-              let currentIndex = 0;
-              card._typingTimer = setInterval(() => {
-                if (currentIndex < total) {
-                  chars[currentIndex].style.opacity = "1";
-                  const targetChar = chars[currentIndex];
-                  if (targetChar && targetChar.parentNode && cursor) {
-                    targetChar.insertAdjacentElement("afterend", cursor);
-                    cursor.style.display = "inline-block";
-                    cursor.style.opacity = "1";
-                  }
-                  currentIndex++;
-                } else {
-                  clearInterval(card._typingTimer);
-                  card._typingTimer = null;
-                  if (cursor) {
-                    cursor.style.display = "none";
-                    cursor.style.opacity = "0";
-                  }
-                }
-              }, 45); // Smooth 45ms auto-typing speed per character
-            }
-          }
-        } else if (rect.left >= winW * 0.95) {
-          // Card scrolled back off-screen to the right -> reset for re-typing when coming back
-          if (card.dataset.typingStarted === "true") {
-            if (card._typingTimer) {
-              clearInterval(card._typingTimer);
-              card._typingTimer = null;
-            }
-            card.dataset.typingStarted = "false";
-
-            const chars = card.querySelectorAll(".event-title-char");
-            const cursor = card.querySelector(".event-typing-cursor");
-
-            chars.forEach((c) => (c.style.opacity = "0"));
-            if (cursor && chars[0] && chars[0].parentNode) {
-              chars[0].insertAdjacentElement("beforebegin", cursor);
-              cursor.style.display = "inline-block";
-              cursor.style.opacity = "1";
-            }
-          }
-        }
-      });
-    };
-
-    // Pin section, scroll gallery items horizontally with smooth physics, and interpolate dark-to-light mode continuously
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: section,
         pin: true,
         pinSpacing: true,
-        scrub: 1.5,
+        scrub: 1,
         start: "top top",
-        // Add 500px extra to the scroll distance to compensate for scrub lag at the end
-        end: () => `+=${track.scrollWidth - window.innerWidth + 500}`,
+        end: () => `+=${getScrollDistance()}`,
         anticipatePin: 1,
-        refreshPriority: 1,
-        onUpdate: updateTitleReveals,
-        onRefresh: updateTitleReveals,
+        invalidateOnRefresh: true,
       },
     });
 
-    // Horizontal track glide — stops exactly when the last card is fully in view
+    // Seamless horizontal glide without clipping or early cutoff
     tl.to(
       track,
       {
-        x: getXEnd,
+        x: () => -getScrollDistance(),
         ease: "none",
         duration: 1,
       },
       0
     );
 
-    // Continuous Dark (#0a0e1a) -> 100% Light (#f4f3ee) transition with scroll
+    // Continuous theme ambiance transition
     tl.to(
       section,
       {
@@ -134,22 +57,18 @@ export default function EventsSection() {
       0
     );
 
-    // Initial calculation for cards already in viewport
-    updateTitleReveals();
+    // ResizeObserver dynamically recalculates bounds when images and Supabase cards finish mounting
+    const resizeObserver = new ResizeObserver(() => {
+      ScrollTrigger.refresh();
+    });
+    resizeObserver.observe(track);
 
     return () => {
-      const cards = track.querySelectorAll(".event-card-wrapper");
-      cards.forEach((card) => {
-        if (card._typingTimer) clearInterval(card._typingTimer);
-      });
+      resizeObserver.disconnect();
       tl.scrollTrigger?.kill();
       tl.kill();
     };
   }, []);
-
-  const handleEventsLoaded = () => {
-    ScrollTrigger.refresh();
-  };
 
   return (
     <section ref={sectionRef} id="events" className="events-section-pin">
@@ -178,8 +97,7 @@ export default function EventsSection() {
 
       {/* Horizontal Gallery Track */}
       <div ref={trackRef} className="events-horizontal-track">
-        {/* Supabase Events List */}
-        <EventsList onLoaded={handleEventsLoaded} />
+        <EventsList onLoaded={refreshScroll} />
       </div>
     </section>
   );

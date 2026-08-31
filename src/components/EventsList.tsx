@@ -7,8 +7,12 @@ export interface EventRow {
     title?: string;
     date?: string;
     image?: string;
+    image_url?: string;
     [key: string]: any;
   } | null;
+  title?: string;
+  date?: string;
+  image?: string;
   image_url?: string | null;
   created_at?: string;
 }
@@ -17,8 +21,9 @@ interface EventsListProps {
   onLoaded?: () => void;
 }
 
-const CARD_SIZES = ["medium", "smaller", "large", "small"];
-const OFFSETS = ["50px", "-80px", "60px", "-40px", "30px", "-90px", "70px", "-50px", "40px", "-60px"];
+const CARD_SIZES = ["medium", "small", "large", "medium", "small"];
+// Subtle, balanced vertical offsets so cards are never cropped at top/bottom of the screen
+const OFFSETS = ["15px", "-15px", "20px", "-10px", "10px", "-20px"];
 
 const MONTH_MAP: Record<string, number> = {
   jan: 0, janv: 0, janvier: 0, january: 0,
@@ -36,8 +41,9 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 export function parseEventDate(item: EventRow): number {
-  const dateStr = item.data?.date || "";
-  const titleStr = item.data?.title || "";
+  const dataObj = item?.data || {};
+  const dateStr = String(dataObj.date || item?.date || "");
+  const titleStr = String(dataObj.title || item?.title || "");
 
   // 1. Extract 4-digit year from date string or title
   let year: number | null = null;
@@ -51,7 +57,7 @@ export function parseEventDate(item: EventRow): number {
     }
   }
 
-  if (!year && item.created_at) {
+  if (!year && item?.created_at) {
     const parsedCreated = new Date(item.created_at).getFullYear();
     if (!isNaN(parsedCreated)) {
       year = parsedCreated;
@@ -101,7 +107,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
         if (fetchErr) {
           console.error("Error fetching events from Supabase:", fetchErr);
           setError(fetchErr.message);
-        } else if (data) {
+        } else if (data && Array.isArray(data)) {
           // Sort events from newest to oldest by event date
           const sortedEvents = [...data].sort((a, b) => parseEventDate(b) - parseEventDate(a));
           setEvents(sortedEvents);
@@ -112,7 +118,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
       } finally {
         setLoading(false);
         if (onLoaded) {
-          setTimeout(onLoaded, 100);
+          setTimeout(onLoaded, 50);
         }
       }
     }
@@ -122,8 +128,8 @@ export default function EventsList({ onLoaded }: EventsListProps) {
 
   if (loading) {
     return (
-      <div className="events-loading" style={{ padding: "40px", color: "#94a3b8", fontSize: "16px" }}>
-        Loading events from Supabase...
+      <div className="events-loading" style={{ padding: "40px", color: "#94a3b8", fontSize: "15px" }}>
+        Loading events...
       </div>
     );
   }
@@ -138,7 +144,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
 
   if (!events.length) {
     return (
-      <div className="events-empty" style={{ padding: "40px", color: "#94a3b8", fontSize: "16px" }}>
+      <div className="events-empty" style={{ padding: "40px", color: "#94a3b8", fontSize: "15px" }}>
         No events found.
       </div>
     );
@@ -147,12 +153,14 @@ export default function EventsList({ onLoaded }: EventsListProps) {
   return (
     <>
       {events.map((item, index) => {
-        // Extract title, date, image from jsonb data column or direct columns
-        const title = item.data?.title || "UNTITLED EVENT";
-        const date = item.data?.date || "";
+        const dataObj = item?.data || {};
+        const title = String(dataObj.title || item?.title || "UNTITLED EVENT");
+        const date = String(dataObj.date || item?.date || "");
         const image =
-          item.image_url ||
-          item.data?.image ||
+          item?.image_url ||
+          dataObj.image_url ||
+          dataObj.image ||
+          item?.image ||
           "/events/summit.png";
 
         const size = CARD_SIZES[index % CARD_SIZES.length];
@@ -161,9 +169,10 @@ export default function EventsList({ onLoaded }: EventsListProps) {
 
         return (
           <div
-            key={item.id || index}
-            className={`event-card-wrapper size-${size} ${isImgTop ? "img-top" : "img-bottom"
-              }`}
+            key={item?.id || index}
+            className={`event-card-wrapper size-${size} ${
+              isImgTop ? "img-top" : "img-bottom"
+            }`}
             style={{ transform: `translateY(${offsetY})` }}
           >
             <a
@@ -175,10 +184,12 @@ export default function EventsList({ onLoaded }: EventsListProps) {
                 <img
                   src={image}
                   alt={title}
-                  loading="lazy"
+                  loading="eager"
                   className="event-img"
+                  onLoad={() => {
+                    if (onLoaded) onLoaded();
+                  }}
                   onError={(e) => {
-                    // Fallback to placeholder if image fails to load
                     (e.target as HTMLImageElement).src = "/events/summit.png";
                   }}
                 />
@@ -193,12 +204,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
                 )}
                 <div className="event-card-info">
                   <h3 className="event-card-title">
-                    {title.split("").map((char, ci) => (
-                      <span key={ci} className="event-title-char">
-                        {char === " " ? "\u00A0" : char}
-                      </span>
-                    ))}
-                    <span className="event-typing-cursor" aria-hidden="true" />
+                    <span className="event-title-char">{title}</span>
                   </h3>
                   <span className="event-link-arrow">↗</span>
                 </div>

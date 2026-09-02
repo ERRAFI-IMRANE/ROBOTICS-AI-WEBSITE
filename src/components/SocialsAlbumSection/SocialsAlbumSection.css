@@ -1,0 +1,283 @@
+/* Socials Album Section — What's Up On Socials Fanned Deck */
+.socials-album-section {
+  position: relative;
+  width: 100%;
+  background-color: #f4f3ee;
+  color: #0f172a;
+  overflow: hidden;
+  padding: clamp(85px, 9vw, 135px) 0 clamp(70px, 8vw, 110px);
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.socials-album-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* Header: Club Logo + WHAT'S UP ON SOCIALS */
+.socials-album-header {
+  margin-bottom: clamp(16px, 2.5vw, 28px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.socials-club-logo-wrap {
+  width: clamp(48px, 5.5vw, 66px);
+  height: auto;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.socials-club-logo-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+}
+
+.socials-album-heading {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.94;
+}
+
+.socials-heading-sans {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(2.1rem, 4.4vw, 3.8rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #0a0e1a;
+  text-transform: uppercase;
+  display: block;
+}
+
+.socials-heading-serif {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: clamp(2rem, 4.2vw, 3.6rem);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0a0e1a;
+  display: block;
+  margin-top: 1px;
+}
+
+/* Fanned Picture Album Deck for 7 Cards */
+.socials-album-deck {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  width: 100%;
+  max-width: 1360px;
+  margin: clamp(20px, 3.5vw, 40px) auto clamp(25px, 3.5vw, 45px);
+  padding: 45px 10px;
+  perspective: 1200px;
+}
+
+/* Individual Picture Card */
+.socials-album-card {
+  position: relative;
+  width: clamp(160px, 18vw, 255px);
+  height: clamp(255px, 28vw, 400px);
+  border-radius: clamp(24px, 2.6vw, 34px);
+  margin: 0 clamp(-50px, -4.2vw, -22px);
+  flex-shrink: 0;
+  text-decoration: none;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.22);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s ease;
+  will-change: transform, box-shadow;
+}
+
+/* 7-Card Curved Fan Deck Hierarchy */
+.socials-card-pos-0 {
+  transform: rotate(-24deg) translateY(56px) scale(0.86);
+  z-index: 1;
+}
+
+.socials-card-pos-1 {
+  transform: rotate(-16deg) translateY(28px) scale(0.91);
+  z-index: 3;
+}
+
+.socials-card-pos-2 {
+  transform: rotate(-8deg) translateY(9px) scale(0.96);
+  z-index: 5;
+}
+
+.socials-card-pos-3 {
+  transform: rotate(0deg) translateY(0px) scale(1);
+  z-index: 7;
+}
+
+.socials-card-pos-4 {
+  transform: rotate(8deg) translateY(9px) scale(0.96);
+  z-index: 5;
+}
+
+.socials-card-pos-5 {
+  transform: rotate(16deg) translateY(28px) scale(0.91);
+  z-index: 3;
+}
+
+.socials-card-pos-6 {
+  transform: rotate(24deg) translateY(56px) scale(0.86);
+  z-index: 1;
+}
+
+/* Interactive Hover / Selected State (No Border Ring) */
+.socials-album-card:hover,
+.socials-album-card:focus-visible,
+.socials-album-card.is-selected {
+  transform: translateY(-40px) rotate(0deg) scale(1.15) !important;
+  z-index: 40 !important;
+  box-shadow: 0 34px 75px -10px rgba(0, 0, 0, 0.45) !important;
+  outline: none !important;
+  border: none !important;
+}
+
+/* Media Wrap & Card Image */
+.socials-card-media-wrap {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  position: relative;
+  background-color: #1e293b;
+}
+
+.socials-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.socials-album-card:hover .socials-card-img {
+  transform: scale(1.05);
+}
+
+.socials-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, transparent 50%);
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.socials-album-card:hover .socials-card-overlay {
+  opacity: 0.3;
+}
+
+/* Footer: Follow prompt & Social links list */
+.socials-album-footer {
+  margin-top: clamp(20px, 3vw, 40px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.socials-follow-prompt {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.35rem, 2.3vw, 1.95rem);
+  font-style: italic;
+  font-weight: 600;
+  color: #0a0e1a;
+  margin: 0 0 clamp(16px, 2.5vw, 24px) 0;
+  letter-spacing: -0.01em;
+}
+
+.socials-links-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(14px, 3vw, 32px);
+  flex-wrap: wrap;
+}
+
+.social-channel-link {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(11px, 1vw, 13px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0a0e1a;
+  text-decoration: none;
+  padding: 6px 10px;
+  position: relative;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.social-channel-link::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: #2563eb;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.social-channel-link:hover {
+  color: #2563eb;
+  transform: translateY(-2px);
+}
+
+.social-channel-link:hover::after {
+  width: 100%;
+  left: 0;
+}
+
+/* Responsive Adaptations */
+@media (max-width: 900px) {
+  .socials-album-deck {
+    padding: 30px 4px;
+    margin: 20px auto 30px;
+  }
+
+  .socials-album-card {
+    width: clamp(125px, 20vw, 185px);
+    height: clamp(195px, 31vw, 285px);
+    margin: 0 clamp(-38px, -4.2vw, -16px);
+  }
+}
+
+@media (max-width: 600px) {
+  .socials-album-deck {
+    padding: 25px 0;
+    margin: 15px auto 25px;
+  }
+
+  .socials-album-card {
+    width: clamp(95px, 24vw, 135px);
+    height: clamp(155px, 38vw, 215px);
+    margin: 0 clamp(-28px, -4vw, -12px);
+    border-radius: 16px;
+  }
+
+  .socials-links-row {
+    gap: 12px;
+  }
+
+  .social-channel-link {
+    padding: 4px 6px;
+  }
+}

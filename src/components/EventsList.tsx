@@ -8,13 +8,20 @@ export interface EventRow {
     date?: string;
     image?: string;
     image_url?: string;
+    link?: string;
+    links?: string;
+    url?: string;
     [key: string]: any;
   } | null;
   title?: string;
   date?: string;
   image?: string;
   image_url?: string | null;
+  link?: string;
+  links?: string;
+  url?: string;
   created_at?: string;
+  [key: string]: any;
 }
 
 interface EventsListProps {
@@ -90,6 +97,64 @@ export function parseEventDate(item: EventRow): number {
   return new Date(Date.UTC(year, month, day)).getTime();
 }
 
+export function getEventLink(item: EventRow): string {
+  if (!item) return "";
+  let dataObj: any = item.data;
+  if (typeof dataObj === "string") {
+    try {
+      dataObj = JSON.parse(dataObj);
+    } catch {
+      dataObj = {};
+    }
+  }
+  if (!dataObj || typeof dataObj !== "object") {
+    dataObj = {};
+  }
+
+  let rawLink =
+    item.links ??
+    item.link ??
+    dataObj.links ??
+    dataObj.link ??
+    item.url ??
+    dataObj.url ??
+    item.website ??
+    dataObj.website ??
+    item.event_link ??
+    dataObj.event_link ??
+    item.href ??
+    dataObj.href ??
+    "";
+
+  if (Array.isArray(rawLink)) {
+    const found = rawLink.find((l) => typeof l === "string" && l.trim()) || rawLink[0];
+    if (typeof found === "string") {
+      rawLink = found;
+    } else if (found && typeof found === "object") {
+      rawLink = found.url || found.link || found.href || "";
+    }
+  } else if (rawLink && typeof rawLink === "object") {
+    rawLink = rawLink.url || rawLink.link || rawLink.href || "";
+  }
+
+  if (typeof rawLink !== "string") return "";
+  const trimmed = rawLink.trim();
+  if (!trimmed) return "";
+
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("mailto:") ||
+    trimmed.startsWith("tel:") ||
+    trimmed.startsWith("#") ||
+    trimmed.startsWith("/")
+  ) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
+
 export default function EventsList({ onLoaded }: EventsListProps) {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -153,15 +218,27 @@ export default function EventsList({ onLoaded }: EventsListProps) {
   return (
     <>
       {events.map((item, index) => {
-        const dataObj = item?.data || {};
-        const title = String(dataObj.title || item?.title || "UNTITLED EVENT");
-        const date = String(dataObj.date || item?.date || "");
+        const dataObj = item?.data && typeof item.data === "object" ? item.data : {};
+        let parsedData = dataObj;
+        if (typeof item?.data === "string") {
+          try {
+            parsedData = JSON.parse(item.data);
+          } catch {
+            parsedData = {};
+          }
+        }
+
+        const title = String(parsedData.title || item?.title || "UNTITLED EVENT");
+        const date = String(parsedData.date || item?.date || "");
         const image =
           item?.image_url ||
-          dataObj.image_url ||
-          dataObj.image ||
+          parsedData.image_url ||
+          parsedData.image ||
           item?.image ||
           "/events/summit.png";
+
+        const eventLink = getEventLink(item);
+        const isExternal = /^https?:\/\//i.test(eventLink);
 
         const size = CARD_SIZES[index % CARD_SIZES.length];
         const offsetY = OFFSETS[index % OFFSETS.length];
@@ -176,9 +253,16 @@ export default function EventsList({ onLoaded }: EventsListProps) {
             style={{ transform: `translateY(${offsetY})` }}
           >
             <a
-              href="#events"
+              href={eventLink || "#events"}
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
               className="event-card-link"
               aria-label={`View details for ${title}`}
+              onClick={(e) => {
+                if (!eventLink || eventLink === "#events") {
+                  e.preventDefault();
+                }
+              }}
             >
               <div className="event-image-container">
                 <img

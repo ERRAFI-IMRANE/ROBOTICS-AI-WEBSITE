@@ -45,7 +45,7 @@ export default function EventsSection() {
       0
     );
 
-    // Continuous theme ambiance transition
+    // Continuous theme ambiance transition - scrub background, text and title colors
     tl.to(
       section,
       {
@@ -72,6 +72,12 @@ export default function EventsSection() {
 
   return (
     <section ref={sectionRef} id="events" className="events-section-pin">
+      {/* Fixed Section Header Badge & Title */}
+      <div className="events-header-fixed">
+        <span className="events-tag-badge">EXPLORE</span>
+        <h2 className="events-fixed-title">EVENTS</h2>
+      </div>
+
       {/* Topographic Contour Line Background Pattern */}
       <div className="topographic-bg" aria-hidden="true">
         <svg viewBox="0 0 1440 900" fill="none" preserveAspectRatio="none">

@@ -1,8 +1,57 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Component } from "react";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminEvents from "./AdminEvents";
 import AdminTeam from "./AdminTeam";
 import "./AdminDashboard.css";
+
+class AdminErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Admin tab error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="admin-tab-content">
+          <div
+            className="admin-panel"
+            style={{
+              textAlign: "center",
+              padding: "40px 20px",
+              maxWidth: "560px",
+              margin: "40px auto",
+              border: "1px solid var(--critical)",
+            }}
+          >
+            <h3 style={{ color: "var(--critical)", margin: "0 0 8px", fontSize: "16px" }}>
+              Panel Render Notice
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "0 0 16px" }}>
+              {this.state.error?.message || "An unexpected error occurred while loading this view."}
+            </p>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => this.setState({ hasError: false, error: null })}
+            >
+              Retry loading view
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function AdminDashboard({ onClose }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -360,22 +409,23 @@ export default function AdminDashboard({ onClose }) {
         </header>
 
         {/* Dynamic Tab Views */}
-        {activeTab === "overview" && <AdminAnalytics eventsCount={12} membersCount={118} />}
-        {activeTab === "members" && <AdminTeam />}
-        {activeTab === "events" && <AdminEvents />}
+        <AdminErrorBoundary key={activeTab}>
+          {activeTab === "overview" && <AdminAnalytics eventsCount={12} membersCount={118} />}
+          {activeTab === "members" && <AdminTeam />}
+          {activeTab === "events" && <AdminEvents />}
 
-        {/* Active Projects View */}
-        {activeTab === "projects" && (
-          <div className="admin-tab-content">
-            <div className="admin-view-header">
-              <div>
-                <h1 className="admin-page-title">Engineering projects</h1>
-                <p className="admin-page-desc">Autonomous systems, drone firmware, and embedded AI builds.</p>
+          {/* Active Projects View */}
+          {activeTab === "projects" && (
+            <div className="admin-tab-content">
+              <div className="admin-view-header">
+                <div>
+                  <h1 className="admin-page-title">Engineering projects</h1>
+                  <p className="admin-page-desc">Autonomous systems, drone firmware, and embedded AI builds.</p>
+                </div>
+                <div className="admin-header-actions">
+                  <button type="button" className="btn-primary">Add project</button>
+                </div>
               </div>
-              <div className="admin-header-actions">
-                <button type="button" className="btn-primary">Add project</button>
-              </div>
-            </div>
 
             <div className="admin-panel">
               <div className="admin-panel-header">
@@ -677,10 +727,10 @@ export default function AdminDashboard({ onClose }) {
 
                 <div className="form-field-group" style={{ marginBottom: "14px" }}>
                   <label className="form-field-label">Active season</label>
-                  <select className="form-select-input" defaultValue="2025-2026">
-                    <option value="2025-2026">2025-2026 (Active)</option>
-                    <option value="2024-2025">2024-2025 (Archived)</option>
-                    <option value="2023-2024">2023-2024 (Archived)</option>
+                  <select className="form-select-input" defaultValue="25-26">
+                    <option value="26-27">26-27 (Upcoming)</option>
+                    <option value="25-26">25-26 (Active)</option>
+                    <option value="24-25">24-25 (Archived)</option>
                   </select>
                 </div>
 
@@ -720,6 +770,7 @@ export default function AdminDashboard({ onClose }) {
             </div>
           </div>
         )}
+        </AdminErrorBoundary>
       </main>
     </div>
   );

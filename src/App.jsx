@@ -9,7 +9,10 @@ import EventsSection from "./components/EventsSection/EventsSection";
 import RAISection from "./components/RAISection/RAISection";
 import TeamSection from "./components/TeamSection/TeamSection";
 import WhyJoinSection from "./components/WhyJoinSection/WhyJoinSection";
+import PartnersSection from "./components/PartnersSection/PartnersSection";
+import SocialsAlbumSection from "./components/SocialsAlbumSection/SocialsAlbumSection";
 import Footer from "./components/Footer/Footer";
+import { AmbientTicker } from "./components/common/TextAnimations";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 import AdminAuthModal from "./components/Admin/AdminAuthModal";
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -177,6 +180,9 @@ export default function App() {
 
       <HeroHeader headerRef={heroHeaderRef} />
 
+      {/* 3. Ambient Marquee Ticker — continuous linear infinite loop */}
+      <AmbientTicker text="EST SAFI · ROBOTICS & AI CLUB · EST. 2024 · INNOVATE · BUILD · COMPETE · DISCOVER · AUTONOMOUS SYSTEMS · AI RESEARCH" />
+
       {/* About Section — appears after zoom-out completes */}
       <AboutSection />
 
@@ -191,6 +197,12 @@ export default function App() {
 
       {/* Why Join Us Section — Student Club Experience & Innovation */}
       <WhyJoinSection />
+
+      {/* Partners & Campaigns Section — Infinite Marquee & Collaborations */}
+      <PartnersSection />
+
+      {/* Socials Album Section — What's Up On Socials Fanned Picture Deck */}
+      <SocialsAlbumSection />
 
       {/* Footer — Navigation, university affiliation and admin gateway */}
       <Footer

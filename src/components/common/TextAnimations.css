@@ -1,0 +1,290 @@
+/* ==========================================================================
+   Text Animations & Micro-Interactions System
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. PRELOADER GATE & 2. HERO HEADLINE ENTRANCE
+   -------------------------------------------------------------------------- */
+
+.preloader-gate-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 18, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
+  pointer-events: auto;
+}
+
+.preloader-gate-backdrop.is-dismissed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.preloader-gate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 36px;
+  background: rgba(10, 14, 26, 0.85);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(37, 99, 235, 0.2);
+  text-align: center;
+}
+
+.preloader-tagline {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.preloader-btn-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: 1px solid rgba(147, 197, 253, 0.3);
+  border-radius: 8px;
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.preloader-btn-trigger:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 8px 30px rgba(37, 99, 235, 0.85);
+}
+
+.preloader-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 10px #60a5fa;
+  animation: preloaderDotPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes preloaderDotPulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Hero Headline Words Stagger Entrance */
+.hero-headline-stagger-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  width: 90%;
+  max-width: 1100px;
+  text-align: center;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-stagger-h1 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 18px;
+  line-height: 1.05;
+}
+
+.hero-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  padding: 4px 2px;
+}
+
+.hero-word-inner {
+  display: inline-block;
+  font-family: var(--heading, 'Bricolage Grotesque', sans-serif);
+  font-size: clamp(2.4rem, 6vw, 5.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #08060d;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(28px);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease;
+  transition-delay: calc(var(--word-idx, 0) * 50ms);
+  will-change: transform, opacity;
+}
+
+.hero-word-inner.hero-word--blue {
+  color: #2563eb;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-headline-stagger-wrap.is-revealed .hero-word-inner {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   3. MARQUEE TICKER TEXT (Linear infinite horizontal ambient ticker)
+   -------------------------------------------------------------------------- */
+
+.ambient-ticker-bar {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: #080b14;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px 0;
+  z-index: 5;
+  user-select: none;
+}
+
+.ambient-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ambientTickerLoop 30s linear infinite;
+  will-change: transform;
+}
+
+@keyframes ambientTickerLoop {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ambient-ticker-text {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #64748b; /* text-muted */
+  text-transform: uppercase;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  padding-right: 24px;
+}
+
+.ambient-ticker-dot {
+  color: #3b82f6;
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+/* --------------------------------------------------------------------------
+   5. SECTION HEADING REVEAL (Mask / clip-path bottom-to-top wipe)
+   -------------------------------------------------------------------------- */
+
+.reveal-heading-mask {
+  display: block;
+  overflow: hidden;
+  line-height: inherit;
+  margin: 0;
+  padding: 2px 0;
+}
+
+.reveal-heading-text {
+  display: block;
+  transform: translateY(115%);
+  transition: transform 0.68s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--line-delay, 0ms);
+  will-change: transform;
+}
+
+.reveal-heading-mask.is-revealed .reveal-heading-text {
+  transform: translateY(0%);
+}
+
+/* --------------------------------------------------------------------------
+   6. LINK / NAV HOVER MICRO-INTERACTIONS (Smooth sliding underline & color shift)
+   -------------------------------------------------------------------------- */
+
+.anim-link-underline {
+  position: relative;
+  text-decoration: none !important;
+  color: inherit;
+  display: inline-block;
+  transition: color 0.22s ease;
+}
+
+.anim-link-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #3b82f6; /* accent token */
+  transform: scaleX(0);
+  transform-origin: left bottom;
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.anim-link-underline:hover {
+  color: #3b82f6 !important;
+}
+
+.anim-link-underline:hover::after,
+.anim-link-underline:focus-visible::after {
+  transform: scaleX(1);
+}
+
+/* --------------------------------------------------------------------------
+   PREFERS-REDUCED-MOTION OVERRIDES
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader-gate-backdrop {
+    display: none !important;
+  }
+
+  .hero-word-inner {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .reveal-heading-text {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .ambient-ticker-track {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .anim-link-underline::after {
+    transition: none !important;
+  }
+}

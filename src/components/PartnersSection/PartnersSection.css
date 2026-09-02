@@ -1,0 +1,209 @@
+/* Partners & Campaigns Section — Lando Norris Inspired Editorial Layout */
+.partners-section {
+  position: relative;
+  width: 100%;
+  background-color: #f4f3ee;
+  color: #0f172a;
+  overflow: hidden;
+  padding: clamp(90px, 10vw, 140px) 0 clamp(70px, 8vw, 110px);
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.partners-content-wrap {
+  position: relative;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 5vw, 64px);
+  z-index: 2;
+}
+
+/* Overlaid Club Sign (in place of yellow collab sign) */
+.partners-club-sign-backdrop {
+  position: absolute;
+  top: 46%;
+  left: 36%;
+  transform: translate(-50%, -50%) rotate(-20deg);
+  width: clamp(440px, 62vw, 900px);
+  max-height: 500px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+  opacity: 0.75;
+  filter: drop-shadow(0 18px 45px rgba(0, 0, 0, 0.13));
+}
+
+.partners-club-sign-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+/* Header Split: Bold Title on Left, Narrative on Right */
+.partners-header-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 48px;
+  position: relative;
+  z-index: 2;
+}
+
+.partners-title-block {
+  flex: 1 1 auto;
+}
+
+.partners-main-heading {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 0.92;
+}
+
+.partners-title-sans {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(2.8rem, 5.8vw, 5.2rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #0a0e1a;
+  text-transform: uppercase;
+  display: block;
+}
+
+.partners-title-serif {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.6rem, 5.4vw, 4.9rem);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0a0e1a;
+  display: block;
+  margin-top: 2px;
+}
+
+.partners-narrative-block {
+  flex: 0 1 420px;
+  max-width: 420px;
+  padding-top: clamp(32px, 3.8vw, 54px);
+}
+
+.partners-narrative-text {
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  font-size: clamp(0.92rem, 1.05vw, 1.02rem);
+  font-weight: 450;
+  line-height: 1.62;
+  color: #334155;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Horizontal Infinite Loop Marquee */
+.partners-marquee-container {
+  width: 100%;
+  overflow: hidden;
+  margin-top: clamp(120px, 15vw, 190px);
+  position: relative;
+  z-index: 10;
+  padding: 16px 0;
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+.partners-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: clamp(48px, 6vw, 90px);
+  width: max-content;
+  position: relative;
+  z-index: 11;
+  animation: partnersInfiniteLoop 18s linear infinite;
+  will-change: transform;
+}
+
+.partners-marquee-container:hover .partners-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes partnersInfiniteLoop {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Individual Partner Item */
+.partner-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(50px, 6vw, 70px);
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 12;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.partner-logo-img {
+  height: 100%;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+  position: relative;
+  z-index: 12;
+  filter: grayscale(100%) contrast(1.15) opacity(0.75);
+  transition: filter 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.partner-item-card:hover .partner-logo-img {
+  filter: grayscale(0%) contrast(1) opacity(1);
+  transform: scale(1.08);
+}
+
+.partner-text-badge {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(1.2rem, 1.8vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1e293b;
+  opacity: 0.72;
+  white-space: nowrap;
+  transition: opacity 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+.partner-item-card:hover .partner-text-badge {
+  opacity: 1;
+  color: #2563eb;
+  transform: scale(1.05);
+}
+
+/* Responsive Adaptations */
+@media (max-width: 900px) {
+  .partners-header-grid {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .partners-narrative-block {
+    max-width: 100%;
+    padding-top: 0;
+  }
+
+  .partners-club-sign-backdrop {
+    width: clamp(330px, 88vw, 550px);
+    top: 48%;
+    left: 42%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+  }
+
+  .partners-marquee-container {
+    margin-top: 80px;
+  }
+}

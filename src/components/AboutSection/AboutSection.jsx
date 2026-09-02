@@ -5,75 +5,93 @@ import "./AboutSection.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Each word: { text, color }
 const WORDS = [
-  { text: "We're", color: "white" },
-  { text: "a", color: "white" },
-  { text: "community", color: "white" },
-  { text: "of", color: "white" },
-  { text: "students", color: "white" },
-  { text: "passionate", color: "white" },
-  { text: "about", color: "white" },
-  { text: "technology,", color: "blue" },
-  { text: "robotics,", color: "white" },
-  { text: "and", color: "white" },
-  { text: "artificial", color: "blue" },
-  { text: "intelligence.", color: "blue" },
-  { text: "Join", color: "white" },
-  { text: "us", color: "white" },
-  { text: "to", color: "white" },
-  { text: "learn,", color: "white" },
-  { text: "build,", color: "white" },
-  { text: "and", color: "white" },
-  { text: "innovate", color: "blue" },
-  { text: "together.", color: "white" },
+  { text: "We're", isEmphasized: false },
+  { text: "a", isEmphasized: false },
+  { text: "community", isEmphasized: false },
+  { text: "of", isEmphasized: false },
+  { text: "students", isEmphasized: false },
+  { text: "passionate", isEmphasized: false },
+  { text: "about", isEmphasized: false },
+  { text: "technology,", isEmphasized: true },
+  { text: "robotics,", isEmphasized: false },
+  { text: "and", isEmphasized: false },
+  { text: "artificial", isEmphasized: true },
+  { text: "intelligence.", isEmphasized: true },
+  { text: "Join", isEmphasized: false },
+  { text: "us", isEmphasized: false },
+  { text: "to", isEmphasized: false },
+  { text: "learn,", isEmphasized: false },
+  { text: "build,", isEmphasized: false },
+  { text: "and", isEmphasized: false },
+  { text: "innovate", isEmphasized: true },
+  { text: "together.", isEmphasized: false },
 ];
 
 export default function AboutSection() {
   const sectionRef = useRef(null);
-  const cursorRef = useRef(null);
-  const charsRef = useRef([]);
+  const wordsRef = useRef([]);
 
   useEffect(() => {
-    const chars = charsRef.current.filter(Boolean);
-    const cursor = cursorRef.current;
-    if (!chars.length || !cursor) return;
+    const wordEls = wordsRef.current.filter(Boolean);
+    const section = sectionRef.current;
+    if (!wordEls.length || !section) return;
 
-    // Start all chars invisible initially
-    chars.forEach((c) => {
-      c.style.opacity = "0";
+    // Check reduced motion
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      wordEls.forEach((el) => {
+        el.classList.add("is-lit");
+      });
+      return;
+    }
+
+    // Separate standard words vs emphasized words for progressive payoff timing
+    const standardIndices = [];
+    const emphasizedIndices = [];
+    WORDS.forEach((w, i) => {
+      if (w.isEmphasized) {
+        emphasizedIndices.push(i);
+      } else {
+        standardIndices.push(i);
+      }
     });
 
     const trigger = ScrollTrigger.create({
-      trigger: sectionRef.current,
+      trigger: section,
       start: "top 75%",
       end: "+=650",
-      scrub: 1.5,
+      scrub: true,
       refreshPriority: 2,
       onUpdate: (self) => {
-        const total = chars.length;
-        const count = Math.round(self.progress * total);
+        const p = self.progress;
 
-        for (let i = 0; i < total; i++) {
-          if (i < count) {
-            chars[i].style.opacity = "1";
-          } else {
-            chars[i].style.opacity = "0";
+        // 1. Standard words light up progressively from progress 0.05 to 0.72
+        standardIndices.forEach((wIdx, rank) => {
+          const threshold = 0.05 + (rank / (standardIndices.length - 1 || 1)) * 0.65;
+          const el = wordEls[wIdx];
+          if (el) {
+            if (p >= threshold) {
+              el.classList.add("is-lit");
+            } else {
+              el.classList.remove("is-lit");
+            }
           }
-        }
+        });
 
-        if (count > 0 && count <= total) {
-          const targetChar = chars[count - 1];
-          if (targetChar && targetChar.parentNode) {
-            targetChar.insertAdjacentElement("afterend", cursor);
-            cursor.style.display = "inline-block";
+        // 2. Emphasized words light up last as the payoff (progress 0.72 to 0.98)
+        emphasizedIndices.forEach((wIdx, rank) => {
+          const threshold = 0.72 + (rank / (emphasizedIndices.length - 1 || 1)) * 0.25;
+          const el = wordEls[wIdx];
+          if (el) {
+            if (p >= threshold) {
+              el.classList.add("is-lit");
+            } else {
+              el.classList.remove("is-lit");
+            }
           }
-        } else if (count === 0) {
-          if (chars[0] && chars[0].parentNode) {
-            chars[0].insertAdjacentElement("beforebegin", cursor);
-            cursor.style.display = "inline-block";
-          }
-        }
+        });
       },
     });
 
@@ -85,42 +103,22 @@ export default function AboutSection() {
   return (
     <section id="about" className="about-section" ref={sectionRef}>
       <div className="about-container">
-        <h1 className="about-h1-text">
-          {WORDS.map((word, wi) => {
-            const wordOffset = WORDS.slice(0, wi).reduce(
-              (acc, w) => acc + w.text.length + 1,
-              0
-            );
-
-            return (
-              <span key={wi} className={`about-word about-${word.color}`}>
-                {word.text.split("").map((char, ci) => (
-                  <span
-                    key={ci}
-                    className="about-char"
-                    ref={(el) => {
-                      charsRef.current[wordOffset + ci] = el;
-                    }}
-                  >
-                    {char}
-                  </span>
-                ))}
-                {wi < WORDS.length - 1 && (
-                  <span
-                    className="about-char"
-                    ref={(el) => {
-                      charsRef.current[wordOffset + word.text.length] = el;
-                    }}
-                  >
-                    {" "}
-                  </span>
-                )}
-              </span>
-            );
-          })}
-          <span ref={cursorRef} className="typing-cursor" aria-hidden="true" />
-        </h1>
+        <blockquote className="about-h1-text">
+          {WORDS.map((item, i) => (
+            <span
+              key={i}
+              ref={(el) => {
+                wordsRef.current[i] = el;
+              }}
+              className={`about-scrub-word ${item.isEmphasized ? "about-word--emphasized" : "about-word--standard"}`}
+            >
+              {item.text}
+              {i < WORDS.length - 1 ? " " : ""}
+            </span>
+          ))}
+        </blockquote>
       </div>
     </section>
   );
 }
+

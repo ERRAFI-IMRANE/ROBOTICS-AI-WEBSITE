@@ -1,4 +1,5 @@
 import React from "react";
+import { RevealHeadingLine } from "../common/TextAnimations";
 import "./WhyJoinSection.css";
 
 export default function WhyJoinSection() {
@@ -52,11 +53,17 @@ export default function WhyJoinSection() {
             <span>WHY JOIN OUR CLUB</span>
           </div>
 
-          {/* Large High-Contrast Headline */}
+          {/* Large High-Contrast Headline with Mask Wipe Reveal */}
           <h2 className="why-join-headline">
-            <span className="headline-line-part">BUILD REAL</span>
-            <span className="headline-line-part">AI & ROBOTICS</span>
-            <span className="headline-line-part headline-line-blue">INNOVATIONS</span>
+            <RevealHeadingLine delay={0} className="headline-line-part">
+              BUILD REAL
+            </RevealHeadingLine>
+            <RevealHeadingLine delay={80} className="headline-line-part">
+              AI &amp; ROBOTICS
+            </RevealHeadingLine>
+            <RevealHeadingLine delay={160} className="headline-line-part headline-line-blue">
+              INNOVATIONS
+            </RevealHeadingLine>
           </h2>
 
           {/* Description Paragraph */}

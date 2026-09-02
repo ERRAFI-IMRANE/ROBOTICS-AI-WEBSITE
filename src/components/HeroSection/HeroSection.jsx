@@ -834,11 +834,6 @@ export default function HeroSection() {
       <div className="hover-portrait" />
       {/* Subtle side black shadow gradient overlay matching reference image */}
       <div className="hero-side-shadows" aria-hidden="true" />
-
-      {/* Hero Content Overlay matching dashboard reference design */}
-      <div className="hero-overlay-content">
-
-      </div>
     </section>
   );
 }

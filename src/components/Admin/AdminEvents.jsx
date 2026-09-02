@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import "./AdminDashboard.css";
 
@@ -94,55 +94,92 @@ const INITIAL_FALLBACK_EVENTS = [
   },
 ];
 
-// Helper extractors with complete null safety
+// Helper extractors with complete null and type safety
+const extractEventData = (ev) => {
+  if (!ev || typeof ev !== "object") return {};
+  if (typeof ev.data === "string") {
+    try {
+      const parsed = JSON.parse(ev.data);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return {};
+    }
+  }
+  if (ev.data && typeof ev.data === "object" && !Array.isArray(ev.data)) {
+    return ev.data;
+  }
+  return {};
+};
+
 const getEventTitle = (ev) => {
-  if (!ev) return "Untitled Event";
-  const data = ev.data || {};
-  return String(data.title || ev.title || data.name || ev.name || "Untitled Event");
+  if (!ev || typeof ev !== "object") return "Untitled Event";
+  const data = extractEventData(ev);
+  const val = data.title ?? ev.title ?? data.name ?? ev.name;
+  if (val === null || val === undefined) return "Untitled Event";
+  if (typeof val === "object") return JSON.stringify(val);
+  const str = String(val).trim();
+  return str || "Untitled Event";
 };
 
 const getEventDate = (ev) => {
-  if (!ev) return "";
-  const data = ev.data || {};
-  return String(data.date || ev.date || data.event_date || ev.event_date || "");
+  if (!ev || typeof ev !== "object") return "";
+  const data = extractEventData(ev);
+  const val = data.date ?? ev.date ?? data.event_date ?? ev.event_date;
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object") return "";
+  return String(val).trim();
 };
 
 const getEventImage = (ev) => {
-  if (!ev) return PRESET_IMAGES[0].url;
-  const data = ev.data || {};
-  return String(
-    ev.image_url ||
-    data.image_url ||
-    data.imageUrl ||
-    ev.imageUrl ||
-    data.image ||
-    ev.image ||
-    data.photo ||
-    ev.photo ||
-    data.banner ||
-    ev.banner ||
-    data.img ||
-    ev.img ||
-    PRESET_IMAGES[0].url
-  );
+  if (!ev || typeof ev !== "object") return PRESET_IMAGES[0].url;
+  const data = extractEventData(ev);
+  const val =
+    ev.image_url ??
+    data.image_url ??
+    data.imageUrl ??
+    ev.imageUrl ??
+    data.image ??
+    ev.image ??
+    data.photo ??
+    ev.photo ??
+    data.banner ??
+    ev.banner ??
+    data.img ??
+    ev.img;
+  if (typeof val === "string" && val.trim()) return val.trim();
+  return PRESET_IMAGES[0].url;
 };
 
 const getEventStatus = (ev) => {
-  if (!ev) return "Upcoming";
-  const data = ev.data || {};
-  return String(data.status || ev.status || "Upcoming");
+  if (!ev || typeof ev !== "object") return "Upcoming";
+  const data = extractEventData(ev);
+  const val = data.status ?? ev.status;
+  if (typeof val === "string" && val.trim()) {
+    const norm = val.trim();
+    if (norm.toLowerCase().includes("complete") || norm.toLowerCase().includes("past") || norm.toLowerCase().includes("finish")) {
+      return "Completed";
+    }
+    return "Upcoming";
+  }
+  return "Upcoming";
 };
 
 const getEventLink = (ev) => {
-  if (!ev) return "";
-  const data = ev.data || {};
-  return String(data.link || ev.link || data.url || ev.url || "");
+  if (!ev || typeof ev !== "object") return "";
+  const data = extractEventData(ev);
+  const val = data.link ?? ev.link ?? data.url ?? ev.url;
+  if (typeof val === "string") return val.trim();
+  return "";
 };
 
 const getEventDescription = (ev) => {
-  if (!ev) return "";
-  const data = ev.data || {};
-  return String(data.description || ev.description || data.desc || ev.desc || "");
+  if (!ev || typeof ev !== "object") return "";
+  const data = extractEventData(ev);
+  const val = data.description ?? ev.description ?? data.desc ?? ev.desc;
+  if (typeof val === "string") return val.trim();
+  return "";
 };
 
 export default function AdminEvents() {
@@ -172,6 +209,11 @@ export default function AdminEvents() {
 
   const [toastMsg, setToastMsg] = useState(null);
 
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
   const loadEventsData = async () => {
     try {
       setLoading(true);
@@ -181,40 +223,59 @@ export default function AdminEvents() {
         .select("*")
         .order("id", { ascending: false });
 
-      if (error || !data || data.length === 0) {
-        const retryRes = await supabase.from("events").select("*");
-        if (!retryRes.error && retryRes.data && retryRes.data.length > 0) {
-          data = retryRes.data;
+      if (error || !data || !Array.isArray(data) || data.length === 0) {
+        try {
+          const retryRes = await supabase.from("events").select("*");
+          if (!retryRes.error && retryRes.data && Array.isArray(retryRes.data) && retryRes.data.length > 0) {
+            data = retryRes.data;
+          }
+        } catch {
+          // Retry failed, proceed to local/fallback
         }
       }
 
       if (data && Array.isArray(data) && data.length > 0) {
-        setEvents(data);
-      } else {
-        const saved = localStorage.getItem("rai_admin_events");
-        if (saved) {
+        const cleanList = data.filter((item) => item && typeof item === "object");
+        if (cleanList.length > 0) {
+          setEvents(cleanList);
           try {
-            setEvents(JSON.parse(saved));
-          } catch {
-            setEvents(INITIAL_FALLBACK_EVENTS);
-          }
-        } else {
-          setEvents(INITIAL_FALLBACK_EVENTS);
-          localStorage.setItem("rai_admin_events", JSON.stringify(INITIAL_FALLBACK_EVENTS));
+            localStorage.setItem("rai_admin_events", JSON.stringify(cleanList));
+          } catch {}
+          return;
         }
       }
-    } catch (err) {
-      console.warn("Could not fetch events from database:", err);
+
+      // Check localStorage if Supabase returned no data
       const saved = localStorage.getItem("rai_admin_events");
       if (saved) {
         try {
-          setEvents(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setEvents(parsed.filter((item) => item && typeof item === "object"));
+            return;
+          }
         } catch {
-          setEvents(INITIAL_FALLBACK_EVENTS);
+          // Bad JSON in localStorage, fall back
         }
-      } else {
-        setEvents(INITIAL_FALLBACK_EVENTS);
       }
+
+      setEvents(INITIAL_FALLBACK_EVENTS);
+      try {
+        localStorage.setItem("rai_admin_events", JSON.stringify(INITIAL_FALLBACK_EVENTS));
+      } catch {}
+    } catch (err) {
+      console.warn("Could not fetch events from database:", err);
+      try {
+        const saved = localStorage.getItem("rai_admin_events");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setEvents(parsed.filter((item) => item && typeof item === "object"));
+            return;
+          }
+        }
+      } catch {}
+      setEvents(INITIAL_FALLBACK_EVENTS);
     } finally {
       setLoading(false);
     }
@@ -224,48 +285,48 @@ export default function AdminEvents() {
     loadEventsData();
   }, []);
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
-  };
-
   const uploadImageToSupabase = async (file, folder = "events") => {
     if (!file) return null;
 
-    const fileExt = file.name.split(".").pop() || "jpg";
-    const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, "_");
-    const filePath = `${folder}/${Date.now()}_${cleanName}.${fileExt}`;
+    try {
+      const fileExt = file.name ? file.name.split(".").pop() || "jpg" : "jpg";
+      const cleanName = (file.name || "upload").replace(/[^a-zA-Z0-9]/g, "_");
+      const filePath = `${folder}/${Date.now()}_${cleanName}.${fileExt}`;
 
-    const storageBuckets = ["EVENTS", "events", "images", "public"];
-    let publicUrl = null;
+      const storageBuckets = ["EVENTS", "events", "images", "public"];
+      let publicUrl = null;
 
-    for (const bucket of storageBuckets) {
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file, { cacheControl: "3600", upsert: true });
+      for (const bucket of storageBuckets) {
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from(bucket)
+            .upload(filePath, file, { cacheControl: "3600", upsert: true });
 
-        if (!uploadError) {
-          const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-          if (data?.publicUrl) {
-            publicUrl = data.publicUrl;
-            break;
+          if (!uploadError) {
+            const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+            if (data?.publicUrl) {
+              publicUrl = data.publicUrl;
+              break;
+            }
           }
+        } catch {
+          // Try next bucket
         }
-      } catch {
-        // Try next bucket
       }
-    }
 
-    if (!publicUrl) {
-      publicUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-    }
+      if (!publicUrl) {
+        publicUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+      }
 
-    return publicUrl;
+      return publicUrl;
+    } catch {
+      return null;
+    }
   };
 
   const handleOpenAdd = () => {
@@ -283,6 +344,7 @@ export default function AdminEvents() {
   };
 
   const handleOpenEdit = (evt) => {
+    if (!evt) return;
     setEditingEvent(evt);
     setFormTitle(getEventTitle(evt));
     setFormDate(getEventDate(evt));
@@ -297,6 +359,7 @@ export default function AdminEvents() {
   };
 
   const handleOpenDetail = (evt) => {
+    if (!evt) return;
     setSelectedEvent(evt);
     setIsDetailModalOpen(true);
   };
@@ -305,8 +368,14 @@ export default function AdminEvents() {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
+      try {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreview(previewUrl);
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result);
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -329,9 +398,13 @@ export default function AdminEvents() {
     try {
       let finalImageUrl = imagePreview || PRESET_IMAGES[0].url;
       if (imageFile) {
-        const uploadedUrl = await uploadImageToSupabase(imageFile, "events");
-        if (uploadedUrl) {
-          finalImageUrl = uploadedUrl;
+        try {
+          const uploadedUrl = await uploadImageToSupabase(imageFile, "events");
+          if (uploadedUrl) {
+            finalImageUrl = uploadedUrl;
+          }
+        } catch {
+          // Fallback to preview url
         }
       }
 
@@ -357,62 +430,122 @@ export default function AdminEvents() {
       };
 
       if (editingEvent) {
-        let updateRes = await supabase
-          .from("events")
-          .update(fullPayload)
-          .eq("id", editingEvent.id)
-          .select();
+        let updatedRecord = null;
 
-        if (updateRes.error) {
-          updateRes = await supabase
-            .from("events")
-            .update({ data: eventData })
-            .eq("id", editingEvent.id)
-            .select();
+        try {
+          if (editingEvent.id && typeof editingEvent.id !== "object" && !String(editingEvent.id).startsWith("evt-")) {
+            // Attempt 1: Full payload
+            const updateRes = await supabase
+              .from("events")
+              .update(fullPayload)
+              .eq("id", editingEvent.id)
+              .select();
+
+            if (updateRes.data && updateRes.data[0]) {
+              updatedRecord = updateRes.data[0];
+            } else if (updateRes.error) {
+              // Attempt 2: Only data column
+              const updateRes2 = await supabase
+                .from("events")
+                .update({ data: eventData })
+                .eq("id", editingEvent.id)
+                .select();
+
+              if (updateRes2.data && updateRes2.data[0]) {
+                updatedRecord = updateRes2.data[0];
+              } else {
+                // Attempt 3: Flat columns without data
+                const { data: _ignored, ...flatPayload } = fullPayload;
+                const updateRes3 = await supabase
+                  .from("events")
+                  .update(flatPayload)
+                  .eq("id", editingEvent.id)
+                  .select();
+                if (updateRes3.data && updateRes3.data[0]) {
+                  updatedRecord = updateRes3.data[0];
+                }
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.warn("Database update error:", dbErr);
         }
 
-        const updatedRecord =
-          updateRes.data && updateRes.data[0]
-            ? updateRes.data[0]
-            : { ...editingEvent, data: eventData, ...eventData };
+        if (!updatedRecord) {
+          updatedRecord = {
+            ...editingEvent,
+            ...eventData,
+            data: eventData,
+          };
+        }
 
-        const updatedList = events.map((ev) =>
-          ev.id === editingEvent.id ? updatedRecord : ev
+        const currentList = Array.isArray(events) ? events : [];
+        const updatedList = currentList.map((ev) =>
+          ev?.id === editingEvent.id ? updatedRecord : ev
         );
         setEvents(updatedList);
-        localStorage.setItem("rai_admin_events", JSON.stringify(updatedList));
+        try {
+          localStorage.setItem("rai_admin_events", JSON.stringify(updatedList));
+        } catch {}
         showToast("Event specifications updated.");
       } else {
-        let insertRes = await supabase
-          .from("events")
-          .insert([fullPayload])
-          .select();
+        let newRecord = null;
 
-        if (insertRes.error) {
-          insertRes = await supabase
+        try {
+          // Attempt 1: Full payload
+          const insertRes = await supabase
             .from("events")
-            .insert([{ data: eventData }])
+            .insert([fullPayload])
             .select();
+
+          if (insertRes.data && insertRes.data[0]) {
+            newRecord = insertRes.data[0];
+          } else if (insertRes.error) {
+            // Attempt 2: Only data column
+            const insertRes2 = await supabase
+              .from("events")
+              .insert([{ data: eventData }])
+              .select();
+
+            if (insertRes2.data && insertRes2.data[0]) {
+              newRecord = insertRes2.data[0];
+            } else {
+              // Attempt 3: Flat columns without data
+              const { data: _ignored, ...flatPayload } = fullPayload;
+              const insertRes3 = await supabase
+                .from("events")
+                .insert([flatPayload])
+                .select();
+              if (insertRes3.data && insertRes3.data[0]) {
+                newRecord = insertRes3.data[0];
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.warn("Database insert error:", dbErr);
         }
 
-        const newRecord =
-          insertRes.data && insertRes.data[0]
-            ? insertRes.data[0]
-            : {
-                id: `evt-${Date.now()}`,
-                data: eventData,
-                ...eventData,
-                created_at: new Date().toISOString(),
-              };
+        if (!newRecord) {
+          newRecord = {
+            id: `evt-${Date.now()}`,
+            data: eventData,
+            ...eventData,
+            created_at: new Date().toISOString(),
+          };
+        }
 
-        const updatedList = [newRecord, ...events];
+        const currentList = Array.isArray(events) ? events : [];
+        const updatedList = [newRecord, ...currentList];
         setEvents(updatedList);
-        localStorage.setItem("rai_admin_events", JSON.stringify(updatedList));
+        try {
+          localStorage.setItem("rai_admin_events", JSON.stringify(updatedList));
+        } catch {}
         showToast("New event logged successfully.");
       }
 
       setIsModalOpen(false);
     } catch (err) {
+      console.error("Error saving event:", err);
       showToast("Saved locally to dashboard storage.");
       setIsModalOpen(false);
     } finally {
@@ -421,29 +554,41 @@ export default function AdminEvents() {
   };
 
   const handleDeleteEvent = async (id) => {
+    if (!id) return;
     if (!window.confirm("Confirm deletion of this event record?")) return;
     try {
-      await supabase.from("events").delete().eq("id", id);
-    } catch {
-      // Ignore
+      if (typeof id !== "object" && !String(id).startsWith("evt-")) {
+        await supabase.from("events").delete().eq("id", id);
+      }
+    } catch (err) {
+      console.warn("Error deleting event from Supabase:", err);
     }
-    const updated = events.filter((e) => e.id !== id);
+    const currentList = Array.isArray(events) ? events : [];
+    const updated = currentList.filter((e) => e && e.id !== id);
     setEvents(updated);
-    localStorage.setItem("rai_admin_events", JSON.stringify(updated));
+    try {
+      localStorage.setItem("rai_admin_events", JSON.stringify(updated));
+    } catch {}
     showToast("Event record deleted.");
   };
 
-  const filteredList = (Array.isArray(events) ? events : []).filter((ev) => {
-    if (!ev) return false;
-    const title = getEventTitle(ev).toLowerCase();
-    const desc = getEventDescription(ev).toLowerCase();
-    const status = getEventStatus(ev);
-    const query = String(searchQuery || "").toLowerCase();
-    const matchesSearch = title.includes(query) || desc.includes(query);
+  const safeEvents = useMemo(() => {
+    return (Array.isArray(events) ? events : []).filter((item) => item && typeof item === "object");
+  }, [events]);
 
-    if (filterStatus === "all") return matchesSearch;
-    return matchesSearch && status === filterStatus;
-  });
+  const filteredList = useMemo(() => {
+    return safeEvents.filter((ev) => {
+      if (!ev) return false;
+      const title = getEventTitle(ev).toLowerCase();
+      const desc = getEventDescription(ev).toLowerCase();
+      const status = getEventStatus(ev);
+      const query = String(searchQuery || "").toLowerCase().trim();
+      const matchesSearch = !query || title.includes(query) || desc.includes(query);
+
+      if (filterStatus === "all") return matchesSearch;
+      return matchesSearch && status === filterStatus;
+    });
+  }, [safeEvents, searchQuery, filterStatus]);
 
   return (
     <div className="admin-tab-content">
@@ -470,7 +615,7 @@ export default function AdminEvents() {
       <div className="member-filters-bar">
         <div className="filter-pills-row">
           {["all", "Upcoming", "Completed"].map((st) => {
-            const count = (Array.isArray(events) ? events : []).filter((ev) => {
+            const count = safeEvents.filter((ev) => {
               if (st === "all") return true;
               return getEventStatus(ev) === st;
             }).length;
@@ -531,6 +676,8 @@ export default function AdminEvents() {
       ) : (
         <div className="events-drafting-grid">
           {filteredList.map((ev, idx) => {
+            const rawId = ev?.id;
+            const eventKey = typeof rawId === "object" ? JSON.stringify(rawId) : (rawId || `evt-card-${idx}`);
             const title = getEventTitle(ev);
             const date = getEventDate(ev);
             const status = getEventStatus(ev);
@@ -541,7 +688,7 @@ export default function AdminEvents() {
 
             return (
               <div
-                key={ev?.id || `evt-card-${idx}`}
+                key={eventKey}
                 className="event-drafting-card"
                 onClick={() => handleOpenDetail(ev)}
                 role="button"
@@ -768,13 +915,24 @@ export default function AdminEvents() {
                 <span>
                   Record ID:{" "}
                   <span style={{ fontFamily: "var(--font-mono)" }}>
-                    {selectedEvent.id || "N/A"}
+                    {typeof selectedEvent?.id === "object"
+                      ? JSON.stringify(selectedEvent.id)
+                      : String(selectedEvent?.id || "N/A")}
                   </span>
                 </span>
-                {selectedEvent.created_at && (
+                {selectedEvent?.created_at && (
                   <span>
                     Created:{" "}
-                    {new Date(selectedEvent.created_at).toLocaleDateString()}
+                    {(() => {
+                      try {
+                        const d = new Date(selectedEvent.created_at);
+                        return isNaN(d.getTime())
+                          ? String(selectedEvent.created_at)
+                          : d.toLocaleDateString();
+                      } catch {
+                        return "N/A";
+                      }
+                    })()}
                   </span>
                 )}
               </div>
@@ -817,8 +975,8 @@ export default function AdminEvents() {
 
       {/* Add / Edit Event Form Modal */}
       {isModalOpen && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-dialog" style={{ maxWidth: "560px" }}>
+        <div className="admin-modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="admin-modal-dialog" style={{ maxWidth: "560px" }} onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
               <h2 className="admin-modal-title">
                 {editingEvent ? "Edit event record" : "Log new event"}

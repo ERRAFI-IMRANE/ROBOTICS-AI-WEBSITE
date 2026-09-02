@@ -1,4 +1,12 @@
 export default function HeroHeader({ headerRef }) {
+  const handleScrollToJoin = (e) => {
+    e.preventDefault();
+    const el = document.querySelector("#why-join") || document.querySelector("#join");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <header ref={headerRef} className="hero-transition-header">
       <div className="header-left">
@@ -8,14 +16,19 @@ export default function HeroHeader({ headerRef }) {
       </div>
 
       <div className="header-right">
-        <a href="#login" className="btn-login">Log in</a>
-        <button className="btn-book-demo" type="button">
-          <span>Book a Demo</span>
+        <a
+          href="#why-join"
+          onClick={handleScrollToJoin}
+          className="btn-book-demo"
+          role="button"
+          aria-label="Join Robotics & AI Club"
+        >
+          <span>Join Us</span>
           <svg className="icon-arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="7" y1="17" x2="17" y2="7" />
             <polyline points="7 7 17 7 17 17" />
           </svg>
-        </button>
+        </a>
       </div>
     </header>
   );

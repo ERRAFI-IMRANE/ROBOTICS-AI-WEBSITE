@@ -1,20 +1,73 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { RevealHeadingLine } from "../common/TextAnimations";
 import "./TeamSection.css";
 
-const DEFAULT_YEARS = ["2025-2026", "2024-2025", "2023-2024"];
+const DEFAULT_YEARS = ["24-25", "25-26", "26-27"];
+
+// Normalizes any raw season key (e.g. "2024-2025", "2024", "24/25", "24-25") to canonical short season ("24-25")
+const normalizeSeasonKey = (raw = "") => {
+  if (!raw) return "";
+  const str = String(raw).trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (
+    str === "24-25" ||
+    str === "2024-2025" ||
+    str === "24/25" ||
+    str === "2024/2025" ||
+    str === "2024-25" ||
+    str === "2024" ||
+    str === "24"
+  ) {
+    return "24-25";
+  }
+  if (
+    str === "25-26" ||
+    str === "2025-2026" ||
+    str === "25/26" ||
+    str === "2025/2026" ||
+    str === "2025-26" ||
+    str === "2025" ||
+    str === "25"
+  ) {
+    return "25-26";
+  }
+  if (
+    str === "26-27" ||
+    str === "2026-2027" ||
+    str === "26/27" ||
+    str === "2026/2027" ||
+    str === "2026-27" ||
+    str === "2026" ||
+    str === "26"
+  ) {
+    return "26-27";
+  }
+  const match = str.match(/(?:20)?(\d{2})[-/](?:20)?(\d{2})/);
+  if (match) {
+    return `${match[1]}-${match[2]}`;
+  }
+  return str;
+};
+
+// Returns alternate equivalent keys to query from Supabase or match in data structures
+const getEquivalentSeasonKeys = (season = "") => {
+  const norm = normalizeSeasonKey(season);
+  if (norm === "24-25") return ["24-25", "2024-2025", "24/25", "2024", "24"];
+  if (norm === "25-26") return ["25-26", "2025-2026", "25/26", "2025", "25"];
+  if (norm === "26-27") return ["26-27", "2026-2027", "26/27", "2026", "26"];
+  return [season, norm];
+};
 
 export default function TeamSection() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState("2025-2026");
+  const [selectedYear, setSelectedYear] = useState("25-26");
   const [hoveredCardId, setHoveredCardId] = useState(null);
   const [allKnownYears, setAllKnownYears] = useState(DEFAULT_YEARS);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Clean up any old cached static data from browser storage
     try {
       localStorage.removeItem("rai_admin_team");
     } catch {
@@ -24,36 +77,39 @@ export default function TeamSection() {
     async function fetchTeamMembers(season) {
       try {
         setLoading(true);
+        const equivKeys = getEquivalentSeasonKeys(season);
 
-        // 1. Try Supabase RPC 'get_team_by_season' which extracts order_post/post_order and sorts ASC
-        let { data, error } = await supabase.rpc("get_team_by_season", {
-          season: season,
-        });
+        // 1. Try Supabase RPC 'get_team_by_season' with equivalent season keys
+        let data = null;
+        for (const sKey of equivKeys) {
+          const rpcRes = await supabase.rpc("get_team_by_season", {
+            season: sKey,
+          });
+          if (!rpcRes.error && rpcRes.data && rpcRes.data.length > 0) {
+            data = rpcRes.data;
+            break;
+          }
+        }
 
-        // 2. Fallback to direct queries ordered by order_post / post_order if RPC is not deployed yet
-        if (error || !data) {
-          const directRes1 = await supabase
-            .from("team")
-            .select("*")
-            .order(`order_post->${season}`, { ascending: true, nullsFirst: false });
-
-          if (!directRes1.error && directRes1.data) {
-            data = directRes1.data;
-          } else {
-            const directRes2 = await supabase
+        // 2. Direct queries ordered by order_post / post_order if RPC is not deployed or returned empty
+        if (!data || data.length === 0) {
+          for (const sKey of equivKeys) {
+            const directRes1 = await supabase
               .from("team")
               .select("*")
-              .order(`post_order->${season}`, { ascending: true, nullsFirst: false });
+              .order(`order_post->${sKey}`, { ascending: true, nullsFirst: false });
 
-            if (!directRes2.error && directRes2.data) {
-              data = directRes2.data;
-            } else {
-              // 3. Fallback to standard select (sorting will be applied client-side)
-              const retryRes = await supabase.from("team").select("*");
-              if (!retryRes.error && retryRes.data) {
-                data = retryRes.data;
-              }
+            if (!directRes1.error && directRes1.data && directRes1.data.length > 0) {
+              data = directRes1.data;
+              break;
             }
+          }
+        }
+
+        if (!data || data.length === 0) {
+          const retryRes = await supabase.from("team").select("*");
+          if (!retryRes.error && retryRes.data) {
+            data = retryRes.data;
           }
         }
 
@@ -61,23 +117,44 @@ export default function TeamSection() {
           const rows = data && Array.isArray(data) ? data : [];
           setMembers(rows);
 
-          // Collect any newly discovered season years
-          const discoveredYears = new Set(allKnownYears);
+          // Collect any newly discovered season years and normalize them
+          const discoveredYears = new Set(DEFAULT_YEARS);
           rows.forEach((m) => {
+            const checkAndAdd = (yr) => {
+              if (!yr) return;
+              const normalized = normalizeSeasonKey(yr);
+              if (normalized !== "23-24" && normalized !== "2023-2024" && normalized !== "2023") {
+                discoveredYears.add(normalized);
+              }
+            };
+
             if (m.season_roles && typeof m.season_roles === "object") {
-              Object.keys(m.season_roles).forEach((yr) => yr && discoveredYears.add(yr));
+              Object.keys(m.season_roles).forEach(checkAndAdd);
             }
             if (m.order_post && typeof m.order_post === "object") {
-              Object.keys(m.order_post).forEach((yr) => yr && discoveredYears.add(yr));
+              Object.keys(m.order_post).forEach(checkAndAdd);
             }
             if (m.post_order && typeof m.post_order === "object") {
-              Object.keys(m.post_order).forEach((yr) => yr && discoveredYears.add(yr));
+              Object.keys(m.post_order).forEach(checkAndAdd);
             }
             if (Array.isArray(m.years)) {
-              m.years.forEach((yr) => yr && discoveredYears.add(String(yr)));
+              m.years.forEach(checkAndAdd);
             }
           });
-          setAllKnownYears(Array.from(discoveredYears).sort().reverse());
+
+          // Filter and sort in standard order: 24-25, 25-26, 26-27 (strictly no 23-24)
+          const sortedYears = Array.from(discoveredYears)
+            .filter((yr) => yr !== "23-24" && yr !== "2023-2024" && yr !== "2023" && yr !== "23/24" && yr !== "22-23")
+            .sort((a, b) => {
+              const order = ["24-25", "25-26", "26-27"];
+              const idxA = order.indexOf(a);
+              const idxB = order.indexOf(b);
+              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+              if (idxA !== -1) return -1;
+              if (idxB !== -1) return 1;
+              return a.localeCompare(b);
+            });
+          setAllKnownYears(sortedYears);
         }
       } catch (err) {
         console.warn("Could not fetch team members from Supabase:", err);
@@ -98,6 +175,7 @@ export default function TeamSection() {
 
   // Helper to extract numeric post order for a member in a specific season
   const getMemberPostOrder = (m, season) => {
+    const equivKeys = getEquivalentSeasonKeys(season);
     const data = m.data || {};
     const orderSources = [
       m.order_post,
@@ -113,9 +191,17 @@ export default function TeamSection() {
     for (const src of orderSources) {
       if (src !== undefined && src !== null && src !== "") {
         if (typeof src === "object" && !Array.isArray(src)) {
-          if (src[season] !== undefined && src[season] !== null && src[season] !== "") {
-            const parsed = Number(src[season]);
-            if (!isNaN(parsed)) return parsed;
+          for (const key of equivKeys) {
+            if (src[key] !== undefined && src[key] !== null && src[key] !== "") {
+              const parsed = Number(src[key]);
+              if (!isNaN(parsed)) return parsed;
+            }
+          }
+          for (const [k, v] of Object.entries(src)) {
+            if (normalizeSeasonKey(k) === normalizeSeasonKey(season)) {
+              const parsed = Number(v);
+              if (!isNaN(parsed)) return parsed;
+            }
           }
         } else {
           const parsed = Number(src);
@@ -137,10 +223,18 @@ export default function TeamSection() {
     const socials = m.social_media_links || m.socials || data.socials || {};
     const orderPost = m.order_post || m.post_order || data.order_post || data.post_order || m.order || data.order || {};
 
-    // Get season roles mapping: { "2024-2025": "Club President", ... }
+    // Get season roles mapping with normalized keys
     let seasonRoles = {};
     if (m.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
-      seasonRoles = { ...m.season_roles };
+      for (const [k, v] of Object.entries(m.season_roles)) {
+        if (v) {
+          const normKey = normalizeSeasonKey(k);
+          if (normKey !== "23-24" && normKey !== "2023-2024" && normKey !== "2023") {
+            seasonRoles[normKey] = String(v);
+            seasonRoles[k] = String(v);
+          }
+        }
+      }
     } else {
       const fallbackRole = m.post || m.role || data.role || "Team Member";
       let rawYears = m.years || data.years;
@@ -152,19 +246,23 @@ export default function TeamSection() {
       } else if (m.year || data.year) {
         memberYears = String(m.year || data.year).split(",").map((s) => s.trim());
       } else {
-        memberYears = ["2025-2026"];
+        memberYears = ["25-26"];
       }
       memberYears.forEach((yr) => {
-        seasonRoles[yr] = fallbackRole;
+        const normKey = normalizeSeasonKey(yr);
+        if (normKey !== "23-24" && normKey !== "2023-2024" && normKey !== "2023") {
+          seasonRoles[normKey] = fallbackRole;
+          seasonRoles[yr] = fallbackRole;
+        }
       });
     }
 
     const memberYears = Array.from(
       new Set([
-        ...Object.keys(seasonRoles),
-        ...(typeof orderPost === "object" && !Array.isArray(orderPost) ? Object.keys(orderPost) : []),
+        ...Object.keys(seasonRoles).map(normalizeSeasonKey),
+        ...(typeof orderPost === "object" && !Array.isArray(orderPost) ? Object.keys(orderPost).map(normalizeSeasonKey) : []),
       ])
-    );
+    ).filter((yr) => yr && yr !== "23-24" && yr !== "2023-2024" && yr !== "2023");
 
     return {
       id: m.id || data.id || `mem-${idx}`,
@@ -185,26 +283,57 @@ export default function TeamSection() {
     };
   });
 
-  // Calculate dynamic list of years
-  const availableYearsSet = new Set([...allKnownYears, ...DEFAULT_YEARS]);
-  normalizedMembers.forEach((m) => m.years.forEach((yr) => yr && availableYearsSet.add(yr)));
-  const availableYears = Array.from(availableYearsSet).sort().reverse();
+  // Calculate dynamic list of years strictly in order: 24-25, 25-26, 26-27 (excluding 23-24 completely)
+  const availableYearsSet = new Set(DEFAULT_YEARS);
+  normalizedMembers.forEach((m) => {
+    m.years.forEach((yr) => {
+      const norm = normalizeSeasonKey(yr);
+      if (norm && norm !== "23-24" && norm !== "2023-2024" && norm !== "2023" && norm !== "23/24" && norm !== "22-23") {
+        availableYearsSet.add(norm);
+      }
+    });
+  });
+  
+  const availableYears = Array.from(availableYearsSet)
+    .filter((yr) => yr !== "23-24" && yr !== "2023-2024" && yr !== "2023" && yr !== "23/24" && yr !== "22-23")
+    .sort((a, b) => {
+      const order = ["24-25", "25-26", "26-27"];
+      const idxA = order.indexOf(a);
+      const idxB = order.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
 
   // Filter members by selected year and assign role for this season.
-  // Order members for each year strictly according to the order_post attribute.
   const filteredMembers = normalizedMembers
-    .filter(
-      (member) =>
-        member.years.includes(selectedYear) ||
-        (selectedYear === "2025-2026" && member.years.includes("2025")) ||
-        (member.orderPost && typeof member.orderPost === "object" && member.orderPost[selectedYear] !== undefined) ||
-        (member.seasonRoles && member.seasonRoles[selectedYear] !== undefined)
-    )
-    .map((member) => ({
-      ...member,
-      role: member.seasonRoles?.[selectedYear] || Object.values(member.seasonRoles || {})[0] || "Team Member",
-      orderPostVal: getMemberPostOrder(member.rawMember || member, selectedYear),
-    }))
+    .filter((member) => {
+      const equivKeys = getEquivalentSeasonKeys(selectedYear);
+      const hasYear = member.years.some((yr) => equivKeys.includes(yr) || normalizeSeasonKey(yr) === normalizeSeasonKey(selectedYear));
+      const hasOrder = equivKeys.some((k) => member.orderPost && member.orderPost[k] !== undefined);
+      const hasRole = equivKeys.some((k) => member.seasonRoles && member.seasonRoles[k] !== undefined);
+      return hasYear || hasOrder || hasRole;
+    })
+    .map((member) => {
+      const equivKeys = getEquivalentSeasonKeys(selectedYear);
+      let role = "Team Member";
+      for (const k of equivKeys) {
+        if (member.seasonRoles?.[k]) {
+          role = member.seasonRoles[k];
+          break;
+        }
+      }
+      if (role === "Team Member" && Object.values(member.seasonRoles || {})[0]) {
+        role = Object.values(member.seasonRoles)[0];
+      }
+
+      return {
+        ...member,
+        role,
+        orderPostVal: getMemberPostOrder(member.rawMember || member, selectedYear),
+      };
+    })
     .sort((a, b) => {
       if (a.orderPostVal !== b.orderPostVal) {
         return a.orderPostVal - b.orderPostVal;
@@ -236,15 +365,15 @@ export default function TeamSection() {
         {/* Top Split Header */}
         <div className="team-split-header">
           <h2 className="team-main-title">
-            <div className="team-title-line">
+            <RevealHeadingLine delay={0} className="team-title-line" as="div">
               <span className="title-part-white">ROBOTICS </span>
               <span className="title-part-blue">AND </span>
               <span className="title-part-white">AI</span>
-            </div>
-            <div className="team-title-line">
+            </RevealHeadingLine>
+            <RevealHeadingLine delay={100} className="team-title-line" as="div">
               <span className="title-part-blue">CLUB </span>
               <span className="title-part-white">TEAM</span>
-            </div>
+            </RevealHeadingLine>
           </h2>
 
           <div className="team-description-wrapper">
@@ -254,23 +383,71 @@ export default function TeamSection() {
           </div>
         </div>
 
-        {/* Minimalist Centered Year Filter Bar */}
+        {/* Minimalist Year Filter Bar — plain labels with sliding underline */}
         <div className="team-filter-bar-wrapper">
-          <div className="team-filter-bar">
-            {availableYears.map((year) => {
+          {availableYears.length > 3 && (
+            <button
+              type="button"
+              className="team-filter-chevron team-filter-chevron--left"
+              aria-label="Scroll years left"
+              onClick={() => {
+                const track = document.querySelector('.team-filter-bar');
+                if (track) track.scrollBy({ left: -120, behavior: 'smooth' });
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+          )}
+          <div
+            className="team-filter-bar"
+            role="tablist"
+            aria-label="Select Team Season"
+            onKeyDown={(e) => {
+              const idx = availableYears.indexOf(selectedYear);
+              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = availableYears[(idx + 1) % availableYears.length];
+                setSelectedYear(next);
+                e.currentTarget.querySelector(`[data-year="${next}"]`)?.focus();
+              } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = availableYears[(idx - 1 + availableYears.length) % availableYears.length];
+                setSelectedYear(prev);
+                e.currentTarget.querySelector(`[data-year="${prev}"]`)?.focus();
+              }
+            }}
+          >
+            {availableYears.map((year, i) => {
               const isActive = selectedYear === year;
               return (
                 <button
                   key={year}
                   type="button"
-                  className={`team-filter-pill ${isActive ? "is-active" : ""}`}
+                  role="tab"
+                  data-year={year}
+                  aria-selected={isActive}
+                  tabIndex={isActive ? 0 : -1}
+                  className={`team-filter-tab ${isActive ? "is-active" : ""}`}
                   onClick={() => setSelectedYear(year)}
                 >
-                  <span>{year}</span>
+                  {year}
                 </button>
               );
             })}
           </div>
+          {availableYears.length > 3 && (
+            <button
+              type="button"
+              className="team-filter-chevron team-filter-chevron--right"
+              aria-label="Scroll years right"
+              onClick={() => {
+                const track = document.querySelector('.team-filter-bar');
+                if (track) track.scrollBy({ left: 120, behavior: 'smooth' });
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          )}
         </div>
 
         {/* Dynamic Content: Loading / Empty / Showcase Grid */}
@@ -291,7 +468,7 @@ export default function TeamSection() {
             </div>
             <h3 className="team-empty-title">Team Roster Coming Soon</h3>
             <p className="team-empty-desc">
-              No team members have been published for {selectedYear} yet. Team profiles added to the Supabase database will appear here automatically.
+              No team members have been published for season {selectedYear} yet. Team profiles added to the Supabase database will appear here automatically.
             </p>
           </div>
         ) : (

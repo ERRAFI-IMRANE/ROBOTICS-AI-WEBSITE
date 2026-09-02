@@ -1,233 +1,462 @@
-.club-footer {
-  position: relative;
-  z-index: 3;
-  background-color: #f4f3ee;
-  color: #1a1c23;
-  padding: 80px 48px 40px;
-  box-sizing: border-box;
-  border-top: 1px solid rgba(26, 28, 35, 0.08);
-}
+/* ==========================================================================
+   Hero-Footer Section — Robotics & AI Club Component Spec Implementation
+   ========================================================================== */
 
-.footer-container {
-  max-width: 1360px;
+.hf-section {
+  position: relative;
   width: 100%;
-  margin: 0 auto;
+  background: linear-gradient(180deg, #f4f3ee 0%, #e0e7ff 30%, #3b82f6 72%, #1d4ed8 100%);
+  color: #ffffff;
+  padding: 0.3cm 2cm 0.5cm;
+  /* 2cm sides (additional 1cm reduction on left and right), 0.5cm bottom */
+  overflow: hidden;
+  box-sizing: border-box;
+  z-index: 3;
 }
 
 /* ==========================================================================
-   Top Grid
+   ELEVATED PANEL with Raised Tab Top Outline & Concave Corner Transitions
    ========================================================================== */
 
-.footer-top {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr 1fr 1.3fr;
-  gap: 48px;
-  padding-bottom: 56px;
-  border-bottom: 1px solid rgba(26, 28, 35, 0.08);
+.hf-panel {
+  position: relative;
+  width: 100%;
+  background-color: #0a0e1a; /* bg-elevated darkest surface token */
+  color: #ffffff;
+  clip-path: url(#hf-raised-tab-clip);
+  -webkit-clip-path: url(#hf-raised-tab-clip);
+  box-sizing: border-box;
 }
 
-/* Brand Info */
-.footer-brand-col {
+/* Decorative low-opacity topographic / circuit texture (~8%) */
+.hf-topo-texture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+}
+
+.hf-panel-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: clamp(64px, 8vw, 102px) clamp(20px, 4.5vw, 56px) clamp(28px, 4vw, 48px);
+}
+
+/* ==========================================================================
+   Hero Headline — Ultra-Premium Typography, Multi-Stop Gradients & Cyber Aura
+   ========================================================================== */
+
+.hf-hero-block {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-}
-
-.footer-logo-row {
-  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
+  text-align: center;
+  margin-bottom: clamp(14px, 2.3vw, 28px);
+  z-index: 2;
+  animation: hfFadeUp 400ms ease forwards;
 }
 
-.footer-logo-img {
-  height: 38px;
-  width: auto;
-  object-fit: contain;
+/* Ambient Radial Glow Behind the Headline */
+.hf-hero-glow {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(340px, 46vw, 680px);
+  height: 130px;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.16) 0%, rgba(99, 102, 241, 0.06) 45%, transparent 72%);
+  pointer-events: none;
+  z-index: 1;
+  filter: blur(18px);
 }
 
-.footer-brand-name {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #1a1c23;
-}
-
-.footer-brand-desc {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  color: rgba(26, 28, 35, 0.7);
-  max-width: 340px;
-  margin: 0 0 16px;
-}
-
-.footer-affiliation {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #1d4ed8;
-  background: rgba(29, 78, 216, 0.06);
-  padding: 4px 12px;
-  border-radius: 4px;
-}
-
-/* Links Columns */
-.footer-links-col {
+.hf-headline {
+  position: relative;
+  z-index: 2;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  line-height: 0.94;
+  letter-spacing: -0.045em;
 }
 
-.footer-col-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.92rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+.hf-headline-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(8px, 1.4vw, 20px);
+  white-space: nowrap;
+}
+
+/* Primary words: metallic platinum/silver gradient, bold weight */
+.hf-headline-bold {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(2.35rem, 5.2vw, 4.8rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #ffffff 25%, #f1f5f9 65%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-transform: uppercase;
-  color: #1a1c23;
-  margin: 0 0 18px;
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.6));
 }
 
-.footer-nav-list {
+/* Emphasized words: frosted titanium italic */
+.hf-headline-alt {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(2.25rem, 5vw, 4.6rem);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.025em;
+  background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 55%, #64748b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
+/* Electric Cyan / Brand Blue Neon Gradient Glow */
+.hf-headline-accent {
+  font-weight: 700;
+  background: linear-gradient(135deg, #93c5fd 0%, #60a5fa 35%, #3b82f6 70%, #2563eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 28px rgba(59, 130, 246, 0.55)) drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6));
+}
+
+/* ==========================================================================
+   Main Stage: Left Pages Column, Center Robot Image, Right Follow Column
+   ========================================================================== */
+
+.hf-stage-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-end;
+  gap: clamp(16px, 3.5vw, 48px);
+  position: relative;
+  z-index: 3;
+}
+
+/* Columns Typography */
+.hf-col {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 28px;
+}
+
+.hf-col--left {
+  align-items: center;
+  text-align: center;
+  padding-left: clamp(16px, 3vw, 40px);
+}
+
+.hf-col--right {
+  align-items: center;
+  text-align: center;
+  padding-right: clamp(16px, 3vw, 40px);
+}
+
+.hf-eyebrow {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #64748b; /* text-muted */
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.hf-nav-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
-.footer-nav-list li a {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.86rem;
-  color: rgba(26, 28, 35, 0.68);
+.hf-nav-list li a {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(1.2rem, 1.6vw, 1.55rem);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #ffffff;
   text-decoration: none;
-  transition: color 0.2s ease, transform 0.2s ease;
+  text-transform: uppercase;
+  transition: color 0.22s ease;
   display: inline-block;
 }
 
-.footer-nav-list li a:hover {
-  color: #1d4ed8;
-  transform: translateX(3px);
+.hf-nav-list li a:hover {
+  color: #3b82f6; /* accent token */
 }
 
-/* Admin Column */
-.footer-admin-col {
-  align-items: flex-start;
+.hf-accent-link-wrap {
+  margin-top: 22px;
 }
 
-.footer-admin-desc {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.84rem;
-  line-height: 1.5;
-  color: rgba(26, 28, 35, 0.65);
-  margin: 0 0 16px;
-}
-
-.footer-admin-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: #14171f;
-  color: #ffffff;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
+.hf-accent-link {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: clamp(1.1rem, 1.4vw, 1.38rem);
+  font-weight: 800;
   letter-spacing: 0.02em;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #3b82f6; /* accent token single distinct link */
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.22s ease, opacity 0.22s ease;
+  display: inline-block;
 }
 
-.footer-admin-btn:hover {
-  background: #1d4ed8;
-  box-shadow: 0 6px 20px rgba(29, 78, 216, 0.35);
-  transform: translateY(-2px);
+.hf-accent-link:hover {
+  color: #60a5fa;
 }
 
-.footer-lock-icon {
-  width: 14px;
-  height: 14px;
+/* Center Front-Facing Robot Mascot Image — Bleeds from headline to very end of screen */
+.hf-robot-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 4; /* Sits in front of the scrolling marquee (z-index: 2) */
+  margin-top: clamp(-84px, -6vw, -52px); /* Top cap reaches the bottom line of headline */
+  margin-bottom: clamp(-245px, -18vw, -182px); /* Extends completely to the very end of the footer */
+  animation: hfFadeUp 400ms ease forwards;
+}
+
+.hf-robot-frame {
+  width: clamp(340px, 46vw, 635px);
+  max-height: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.hf-robot-img {
+  width: 100%;
+  height: auto;
+  max-height: 835px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 20px 45px rgba(0, 0, 0, 0.8));
 }
 
 /* ==========================================================================
-   Bottom Bar
+   Infinite Loop Partner Marquee (Flows seamlessly behind the robot mascot)
    ========================================================================== */
 
-.footer-bottom {
+.hf-marquee-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 2; /* Sits behind the robot mascot (z-index: 4) */
+  padding: 24px 0;
+  margin-top: 10px;
+  margin-bottom: 14px;
+  border: none;
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.hf-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: clamp(40px, 5.5vw, 75px);
+  width: max-content;
+  animation: hfPartnersLoop 20s linear infinite;
+  will-change: transform;
+}
+
+.hf-marquee-container:hover .hf-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes hfPartnersLoop {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.hf-partner-item {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hf-partner-logo {
+  height: clamp(24px, 3vw, 36px);
+  width: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1) opacity(0.75); /* Monochrome text-muted ~75% opacity */
+  transition: opacity 0.2s ease;
+}
+
+.hf-partner-logo:hover {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   3. BOTTOM BAR (Outside container on blue background: Left Copyright, Right Legal/Admin)
+   ========================================================================== */
+
+.hf-bottom-bar {
+  position: absolute;
+  bottom: 0.65cm;
+  left: 2.2cm;
+  right: 2.2cm;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 28px;
+  z-index: 10;
+  pointer-events: none;
 }
 
-.footer-copyright {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.8rem;
-  color: rgba(26, 28, 35, 0.55);
+.hf-copyright {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 12.5px;
+  color: #ffffff; /* Crisp white on the blue background */
+  opacity: 0.95;
   margin: 0;
+  text-align: left;
+  pointer-events: auto;
 }
 
-.footer-status-pill {
-  display: inline-flex;
+.hf-legal-links {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: rgba(26, 28, 35, 0.6);
-  background: rgba(26, 28, 35, 0.04);
-  padding: 4px 12px;
-  border-radius: 9999px;
-  border: 1px solid rgba(26, 28, 35, 0.06);
+  justify-content: flex-end;
+  gap: 10px;
+  pointer-events: auto;
 }
 
-.status-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+.hf-legal-link {
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff; /* Crisp white on the blue background */
+  opacity: 0.9;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.hf-legal-link:hover {
+  opacity: 1;
+}
+
+.hf-legal-dot {
+  color: #ffffff;
+  opacity: 0.6;
+  font-size: 12px;
+  user-select: none;
+}
+
+.hf-admin-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--heading, 'Space Grotesk', sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  opacity: 0.9;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s ease;
+}
+
+.hf-admin-btn:hover {
+  opacity: 1;
 }
 
 /* ==========================================================================
-   Responsive
+   Animations & Reduced Motion
    ========================================================================== */
 
-@media (max-width: 960px) {
-  .club-footer {
-    padding: 60px 24px 30px;
+@keyframes hfFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
   }
 
-  .footer-top {
-    grid-template-columns: 1fr 1fr;
-    gap: 36px;
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .hf-hero-block,
+  .hf-robot-center {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .hf-stage-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    text-align: center;
   }
 
-  .footer-brand-col {
-    grid-column: span 2;
+  .hf-col--left,
+  .hf-col--right {
+    align-items: center;
+    text-align: center;
+  }
+
+  .hf-robot-center {
+    order: 2;
+    margin-bottom: 0;
+  }
+
+  .hf-col--left {
+    order: 1;
+  }
+
+  .hf-col--right {
+    order: 3;
+  }
+
+  .hf-headline-row {
+    flex-wrap: wrap;
   }
 }
 
 @media (max-width: 600px) {
-  .footer-top {
-    grid-template-columns: 1fr;
-    gap: 30px;
+  .hf-section {
+    padding: 0.2cm 0.6cm 0.4cm;
   }
 
-  .footer-brand-col {
-    grid-column: span 1;
+  .hf-panel-content {
+    padding: 40px 16px 20px;
   }
 
-  .footer-bottom {
+  .hf-bottom-bar {
+    position: static;
+    margin-top: 14px;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
   }
 }

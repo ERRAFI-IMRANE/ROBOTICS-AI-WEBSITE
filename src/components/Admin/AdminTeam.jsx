@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import "./AdminDashboard.css";
 
-const PRESET_YEARS = ["2025-2026", "2024-2025", "2023-2024"];
+const PRESET_YEARS = ["24-25", "25-26", "26-27"];
 const FILIERES = [
   "Génie Informatique",
   "Génie Électrique (GIME)",
@@ -25,7 +25,7 @@ const getMemberYears = (m) => {
   if (m?.year || m?.data?.year) {
     return String(m.year || m.data?.year).split(",").map((s) => s.trim());
   }
-  return ["2025-2026"];
+  return ["25-26"];
 };
 
 // Helper to get season roles mapping { [year]: role }
@@ -47,6 +47,15 @@ const getMemberRoleForYear = (m, year) => {
   const seasonRoles = getMemberSeasonRoles(m);
   if (year && seasonRoles[year]) {
     return seasonRoles[year];
+  }
+  if (year === "25-26" && (seasonRoles["2025-2026"] || seasonRoles["2025"])) {
+    return seasonRoles["2025-2026"] || seasonRoles["2025"];
+  }
+  if (year === "24-25" && (seasonRoles["2024-2025"] || seasonRoles["2024"])) {
+    return seasonRoles["2024-2025"] || seasonRoles["2024"];
+  }
+  if (year === "26-27" && (seasonRoles["2026-2027"] || seasonRoles["2026"])) {
+    return seasonRoles["2026-2027"] || seasonRoles["2026"];
   }
   const allRoles = Object.values(seasonRoles);
   if (allRoles.length > 0 && allRoles[0]) {
@@ -113,7 +122,7 @@ export default function AdminTeam() {
   const [members, setMembers] = useState([]);
   const [applicants, setApplicants] = useState([]);
   const [yearsList, setYearsList] = useState(PRESET_YEARS);
-  const [selectedYear, setSelectedYear] = useState("2025-2026");
+  const [selectedYear, setSelectedYear] = useState("25-26");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -127,7 +136,7 @@ export default function AdminTeam() {
   const [editingMember, setEditingMember] = useState(null);
   const [formName, setFormName] = useState("");
   const [formFiliere, setFormFiliere] = useState(FILIERES[0]);
-  const [formSeasonRoles, setFormSeasonRoles] = useState({ "2025-2026": "" });
+  const [formSeasonRoles, setFormSeasonRoles] = useState({ "25-26": "" });
   const [showCustomYearInput, setShowCustomYearInput] = useState(false);
   const [customYearValue, setCustomYearValue] = useState("");
 
@@ -203,10 +212,26 @@ export default function AdminTeam() {
       const combinedYearsSet = new Set(PRESET_YEARS);
       rows.forEach((m) => {
         const mYears = getMemberYears(m);
-        mYears.forEach((yr) => yr && combinedYearsSet.add(yr));
+        mYears.forEach((yr) => {
+          if (!yr) return;
+          const str = String(yr).trim();
+          if (str !== "23-24" && str !== "2023-2024" && str !== "2023" && str !== "23/24") {
+            combinedYearsSet.add(str);
+          }
+        });
       });
 
-      const sortedYears = Array.from(combinedYearsSet).sort().reverse();
+      const sortedYears = Array.from(combinedYearsSet)
+        .filter((yr) => yr !== "23-24" && yr !== "2023-2024" && yr !== "2023" && yr !== "23/24")
+        .sort((a, b) => {
+          const order = ["24-25", "25-26", "26-27"];
+          const idxA = order.indexOf(a);
+          const idxB = order.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.localeCompare(b);
+        });
       setYearsList(sortedYears);
 
       if (sortedYears.length > 0 && !sortedYears.includes(selectedYear)) {
@@ -283,7 +308,7 @@ export default function AdminTeam() {
   const handleOpenAdd = () => {
     setEditingMember(null);
     setFormName("");
-    const initialYear = selectedYear || "2025-2026";
+    const initialYear = selectedYear || "25-26";
     setFormSeasonRoles({ [initialYear]: "" });
     setFormFiliere(FILIERES[0]);
     setShowCustomYearInput(false);
@@ -308,7 +333,7 @@ export default function AdminTeam() {
     setFormFiliere(getMemberFiliere(m) || FILIERES[0]);
 
     const sRoles = getMemberSeasonRoles(m);
-    const activeRoles = Object.keys(sRoles).length > 0 ? sRoles : { [selectedYear || "2025-2026"]: "" };
+    const activeRoles = Object.keys(sRoles).length > 0 ? sRoles : { [selectedYear || "25-26"]: "" };
     setFormSeasonRoles(activeRoles);
 
     setShowCustomYearInput(false);
@@ -486,7 +511,7 @@ export default function AdminTeam() {
       avatar_img: "/Imrane_anime.png",
       normal_img: "",
       social_media_links: { linkedin: "", instagram: "", github: "" },
-      season_roles: { "2025-2026": `Member - ${app.filiere.split(" ")[0]}` },
+      season_roles: { "25-26": `Member - ${app.filiere.split(" ")[0]}` },
     };
 
     try {
@@ -520,7 +545,11 @@ export default function AdminTeam() {
   const filteredList = members
     .filter((m) => {
       const mYears = getMemberYears(m);
-      const isYear = mYears.includes(selectedYear) || (selectedYear === "2025-2026" && mYears.includes("2025"));
+      const isYear =
+        mYears.includes(selectedYear) ||
+        (selectedYear === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
+        (selectedYear === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
+        (selectedYear === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")));
 
       const name = getMemberName(m).toLowerCase();
       const role = (getMemberRoleForYear(m, selectedYear) || "").toLowerCase();
@@ -687,7 +716,12 @@ export default function AdminTeam() {
               {yearsList.map((yr) => {
                 const count = members.filter((m) => {
                   const mYears = getMemberYears(m);
-                  return mYears.includes(yr) || (yr === "2025-2026" && mYears.includes("2025"));
+                  return (
+                    mYears.includes(yr) ||
+                    (yr === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
+                    (yr === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
+                    (yr === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")))
+                  );
                 }).length;
 
                 return (
@@ -1129,9 +1163,9 @@ export default function AdminTeam() {
                           type="button"
                           className={`btn-secondary ${isSelected ? "btn-primary" : ""}`}
                           onClick={() => handleToggleSeason(yr)}
-                          style={{ padding: "4px 8px", fontSize: "12px" }}
+                          style={{ padding: "5px 12px", fontSize: "12px", fontWeight: isSelected ? 600 : 400 }}
                         >
-                          {yr}
+                          {isSelected ? "✓ " : "+ "}{yr}
                         </button>
                       );
                     })}
@@ -1139,7 +1173,7 @@ export default function AdminTeam() {
                       type="button"
                       className="btn-secondary"
                       onClick={() => setShowCustomYearInput((v) => !v)}
-                      style={{ padding: "4px 8px", fontSize: "12px" }}
+                      style={{ padding: "5px 10px", fontSize: "12px" }}
                     >
                       + Custom season
                     </button>
@@ -1149,7 +1183,7 @@ export default function AdminTeam() {
                     <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                       <input
                         type="text"
-                        placeholder="e.g. 2026-2027"
+                        placeholder="e.g. 26-27 or 27-28"
                         value={customYearValue}
                         onChange={(e) => setCustomYearValue(e.target.value)}
                         className="form-text-input"

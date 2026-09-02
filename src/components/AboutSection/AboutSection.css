@@ -18,55 +18,41 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  will-change: transform, opacity;
 }
 
 .about-h1-text {
-  font-family: var(--heading);
-  font-size: clamp(46px, 6vw, 90px);
+  font-family: var(--heading, 'Bricolage Grotesque', sans-serif);
+  font-size: clamp(40px, 5.5vw, 84px);
   font-weight: 800;
-  line-height: 1.18;
-  letter-spacing: -0.03em;
+  line-height: 1.22;
+  letter-spacing: -0.035em;
   margin: 0;
 }
 
-.about-word {
+/* 4. SCROLL-SCRUBBED PARAGRAPH HIGHLIGHT */
+.about-scrub-word {
   display: inline;
+  color: #475569; /* Muted/secondary baseline */
+  opacity: 0.32;
+  transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, text-shadow 0.3s ease;
+  will-change: color, opacity;
 }
 
-.about-char {
-  display: inline;
-  opacity: 0;
+.about-scrub-word.about-word--standard.is-lit {
+  color: #ffffff; /* Full text color */
+  opacity: 1;
 }
 
-.about-white {
-  color: #ffffff;
+.about-scrub-word.about-word--emphasized {
+  font-weight: 900;
+  color: #1e3a8a; /* Dark muted blue baseline */
+  opacity: 0.35;
 }
 
-.about-blue {
-  color: #3b82f6;
-}
-
-/* Computer typing cursor caret */
-.typing-cursor {
-  display: inline-block;
-  width: 5px;
-  height: 0.85em;
-  background-color: #3b82f6;
-  margin-left: 3px;
-  vertical-align: middle;
-  border-radius: 2px;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.9), 0 0 4px #ffffff;
-  animation: cursorBlink 1.0s ease-in-out infinite;
-}
-
-@keyframes cursorBlink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.15;
-  }
+.about-scrub-word.about-word--emphasized.is-lit {
+  color: #3b82f6; /* Electric blue payoff */
+  opacity: 1;
+  text-shadow: 0 0 28px rgba(59, 130, 246, 0.65);
 }
 
 @media (max-width: 768px) {
@@ -75,10 +61,8 @@
   }
 
   .about-h1-text {
-    font-size: clamp(28px, 7vw, 48px);
-  }
-
-  .typing-cursor {
-    width: 3.5px;
+    font-size: clamp(26px, 6.5vw, 44px);
+    line-height: 1.25;
   }
 }
+

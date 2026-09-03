@@ -2,6 +2,7 @@ import React, { useState, useEffect, Component } from "react";
 import AdminAnalytics from "./AdminAnalytics";
 import AdminEvents from "./AdminEvents";
 import AdminTeam from "./AdminTeam";
+import AdminMembers from "./AdminMembers";
 import "./AdminDashboard.css";
 
 class AdminErrorBoundary extends Component {
@@ -176,14 +177,26 @@ export default function AdminDashboard({ onClose }) {
       ),
     },
     {
-      id: "members",
-      label: "Members",
+      id: "team",
+      label: "Team",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      id: "members",
+      label: "Members",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="19" y1="8" x2="19" y2="14" />
+          <line x1="22" y1="11" x2="16" y2="11" />
         </svg>
       ),
     },
@@ -411,7 +424,8 @@ export default function AdminDashboard({ onClose }) {
         {/* Dynamic Tab Views */}
         <AdminErrorBoundary key={activeTab}>
           {activeTab === "overview" && <AdminAnalytics eventsCount={12} membersCount={118} />}
-          {activeTab === "members" && <AdminTeam />}
+          {activeTab === "team" && <AdminTeam />}
+          {activeTab === "members" && <AdminMembers />}
           {activeTab === "events" && <AdminEvents />}
 
           {/* Active Projects View */}

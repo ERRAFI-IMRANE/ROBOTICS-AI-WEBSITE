@@ -11,7 +11,7 @@ const SPONSOR_LOGOS = [
   { id: "gps", name: "GPS", src: "/partners/GPS.png" },
 ];
 
-export default function Footer({ onOpenAdmin }) {
+export default function Footer({ onOpenAdmin, onNavigateRegister }) {
   const currentYear = new Date().getFullYear();
 
   const handleAdminClick = (e) => {
@@ -23,16 +23,27 @@ export default function Footer({ onOpenAdmin }) {
     }
   };
 
+  const handleRegisterClick = (e) => {
+    e.preventDefault();
+    if (onNavigateRegister) {
+      onNavigateRegister();
+    } else {
+      window.location.hash = "register";
+    }
+  };
+
   const handleScrollTo = (e, id) => {
     e.preventDefault();
     const el = document.querySelector(id);
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
+    } else {
+      window.location.hash = id;
     }
   };
 
   return (
-    <footer className="hf-section">
+    <footer id="contact" className="hf-section">
       {/* SVG ClipPath Definition for the Raised Tab Container with Concave Fillets */}
       <svg width="0" height="0" className="hf-clip-svg-def" aria-hidden="true">
         <defs>
@@ -126,8 +137,8 @@ export default function Footer({ onOpenAdmin }) {
               </ul>
               <div className="hf-accent-link-wrap">
                 <a
-                  href="#why-join"
-                  onClick={(e) => handleScrollTo(e, "#why-join")}
+                  href="#register"
+                  onClick={handleRegisterClick}
                   className="hf-accent-link anim-link-underline"
                 >
                   JOIN US

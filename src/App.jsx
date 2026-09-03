@@ -15,14 +15,19 @@ import Footer from "./components/Footer/Footer";
 import { AmbientTicker } from "./components/common/TextAnimations";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 import AdminAuthModal from "./components/Admin/AdminAuthModal";
+import RegistrationPage from "./components/RegistrationPage/RegistrationPage";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export default function App() {
-  const [isAdminView, setIsAdminView] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.location.hash === "#admin" || window.location.search.includes("view=admin");
+  const [currentView, setCurrentView] = useState(() => {
+    if (typeof window === "undefined") return "home";
+    const hash = (window.location.hash || "").toLowerCase();
+    const search = (window.location.search || "").toLowerCase();
+    if (hash === "#admin" || search.includes("view=admin")) return "admin";
+    if (hash === "#register" || hash === "#join" || hash === "#join-us" || search.includes("view=register")) return "register";
+    return "home";
   });
 
   const heroWrapperRef = useRef(null);
@@ -30,15 +35,34 @@ export default function App() {
   const heroHeaderRef = useRef(null);
   const darkOverlayRef = useRef(null);
 
+  const navigateTo = (view) => {
+    if (view === "admin") {
+      window.location.hash = "admin";
+      setCurrentView("admin");
+    } else if (view === "register") {
+      window.location.hash = "register";
+      setCurrentView("register");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      if (window.location.hash) {
+        window.history.pushState(null, "", window.location.pathname + window.location.search);
+      }
+      setCurrentView("home");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   useEffect(() => {
     const handleRouteCheck = () => {
-      const isHashAdmin = window.location.hash === "#admin";
-      const isQueryAdmin = window.location.search.includes("view=admin");
+      const hash = (window.location.hash || "").toLowerCase();
+      const search = (window.location.search || "").toLowerCase();
 
-      if (isHashAdmin || isQueryAdmin) {
-        setIsAdminView(true);
+      if (hash === "#admin" || search.includes("view=admin")) {
+        setCurrentView("admin");
+      } else if (hash === "#register" || hash === "#join" || hash === "#join-us" || search.includes("view=register")) {
+        setCurrentView("register");
       } else {
-        setIsAdminView(false);
+        setCurrentView("home");
       }
     };
 
@@ -52,7 +76,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isAdminView) return;
+    if (currentView !== "home") return;
 
     const wrapper = heroWrapperRef.current;
     const inner = heroInnerRef.current;
@@ -68,14 +92,70 @@ export default function App() {
       touchMultiplier: 2,
     });
 
-    lenis.on("scroll", ScrollTrigger.update);
+    // Dynamic 3-dash button & header theme coordinator matching user section specifications
+    const updateHeaderTheme = () => {
+      const whyJoinEl = document.getElementById("why-join");
+      const teamEl = document.getElementById("team");
+      const raiEl = document.getElementById("rai");
+      const eventsEl = document.getElementById("events");
+
+      const headerOffset = 65;
+
+      // 1. After team section until the end of the page (WhyJoin, Partners, Socials, Footer) -> BLACK
+      if (whyJoinEl && whyJoinEl.getBoundingClientRect().top <= headerOffset) {
+        header.classList.add("btn-is-black");
+        header.classList.remove("is-dark");
+        return;
+      }
+
+      // 2. Team section (dark #0c0d12 background) -> WHITE
+      if (teamEl && teamEl.getBoundingClientRect().top <= headerOffset) {
+        header.classList.remove("btn-is-black");
+        header.classList.add("is-dark");
+        return;
+      }
+
+      // 3. Img slide section (RAI - light #f4f3ee background) -> BLACK
+      if (raiEl && raiEl.getBoundingClientRect().top <= headerOffset) {
+        header.classList.add("btn-is-black");
+        header.classList.remove("is-dark");
+        return;
+      }
+
+      // 4. Event section with scroll -> BLACK once background becomes light in events, otherwise WHITE
+      if (eventsEl && eventsEl.getBoundingClientRect().top <= headerOffset) {
+        const isEventsScrolledLight = eventsEl.dataset.scrolledLight === "true";
+        if (isEventsScrolledLight) {
+          header.classList.add("btn-is-black");
+          header.classList.remove("is-dark");
+        } else {
+          header.classList.remove("btn-is-black");
+          header.classList.add("is-dark");
+        }
+        return;
+      }
+
+      // 5. Before event section (Hero until event section) -> WHITE
+      header.classList.remove("btn-is-black");
+      header.classList.add("is-dark");
+    };
+
+    lenis.on("scroll", () => {
+      ScrollTrigger.update();
+      updateHeaderTheme();
+    });
 
     const updateTicker = (time) => {
       lenis.raf(time * 1000);
+      updateHeaderTheme();
     };
 
     gsap.ticker.add(updateTicker);
     gsap.ticker.lagSmoothing(0);
+
+    window.addEventListener("scroll", updateHeaderTheme, { passive: true });
+    window.addEventListener("resize", updateHeaderTheme, { passive: true });
+    updateHeaderTheme();
 
     // Pin the hero and zoom-out on scroll
     const tl = gsap.timeline({
@@ -88,9 +168,6 @@ export default function App() {
         pinSpacing: true,
         anticipatePin: 1,
         refreshPriority: 3,
-        onUpdate: (self) => {
-          header.classList.toggle("is-dark", self.progress > 0.3);
-        },
       },
     });
 
@@ -111,6 +188,8 @@ export default function App() {
     }, 0);
 
     return () => {
+      window.removeEventListener("scroll", updateHeaderTheme);
+      window.removeEventListener("resize", updateHeaderTheme);
       gsap.ticker.remove(updateTicker);
       lenis.destroy();
       tl.scrollTrigger?.kill();
@@ -120,101 +199,114 @@ export default function App() {
 
   return (
     <>
-      {/* Admin Dashboard Overlay — renders as top-level fixed overlay */}
-      {isAdminView && (
+      {/* Admin Dashboard Overlay */}
+      {currentView === "admin" && (
         <div className="admin-app-wrapper">
           <AdminDashboard
             onClose={() => {
-              window.location.hash = "";
-              setIsAdminView(false);
+              navigateTo("home");
             }}
           />
         </div>
       )}
 
-      <div className="app-scroll-container">
-        {/* Hero Wrapper — pinned during scroll zoom-out */}
-        <div ref={heroWrapperRef} className="hero-zoom-wrapper">
-        {/* Subtle topographic contour lines background */}
-        <div className="hero-topo-bg" aria-hidden="true">
-          <svg viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M-100 200 C 300 100, 800 400, 1540 200" stroke="rgba(59, 130, 246, 0.08)" strokeWidth="1.5" />
-            <path d="M-100 450 C 400 300, 900 650, 1540 400" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1.5" />
-            <path d="M-100 700 C 350 550, 750 850, 1540 650" stroke="rgba(59, 130, 246, 0.06)" strokeWidth="1.5" />
-          </svg>
-        </div>
+      {/* Dedicated Registration Page */}
+      {currentView === "register" && (
+        <RegistrationPage
+          onBack={() => {
+            navigateTo("home");
+          }}
+          onOpenAdmin={() => navigateTo("admin")}
+        />
+      )}
 
-        {/* Full sentence ROBOTICS AND AI ESTS CLUB on each line behind zoomed-out hero card */}
-        <div className="hero-behind-text-container" aria-hidden="true">
-          <div className="hero-behind-text-track hero-behind-text-track--top">
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
+      {/* Main Club Website View */}
+      {currentView === "home" && (
+        <div className="app-scroll-container">
+          {/* Hero Wrapper — pinned during scroll zoom-out */}
+          <div ref={heroWrapperRef} className="hero-zoom-wrapper">
+            {/* Subtle topographic contour lines background */}
+            <div className="hero-topo-bg" aria-hidden="true">
+              <svg viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M-100 200 C 300 100, 800 400, 1540 200" stroke="rgba(59, 130, 246, 0.08)" strokeWidth="1.5" />
+                <path d="M-100 450 C 400 300, 900 650, 1540 400" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1.5" />
+                <path d="M-100 700 C 350 550, 750 850, 1540 650" stroke="rgba(59, 130, 246, 0.06)" strokeWidth="1.5" />
+              </svg>
+            </div>
+
+            {/* Full sentence ROBOTICS AND AI ESTS CLUB on each line behind zoomed-out hero card */}
+            <div className="hero-behind-text-container" aria-hidden="true">
+              <div className="hero-behind-text-track hero-behind-text-track--top">
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+              </div>
+              <div className="hero-behind-text-track hero-behind-text-track--middle">
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+              </div>
+              <div className="hero-behind-text-track hero-behind-text-track--bottom">
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+                <span>ROBOTICS AND AI ESTS CLUB</span>
+                <span className="dot-sep">&#8226;</span>
+              </div>
+            </div>
+
+            <div ref={heroInnerRef} className="hero-zoom-inner">
+              <HeroSection />
+              <div ref={darkOverlayRef} className="hero-dark-overlay" aria-hidden="true" />
+            </div>
           </div>
-          <div className="hero-behind-text-track hero-behind-text-track--middle">
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-          </div>
-          <div className="hero-behind-text-track hero-behind-text-track--bottom">
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-            <span>ROBOTICS AND AI ESTS CLUB</span>
-            <span className="dot-sep">&#8226;</span>
-          </div>
+
+          <HeroHeader
+            headerRef={heroHeaderRef}
+            onNavigateRegister={() => navigateTo("register")}
+          />
+
+          {/* Ambient Marquee Ticker */}
+          <AmbientTicker text="EST SAFI · ROBOTICS & AI CLUB · EST. 2024 · INNOVATE · BUILD · COMPETE · DISCOVER · AUTONOMOUS SYSTEMS · AI RESEARCH" />
+
+          {/* About Section */}
+          <AboutSection />
+
+          {/* Events Section */}
+          <EventsSection />
+
+          {/* RAI Section */}
+          <RAISection />
+
+          {/* Team Section */}
+          <TeamSection />
+
+          {/* Why Join Us Section */}
+          <WhyJoinSection onNavigateRegister={() => navigateTo("register")} />
+
+          {/* Partners & Campaigns Section */}
+          <PartnersSection />
+
+          {/* Socials Album Section */}
+          <SocialsAlbumSection />
+
+          {/* Footer */}
+          <Footer
+            onOpenAdmin={() => navigateTo("admin")}
+            onNavigateRegister={() => navigateTo("register")}
+          />
         </div>
+      )}
 
-        <div ref={heroInnerRef} className="hero-zoom-inner">
-          <HeroSection />
-          <div ref={darkOverlayRef} className="hero-dark-overlay" aria-hidden="true" />
-        </div>
-      </div>
-
-      <HeroHeader headerRef={heroHeaderRef} />
-
-      {/* 3. Ambient Marquee Ticker — continuous linear infinite loop */}
-      <AmbientTicker text="EST SAFI · ROBOTICS & AI CLUB · EST. 2024 · INNOVATE · BUILD · COMPETE · DISCOVER · AUTONOMOUS SYSTEMS · AI RESEARCH" />
-
-      {/* About Section — appears after zoom-out completes */}
-      <AboutSection />
-
-      {/* Events Section — upcoming workshops and hackathons */}
-      <EventsSection />
-
-      {/* RAI Section — Club introduction & Swipe Image */}
-      <RAISection />
-
-      {/* Team Section — Dark mode leadership and members */}
-      <TeamSection />
-
-      {/* Why Join Us Section — Student Club Experience & Innovation */}
-      <WhyJoinSection />
-
-      {/* Partners & Campaigns Section — Infinite Marquee & Collaborations */}
-      <PartnersSection />
-
-      {/* Socials Album Section — What's Up On Socials Fanned Picture Deck */}
-      <SocialsAlbumSection />
-
-      {/* Footer — Navigation, university affiliation and admin gateway */}
-      <Footer
-        onOpenAdmin={() => {
-          window.location.hash = "admin";
-          setIsAdminView(true);
-        }}
-      />
-
-        {/* Vercel Speed Insights for real-time performance monitoring */}
-        <SpeedInsights />
-      </div>
+      {/* Vercel Speed Insights for real-time performance monitoring */}
+      <SpeedInsights />
     </>
   );
 }

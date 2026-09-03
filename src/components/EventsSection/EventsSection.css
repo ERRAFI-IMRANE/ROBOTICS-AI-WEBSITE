@@ -234,7 +234,7 @@
   line-height: 1.3;
   letter-spacing: -0.01em;
   margin: 0;
-  color: #d4a853;
+  color: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -243,7 +243,7 @@
 
 .event-title-char {
   display: inline;
-  opacity: 1;
+  color: inherit;
 }
 
 .event-typing-cursor {
@@ -261,7 +261,7 @@
 .event-link-arrow {
   font-size: 16px;
   font-weight: 700;
-  color: #3b82f6;
+  color: inherit;
   transition: transform 0.25s ease;
   flex-shrink: 0;
 }

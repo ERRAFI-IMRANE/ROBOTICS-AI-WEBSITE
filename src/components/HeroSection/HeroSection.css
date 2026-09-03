@@ -59,16 +59,29 @@
   padding: 24px 48px;
   background: transparent;
   pointer-events: none;
-  color: #08060d;
-  transition: color 0.45s ease;
+  color: #ffffff;
+  transition: color 0.35s ease;
 }
 
 .hero-transition-header>* {
   pointer-events: auto;
 }
 
+.hero-transition-header.btn-is-black {
+  color: #08060d;
+}
+
 .hero-transition-header.is-dark {
   color: #ffffff;
+}
+
+.hero-transition-header.is-menu-open {
+  z-index: 100002 !important;
+  color: #ffffff !important;
+}
+
+.hero-transition-header.is-menu-open .nav-brand-logo {
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 28px rgba(255, 255, 255, 0.75));
 }
 
 /* Left Brand Area */
@@ -86,12 +99,12 @@
 }
 
 .nav-brand-logo {
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.55));
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.4));
   transition: filter 0.3s ease, transform 0.3s ease;
 }
 
 .nav-brand-link:hover .nav-brand-logo {
-  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 1)) drop-shadow(0 0 32px rgba(255, 255, 255, 0.75));
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.55));
   transform: scale(1.04);
 }
 
@@ -155,7 +168,7 @@
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .btn-login {
@@ -181,7 +194,8 @@
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #ffffff;
   border: none;
-  padding: 10px 22px;
+  height: 41px;
+  padding: 0 22px;
   border-radius: 8px;
   font-family: var(--sans);
   font-size: 13.5px;
@@ -189,6 +203,7 @@
   cursor: pointer;
   text-decoration: none;
   box-shadow: 0 4px 28px rgba(37, 99, 235, 0.8), 0 0 24px rgba(59, 130, 246, 0.65);
+  box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
@@ -205,6 +220,117 @@
 .icon-arrow-up-right {
   width: 15px;
   height: 15px;
+}
+
+/* 3-Dash Hamburger Button — Same height as Join button, solid color based on section (NO glass effect) */
+.btn-header-hamburger {
+  height: 41px;
+  width: 44px;
+  border-radius: 8px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4.5px;
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 0;
+  
+  /* ZERO glass/blur effect — solid crisp styling */
+  background: transparent;
+  border: 1.5px solid #ffffff;
+  color: #ffffff;
+  transition: transform 0.2s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Default White Theme Hover */
+.btn-header-hamburger:hover {
+  transform: translateY(-1px);
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* Black Theme — when header is over light sections */
+.hero-transition-header.btn-is-black .btn-header-hamburger {
+  border: 1.5px solid #08060d;
+  color: #08060d;
+}
+
+.hero-transition-header.btn-is-black .btn-header-hamburger .dash-bar {
+  background-color: #08060d;
+}
+
+.hero-transition-header.btn-is-black .btn-header-hamburger:hover {
+  transform: translateY(-1px);
+  background: #08060d;
+  border-color: #08060d;
+  color: #ffffff;
+}
+
+.hero-transition-header.btn-is-black .btn-header-hamburger:hover .dash-bar {
+  background-color: #ffffff;
+}
+
+.btn-header-hamburger:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* 3 Dashes */
+.dash-bar {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background-color: currentColor;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease, background-color 0.3s ease;
+}
+
+.dash-bar-1 {
+  width: 18px;
+}
+
+.dash-bar-2 {
+  width: 14px;
+}
+
+.dash-bar-3 {
+  width: 18px;
+}
+
+.btn-header-hamburger:hover .dash-bar-2 {
+  width: 18px;
+}
+
+/* Morph 3-dash button into 'X' when menu is open (stays in exact same place) */
+.hero-transition-header.is-menu-open .btn-header-hamburger,
+.btn-header-hamburger.is-open {
+  background: transparent !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.btn-header-hamburger.is-open .dash-bar-1 {
+  transform: translateY(6.5px) rotate(45deg);
+  width: 18px;
+  background-color: #ffffff !important;
+}
+
+.btn-header-hamburger.is-open .dash-bar-2 {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.btn-header-hamburger.is-open .dash-bar-3 {
+  transform: translateY(-6.5px) rotate(-45deg);
+  width: 18px;
+  background-color: #ffffff !important;
+}
+
+.btn-header-hamburger.is-open:hover {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+  transform: scale(1.04);
 }
 
 /* Mobile responsive */

@@ -2,7 +2,7 @@ import React from "react";
 import { RevealHeadingLine } from "../common/TextAnimations";
 import "./WhyJoinSection.css";
 
-export default function WhyJoinSection() {
+export default function WhyJoinSection({ onNavigateRegister }) {
   return (
     <section id="why-join" className="why-join-section">
       {/* Topographic Background Contour Lines */}
@@ -73,7 +73,18 @@ export default function WhyJoinSection() {
 
           {/* Interactive Neon Action Button */}
           <div className="why-join-cta-row">
-            <a href="#join" className="why-join-btn">
+            <a
+              href="#register"
+              onClick={(e) => {
+                e.preventDefault();
+                if (onNavigateRegister) {
+                  onNavigateRegister();
+                } else {
+                  window.location.hash = "register";
+                }
+              }}
+              className="why-join-btn"
+            >
               <span>JOIN THE COMMUNITY</span>
               <svg
                 className="why-join-btn-icon"

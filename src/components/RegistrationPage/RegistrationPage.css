@@ -1,0 +1,434 @@
+/* ==========================================================================
+   RegistrationPage — Light Mode Editorial Mirror of FullNavMenu + Full Site Footer
+   Swapped Positions: List on LEFT, Infinite Marquee Images on RIGHT
+   Exact Logo Size & Placement as HeroHeader
+   ========================================================================== */
+
+.reg-nav-overlay {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f4f3ee;
+  background-image:
+    radial-gradient(ellipse at 75% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 25% 45%, rgba(56, 189, 248, 0.06) 0%, transparent 60%),
+    radial-gradient(circle at 50% 30%, rgba(244, 243, 238, 0.98) 0%, #eceae2 100%);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  opacity: 0;
+  transform: translateY(-20px) scale(0.99);
+  transition: opacity 0.48s cubic-bezier(0.16, 1, 0.3, 1), transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #08060d;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.reg-nav-overlay.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Background Topographic Contour Vector — Light Mode */
+.reg-nav-topography {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.reg-nav-topography svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   Header Bar: Exact same padding, place, and logo size as HeroHeader
+   ========================================================================== */
+.reg-nav-header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100002;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 48px;
+  background: transparent;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.reg-nav-header-bar * {
+  pointer-events: auto;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.nav-brand-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: transform 0.25s ease;
+}
+
+.nav-brand-link:hover {
+  transform: scale(1.04);
+}
+
+/* Logo size: exact 70px height matching HeroHeader — permanent white glow */
+.nav-brand-logo {
+  height: 70px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.4));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+/* Close Button — Exact 41px height, solid border matching 3-dash button in light mode (NO glass effect) */
+.reg-btn-header-close {
+  height: 41px;
+  width: 44px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
+  border: 1.5px solid #08060d;
+  color: #08060d;
+  position: relative;
+  transition: transform 0.2s ease, background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.reg-btn-header-close .dash-bar {
+  display: block;
+  position: absolute;
+  height: 2px;
+  width: 18px;
+  border-radius: 2px;
+  background-color: #08060d;
+  transition: transform 0.25s ease, background-color 0.3s ease;
+}
+
+.reg-btn-header-close .close-bar-1 {
+  transform: rotate(45deg);
+}
+
+.reg-btn-header-close .close-bar-2 {
+  transform: rotate(-45deg);
+}
+
+.reg-btn-header-close:hover {
+  background: #08060d;
+  border-color: #08060d;
+  transform: scale(1.04);
+}
+
+.reg-btn-header-close:hover .dash-bar {
+  background-color: #ffffff;
+}
+
+/* ==========================================================================
+   Main Hero Body Grid Layout: SWAPPED (Left = List, Right = Gallery)
+   ========================================================================== */
+.reg-nav-body {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 56px;
+  padding: 120px 56px 60px;
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+  align-items: center;
+  min-height: calc(100vh - 40px);
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   LEFT COLUMN: High-Impact Centered Typography Navigation (Light Mode)
+   ========================================================================== */
+.reg-nav-left-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.reg-nav-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Staggered Entrance Animation for Navigation Links */
+.reg-nav-item-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  margin: 0 auto;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reg-nav-overlay.is-visible .reg-nav-item-wrapper:nth-child(1) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.14s;
+}
+
+.reg-nav-overlay.is-visible .reg-nav-item-wrapper:nth-child(2) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.20s;
+}
+
+.reg-nav-overlay.is-visible .reg-nav-item-wrapper:nth-child(3) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.26s;
+}
+
+.reg-nav-overlay.is-visible .reg-nav-item-wrapper:nth-child(4) {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.32s;
+}
+
+.reg-nav-item-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  padding: 8px 0;
+  cursor: pointer;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reg-nav-item-text {
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: clamp(38px, 5.2vw, 68px);
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+  color: #08060d;
+  transition: color 0.25s ease, opacity 0.25s ease;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+  text-align: center;
+}
+
+/* Project Electric Blue Wavy Neon Line — Centered (Light Mode Glow) */
+.reg-nav-wavy-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(100% + 24px);
+  height: 28px;
+  transform: translate(-50%, -50%) scaleX(0.4);
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  transform-origin: center center;
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  filter: drop-shadow(0 0 10px rgba(37, 99, 235, 0.55)) drop-shadow(0 0 20px rgba(56, 189, 248, 0.4));
+}
+
+/* Active or Hovered State for Navigation Link */
+.reg-nav-item-wrapper:hover .reg-nav-item-text,
+.reg-nav-item-wrapper.is-active .reg-nav-item-text {
+  color: #08060d;
+  transform: none;
+}
+
+.reg-nav-item-wrapper:hover .reg-nav-wavy-line,
+.reg-nav-item-wrapper.is-active .reg-nav-wavy-line {
+  opacity: 1;
+  transform: translate(-50%, -50%) scaleX(1);
+}
+
+/* ==========================================================================
+   RIGHT COLUMN: Two Columns in an Infinite Marquee Loop (Now on the Right)
+   ========================================================================== */
+.reg-nav-right-gallery {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.1s, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+}
+
+.reg-nav-overlay.is-visible .reg-nav-right-gallery {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reg-nav-infinite-columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 480px;
+  height: min(72vh, 640px);
+  overflow: hidden;
+  position: relative;
+  /* Top and bottom subtle gradient masks fading into #f4f3ee */
+  mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+}
+
+.infinite-col {
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.infinite-col-track {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  will-change: transform;
+}
+
+/* Continuous Infinite Scroll Animations */
+@keyframes regScrollUp {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes regScrollDown {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.col-up .infinite-col-track {
+  animation: regScrollUp 34s linear infinite;
+}
+
+.col-down .infinite-col-track {
+  animation: regScrollDown 36s linear infinite;
+}
+
+/* Pause scroll when hovering over the images */
+.reg-nav-infinite-columns:hover .infinite-col-track {
+  animation-play-state: paused;
+}
+
+/* Individual Frameless 3:4 Image Card */
+.reg-nav-img-card {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  border-radius: 0px !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.reg-nav-img-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 0px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* White and Black Filter by default */
+.reg-nav-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0px !important;
+  filter: grayscale(100%) contrast(110%) brightness(95%);
+  transform: none !important;
+  transition: filter 0.4s ease;
+}
+
+/* On Hover: Colored without scale */
+.reg-nav-img-card:hover img {
+  filter: grayscale(0%) contrast(100%) brightness(100%);
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .reg-nav-body {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 100px 28px 40px;
+  }
+
+  .reg-nav-left-content {
+    order: 1;
+  }
+
+  .reg-nav-right-gallery {
+    order: 2;
+  }
+
+  .reg-nav-infinite-columns {
+    max-width: 440px;
+    height: 420px;
+  }
+
+  .reg-nav-header-bar {
+    padding: 18px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .reg-nav-item-text {
+    font-size: clamp(32px, 8vw, 44px);
+  }
+
+  .reg-nav-infinite-columns {
+    height: 340px;
+    gap: 12px;
+  }
+}

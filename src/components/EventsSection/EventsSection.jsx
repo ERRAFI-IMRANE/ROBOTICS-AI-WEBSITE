@@ -57,6 +57,12 @@ export default function EventsSection() {
       0
     );
 
+    // Track when Events scroll turns into light background to coordinate header button color
+    tl.eventCallback("onUpdate", () => {
+      const p = tl.progress();
+      section.dataset.scrolledLight = p >= 0.18 ? "true" : "false";
+    });
+
     // ResizeObserver dynamically recalculates bounds when images and Supabase cards finish mounting
     const resizeObserver = new ResizeObserver(() => {
       ScrollTrigger.refresh();

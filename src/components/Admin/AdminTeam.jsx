@@ -12,6 +12,9 @@ const FILIERES = [
 
 // Helper to extract years array from member record
 const getMemberYears = (m) => {
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    return m.team_seasons.map((ts) => ts.season).filter(Boolean);
+  }
   if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
     return Object.keys(m.season_roles);
   }
@@ -22,14 +25,18 @@ const getMemberYears = (m) => {
   if (typeof rawYears === "string" && rawYears) {
     return rawYears.split(",").map((s) => s.trim());
   }
-  if (m?.year || m?.data?.year) {
-    return String(m.year || m.data?.year).split(",").map((s) => s.trim());
-  }
   return ["25-26"];
 };
 
 // Helper to get season roles mapping { [year]: role }
 const getMemberSeasonRoles = (m) => {
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const map = {};
+    m.team_seasons.forEach((ts) => {
+      if (ts.season) map[ts.season] = ts.role || "Team Member";
+    });
+    return map;
+  }
   if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
     return { ...m.season_roles };
   }
@@ -44,10 +51,25 @@ const getMemberSeasonRoles = (m) => {
 
 // Helper to get role for a specific year
 const getMemberRoleForYear = (m, year) => {
-  const seasonRoles = getMemberSeasonRoles(m);
-  if (year && seasonRoles[year]) {
-    return seasonRoles[year];
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const found = m.team_seasons.find((ts) => ts.season === year);
+    if (found?.role) return found.role;
+    if (year === "25-26") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
+      if (alt?.role) return alt.role;
+    }
+    if (year === "24-25") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
+      if (alt?.role) return alt.role;
+    }
+    if (year === "26-27") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
+      if (alt?.role) return alt.role;
+    }
+    if (m.team_seasons[0]?.role) return m.team_seasons[0].role;
   }
+  const seasonRoles = getMemberSeasonRoles(m);
+  if (year && seasonRoles[year]) return seasonRoles[year];
   if (year === "25-26" && (seasonRoles["2025-2026"] || seasonRoles["2025"])) {
     return seasonRoles["2025-2026"] || seasonRoles["2025"];
   }
@@ -57,11 +79,31 @@ const getMemberRoleForYear = (m, year) => {
   if (year === "26-27" && (seasonRoles["2026-2027"] || seasonRoles["2026"])) {
     return seasonRoles["2026-2027"] || seasonRoles["2026"];
   }
-  const allRoles = Object.values(seasonRoles);
-  if (allRoles.length > 0 && allRoles[0]) {
-    return allRoles[0];
-  }
   return m?.post || m?.role || m?.data?.role || "Team Member";
+};
+
+// Helper to get post abbreviation for a year
+const getMemberPostAbbr = (m, year) => {
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const found = m.team_seasons.find((ts) => ts.season === year);
+    if (found?.post_abbr) return found.post_abbr;
+    if (year === "25-26") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
+      if (alt?.post_abbr) return alt.post_abbr;
+    }
+    if (year === "24-25") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
+      if (alt?.post_abbr) return alt.post_abbr;
+    }
+    if (year === "26-27") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
+      if (alt?.post_abbr) return alt.post_abbr;
+    }
+  }
+  if (m?.post_abbr && typeof m.post_abbr === "object" && m.post_abbr[year]) {
+    return m.post_abbr[year];
+  }
+  return "";
 };
 
 // Priority rank helper for hierarchy
@@ -85,9 +127,35 @@ const getMemberAvatar = (m) => m?.avatar_img || m?.image || m?.image_url || m?.d
 const getMemberNormal = (m) => m?.normal_img || m?.normal_image || m?.normalImage || m?.hover_image || m?.hoverImage || m?.data?.normalImage || "";
 const getMemberSocials = (m) => m?.social_media_links || m?.links || m?.socials || m?.data?.socials || {};
 
-// Helper to extract post order attribute for a specific season
+// Helper to extract post order attribute for a specific season from team_seasons
 const getMemberPostOrder = (m, season) => {
   if (!m) return Infinity;
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const found = m.team_seasons.find((ts) => ts.season === season);
+    if (found && found.post_order !== null && found.post_order !== undefined && !isNaN(Number(found.post_order))) {
+      return Number(found.post_order);
+    }
+    if (season === "25-26") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
+      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
+        return Number(alt.post_order);
+      }
+    }
+    if (season === "24-25") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
+      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
+        return Number(alt.post_order);
+      }
+    }
+    if (season === "26-27") {
+      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
+      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
+        return Number(alt.post_order);
+      }
+    }
+  }
+
+  // legacy fallback
   const data = m.data || {};
   const orderSources = [
     m.order_post,
@@ -96,8 +164,6 @@ const getMemberPostOrder = (m, season) => {
     data.post_order,
     m.order,
     data.order,
-    m.orderPost,
-    m.postOrder,
   ];
 
   for (const src of orderSources) {
@@ -118,9 +184,7 @@ const getMemberPostOrder = (m, season) => {
 };
 
 export default function AdminTeam() {
-  const [activeSubTab, setActiveSubTab] = useState("staff"); // "staff" | "registrations"
   const [members, setMembers] = useState([]);
-  const [applicants, setApplicants] = useState([]);
   const [yearsList, setYearsList] = useState(PRESET_YEARS);
   const [selectedYear, setSelectedYear] = useState("25-26");
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,7 +200,10 @@ export default function AdminTeam() {
   const [editingMember, setEditingMember] = useState(null);
   const [formName, setFormName] = useState("");
   const [formFiliere, setFormFiliere] = useState(FILIERES[0]);
+  const [formBirthday, setFormBirthday] = useState("");
   const [formSeasonRoles, setFormSeasonRoles] = useState({ "25-26": "" });
+  const [formPostAbbrs, setFormPostAbbrs] = useState({});
+  const [formPostOrders, setFormPostOrders] = useState({});
   const [showCustomYearInput, setShowCustomYearInput] = useState(false);
   const [customYearValue, setCustomYearValue] = useState("");
 
@@ -183,23 +250,36 @@ export default function AdminTeam() {
   const [formLinkedin, setFormLinkedin] = useState("");
   const [formGithub, setFormGithub] = useState("");
 
-  // Refusal Modal State
-  const [refusalModalOpen, setRefusalModalOpen] = useState(false);
-  const [selectedApplicant, setSelectedApplicant] = useState(null);
-  const [refusalReason, setRefusalReason] = useState("");
-
   const [toastMsg, setToastMsg] = useState(null);
 
   const loadTeamData = async () => {
     try {
       setLoading(true);
 
+      // Query team and embed all related team_seasons records (Staff ONLY)
       let { data, error } = await supabase
         .from("team")
-        .select("*")
+        .select(`
+          id,
+          full_name,
+          avatar_img,
+          normal_img,
+          birthday,
+          department,
+          social_media_links,
+          team_seasons (
+            id,
+            team_id,
+            season,
+            role,
+            post_abbr,
+            post_order
+          )
+        `)
         .order("id", { ascending: false });
 
       if (error || !data) {
+        // Fallback: simple team query
         const retryRes = await supabase.from("team").select("*");
         if (!retryRes.error && retryRes.data) {
           data = retryRes.data;
@@ -242,18 +322,6 @@ export default function AdminTeam() {
       setMembers([]);
     } finally {
       setLoading(false);
-    }
-
-    // Load registrations
-    const savedApplicants = localStorage.getItem("rai_admin_registrations");
-    if (savedApplicants) {
-      try {
-        setApplicants(JSON.parse(savedApplicants));
-      } catch {
-        setApplicants([]);
-      }
-    } else {
-      setApplicants([]);
     }
   };
 
@@ -308,9 +376,12 @@ export default function AdminTeam() {
   const handleOpenAdd = () => {
     setEditingMember(null);
     setFormName("");
+    setFormFiliere(FILIERES[0]);
+    setFormBirthday("");
     const initialYear = selectedYear || "25-26";
     setFormSeasonRoles({ [initialYear]: "" });
-    setFormFiliere(FILIERES[0]);
+    setFormPostAbbrs({ [initialYear]: "" });
+    setFormPostOrders({ [initialYear]: "" });
     setShowCustomYearInput(false);
     setCustomYearValue("");
 
@@ -331,10 +402,28 @@ export default function AdminTeam() {
     setEditingMember(m);
     setFormName(getMemberName(m));
     setFormFiliere(getMemberFiliere(m) || FILIERES[0]);
+    setFormBirthday(m.birthday || "");
 
     const sRoles = getMemberSeasonRoles(m);
     const activeRoles = Object.keys(sRoles).length > 0 ? sRoles : { [selectedYear || "25-26"]: "" };
     setFormSeasonRoles(activeRoles);
+
+    const abbrs = {};
+    const orders = {};
+    if (Array.isArray(m.team_seasons) && m.team_seasons.length > 0) {
+      m.team_seasons.forEach((ts) => {
+        abbrs[ts.season] = ts.post_abbr || "";
+        orders[ts.season] = ts.post_order !== null && ts.post_order !== undefined ? String(ts.post_order) : "";
+      });
+    } else {
+      Object.keys(activeRoles).forEach((yr) => {
+        abbrs[yr] = getMemberPostAbbr(m, yr) || "";
+        const ord = getMemberPostOrder(m, yr);
+        orders[yr] = ord !== Infinity ? String(ord) : "";
+      });
+    }
+    setFormPostAbbrs(abbrs);
+    setFormPostOrders(orders);
 
     setShowCustomYearInput(false);
     setCustomYearValue("");
@@ -387,6 +476,8 @@ export default function AdminTeam() {
       ...prev,
       [trimmed]: Object.values(prev)[0] || "",
     }));
+    setFormPostAbbrs((prev) => ({ ...prev, [trimmed]: "" }));
+    setFormPostOrders((prev) => ({ ...prev, [trimmed]: "" }));
     setCustomYearValue("");
     setShowCustomYearInput(false);
   };
@@ -403,11 +494,6 @@ export default function AdminTeam() {
       showToast("Please select at least one season.");
       return;
     }
-
-    const cleanSeasonRoles = {};
-    seasons.forEach((yr) => {
-      cleanSeasonRoles[yr] = formSeasonRoles[yr]?.trim() || "Team Member";
-    });
 
     setSaving(true);
 
@@ -430,48 +516,115 @@ export default function AdminTeam() {
         github: formGithub.trim(),
       };
 
-      const dbPayload = {
+      // Permanent member info — ONLY for 'team' table
+      const teamPayload = {
         full_name: formName.trim(),
         department: formFiliere || "Génie Informatique",
         avatar_img: finalAvatarUrl || "/Imrane_anime.png",
         normal_img: finalNormalImageUrl || "",
+        birthday: formBirthday ? formBirthday : null,
         social_media_links: socialLinks,
-        season_roles: cleanSeasonRoles,
       };
 
       if (editingMember) {
-        const { data, error } = await supabase
+        // 1. UPDATE 'team' table (permanent info)
+        const { error: teamError } = await supabase
           .from("team")
-          .update(dbPayload)
-          .eq("id", editingMember.id)
-          .select();
+          .update(teamPayload)
+          .eq("id", editingMember.id);
 
-        if (error) {
-          showToast("Error updating profile: " + error.message);
+        if (teamError) {
+          showToast("Error updating profile: " + teamError.message);
           return;
         }
 
-        const updatedRecord = data && data[0] ? data[0] : { ...editingMember, ...dbPayload };
-        setMembers((prev) => prev.map((m) => (m.id === editingMember.id ? updatedRecord : m)));
+        // 2. UPDATE / INSERT / DELETE 'team_seasons'
+        const existingSeasons = Array.isArray(editingMember.team_seasons) ? editingMember.team_seasons : [];
+
+        for (const yr of seasons) {
+          const role = formSeasonRoles[yr]?.trim() || "Team Member";
+          const postAbbr = formPostAbbrs[yr]?.trim() || "";
+          const postOrder =
+            formPostOrders[yr] !== "" && formPostOrders[yr] !== undefined && !isNaN(Number(formPostOrders[yr]))
+              ? Number(formPostOrders[yr])
+              : null;
+
+          const existingRow = existingSeasons.find((ts) => ts.season === yr);
+          if (existingRow) {
+            // Update existing team_seasons row
+            await supabase
+              .from("team_seasons")
+              .update({
+                role,
+                post_abbr: postAbbr,
+                post_order: postOrder,
+              })
+              .eq("id", existingRow.id);
+          } else {
+            // Insert new team_seasons row
+            await supabase
+              .from("team_seasons")
+              .insert({
+                team_id: editingMember.id,
+                season: yr,
+                role,
+                post_abbr: postAbbr,
+                post_order: postOrder,
+              });
+          }
+        }
+
+        // Delete unassigned seasons
+        const unassignedSeasons = existingSeasons.filter((ts) => !seasons.includes(ts.season));
+        for (const unassigned of unassignedSeasons) {
+          await supabase
+            .from("team_seasons")
+            .delete()
+            .eq("id", unassigned.id);
+        }
+
+        await loadTeamData();
         showToast("Profile record updated.");
       } else {
-        const { data, error } = await supabase
+        // INSERT OPERATION (New Member)
+        // 1. Insert into 'team'
+        const { data: newTeamData, error: teamError } = await supabase
           .from("team")
-          .insert([dbPayload])
+          .insert([teamPayload])
           .select();
 
-        if (error) {
-          showToast("Error saving to database: " + error.message);
+        if (teamError || !newTeamData || !newTeamData[0]) {
+          showToast("Error creating member: " + (teamError?.message || "Failed to create team record"));
           return;
         }
 
-        if (data && data[0]) {
-          setMembers((prev) => [data[0], ...prev]);
-          showToast("Member profile added.");
-        } else {
-          await loadTeamData();
-          showToast("Member profile saved.");
+        const newMember = newTeamData[0];
+
+        // 2. Insert season rows into 'team_seasons'
+        const seasonInserts = seasons.map((yr) => ({
+          team_id: newMember.id,
+          season: yr,
+          role: formSeasonRoles[yr]?.trim() || "Team Member",
+          post_abbr: formPostAbbrs[yr]?.trim() || "",
+          post_order:
+            formPostOrders[yr] !== "" && formPostOrders[yr] !== undefined && !isNaN(Number(formPostOrders[yr]))
+              ? Number(formPostOrders[yr])
+              : null,
+        }));
+
+        const { error: seasonError } = await supabase
+          .from("team_seasons")
+          .insert(seasonInserts);
+
+        if (seasonError) {
+          // Atomic rollback
+          await supabase.from("team").delete().eq("id", newMember.id);
+          showToast("Error saving seasons: " + seasonError.message);
+          return;
         }
+
+        await loadTeamData();
+        showToast("Member profile added.");
       }
 
       setIsModalOpen(false);
@@ -482,63 +635,73 @@ export default function AdminTeam() {
     }
   };
 
-  const handleDeleteMember = async (id) => {
-    if (!window.confirm("Confirm deletion of this member record?")) return;
+  const handleDeleteMember = async (member) => {
+    if (!member) return;
+    const memberYears = getMemberYears(member);
+    const hasMultipleSeasons = memberYears.length > 1;
+
+    let deleteSeasonOnly = false;
+
+    if (hasMultipleSeasons) {
+      const choice = window.confirm(
+        `Member "${getMemberName(member)}" has records across multiple seasons (${memberYears.join(", ")}).\n\n` +
+        `Click OK to remove them ONLY from season "${selectedYear}" (preserves records in other seasons).\n` +
+        `Click Cancel if you do not want to remove them.`
+      );
+      if (!choice) return;
+      deleteSeasonOnly = true;
+    } else {
+      if (!window.confirm(`Confirm complete deletion of member "${getMemberName(member)}"?`)) return;
+    }
 
     try {
-      const { error } = await supabase.from("team").delete().eq("id", id);
+      if (deleteSeasonOnly) {
+        // DELETE season assignment only
+        const { error } = await supabase
+          .from("team_seasons")
+          .delete()
+          .eq("team_id", member.id)
+          .eq("season", selectedYear);
+
+        if (error) {
+          showToast("Error removing season record: " + error.message);
+          return;
+        }
+        showToast(`Removed from season ${selectedYear}.`);
+      } else {
+        // DELETE member completely
+        await supabase.from("team_seasons").delete().eq("team_id", member.id);
+        const { error } = await supabase.from("team").delete().eq("id", member.id);
+        if (error) {
+          showToast("Error deleting member: " + error.message);
+          return;
+        }
+        showToast("Member record completely removed.");
+      }
+
+      await loadTeamData();
+    } catch (err) {
+      console.warn("Delete error:", err);
+      showToast("Error deleting member.");
+    }
+  };
+
+  const handlePermanentDelete = async (memberId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this member from all seasons? This action cannot be undone.")) return;
+
+    try {
+      await supabase.from("team_seasons").delete().eq("team_id", memberId);
+      const { error } = await supabase.from("team").delete().eq("id", memberId);
       if (error) {
         showToast("Error deleting: " + error.message);
         return;
       }
+      setIsProfileModalOpen(false);
+      await loadTeamData();
+      showToast("Member permanently deleted from database.");
     } catch (err) {
-      console.warn("Delete error:", err);
+      showToast("Delete error: " + err.message);
     }
-
-    const updated = members.filter((m) => m.id !== id);
-    setMembers(updated);
-    showToast("Member profile removed.");
-  };
-
-  const handleAcceptApplicant = async (app) => {
-    const updatedApplicants = applicants.map((a) => (a.id === app.id ? { ...a, status: "Accepted" } : a));
-    setApplicants(updatedApplicants);
-    localStorage.setItem("rai_admin_registrations", JSON.stringify(updatedApplicants));
-
-    const newMemberPayload = {
-      full_name: app.name,
-      department: app.filiere,
-      avatar_img: "/Imrane_anime.png",
-      normal_img: "",
-      social_media_links: { linkedin: "", instagram: "", github: "" },
-      season_roles: { "25-26": `Member - ${app.filiere.split(" ")[0]}` },
-    };
-
-    try {
-      const { data, error } = await supabase.from("team").insert([newMemberPayload]).select();
-      if (!error && data && data[0]) {
-        setMembers((prev) => [data[0], ...prev]);
-        showToast(`Accepted ${app.name} into roster.`);
-      }
-    } catch {
-      showToast(`Accepted ${app.name} into roster.`);
-    }
-  };
-
-  const handleConfirmRefusal = (e) => {
-    e.preventDefault();
-    if (!selectedApplicant) return;
-
-    const updatedApplicants = applicants.map((a) =>
-      a.id === selectedApplicant.id
-        ? { ...a, status: "Refused", refusalReason: refusalReason.trim() || "Criteria not met for this cycle" }
-        : a
-    );
-
-    setApplicants(updatedApplicants);
-    localStorage.setItem("rai_admin_registrations", JSON.stringify(updatedApplicants));
-    setRefusalModalOpen(false);
-    showToast(`Application for ${selectedApplicant.name} declined.`);
   };
 
   // Filtered members by year, search, and ordered by post_order
@@ -572,8 +735,6 @@ export default function AdminTeam() {
       return getMemberName(a).localeCompare(getMemberName(b));
     });
 
-  const pendingCount = applicants.filter((a) => a.status === "Pending").length;
-
   return (
     <div className="admin-tab-content">
       {/* Toast Notification */}
@@ -582,268 +743,168 @@ export default function AdminTeam() {
       {/* Page Header */}
       <div className="admin-view-header">
         <div>
-          <h1 className="admin-page-title">Members & leadership</h1>
+          <h1 className="admin-page-title">Staff & leadership</h1>
           <p className="admin-page-desc">
-            Club executive officers, engineers, and student recruitment queue.
+            Executive officers, mentors, and club committee engineers (table: team + team_seasons).
           </p>
         </div>
 
         <div className="admin-header-actions">
-          {activeSubTab === "staff" && (
-            <button type="button" className="btn-primary" onClick={handleOpenAdd}>
-              Add member
-            </button>
-          )}
+          <button type="button" className="btn-primary" onClick={handleOpenAdd}>
+            Add staff officer
+          </button>
         </div>
       </div>
 
-      {/* Sub Tab Switcher */}
-      <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border)", paddingBottom: "12px" }}>
-        <button
-          type="button"
-          className={`btn-secondary ${activeSubTab === "staff" ? "btn-primary" : ""}`}
-          onClick={() => setActiveSubTab("staff")}
-          style={{ fontSize: "13px" }}
-        >
-          Staff & leadership ({members.length})
-        </button>
+      {/* Filter Bar: Seasons Pills + Search Input */}
+      <div className="member-filters-bar">
+        <div className="filter-pills-row">
+          {yearsList.map((yr) => {
+            const count = members.filter((m) => {
+              const mYears = getMemberYears(m);
+              return (
+                mYears.includes(yr) ||
+                (yr === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
+                (yr === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
+                (yr === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")))
+              );
+            }).length;
 
-        <button
-          type="button"
-          className={`btn-secondary ${activeSubTab === "registrations" ? "btn-primary" : ""}`}
-          onClick={() => setActiveSubTab("registrations")}
-          style={{ fontSize: "13px" }}
-        >
-          Recruitment queue {pendingCount > 0 ? `(${pendingCount} pending)` : `(${applicants.length})`}
-        </button>
+            return (
+              <button
+                key={yr}
+                type="button"
+                className={`filter-pill-btn ${selectedYear === yr ? "is-active" : ""}`}
+                onClick={() => setSelectedYear(yr)}
+              >
+                <span>{yr}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", marginLeft: "4px", color: "var(--text-muted)" }}>
+                  ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ width: "240px" }}>
+          <input
+            type="text"
+            placeholder="Search member, role, department..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="form-text-input"
+            style={{ padding: "6px 10px", fontSize: "12px" }}
+          />
+        </div>
       </div>
 
-      {activeSubTab === "registrations" ? (
-        /* Recruitment Applications Queue */
-        <div className="admin-panel">
-          <div className="admin-panel-header">
-            <div>
-              <h3 className="admin-panel-heading">Recruitment applications</h3>
-              <p className="admin-panel-meta">Student admissions queue from club portal</p>
-            </div>
-          </div>
-
-          <div className="table-container">
-            <table className="hairline-table">
-              <thead>
-                <tr>
-                  <th>Student applicant</th>
-                  <th>Department / Filière</th>
-                  <th>Skills & motivation</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {applicants.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)" }}>
-                      No incoming student registrations logged yet.
-                    </td>
-                  </tr>
-                ) : (
-                  applicants.map((app) => (
-                    <tr key={app.id}>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{app.name}</div>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{app.email}</div>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: "12px", color: "var(--accent)" }}>{app.filiere}</span>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{app.skills}</div>
-                        <div style={{ fontSize: "12px", color: "var(--text)" }}>&ldquo;{app.motivation}&rdquo;</div>
-                      </td>
-                      <td style={{ fontSize: "12px", color: "var(--text-muted)" }}>{app.appliedDate}</td>
-                      <td>
-                        <span
-                          className={`status-chip status-chip-${
-                            app.status === "Accepted" ? "positive" : app.status === "Refused" ? "critical" : "warning"
-                          }`}
-                        >
-                          <span className="status-chip-dot" />
-                          <span>{app.status}</span>
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {app.status === "Pending" ? (
-                          <div style={{ display: "inline-flex", gap: "6px" }}>
-                            <button
-                              type="button"
-                              className="btn-primary"
-                              onClick={() => handleAcceptApplicant(app)}
-                              style={{ padding: "4px 8px", fontSize: "12px" }}
-                            >
-                              Accept
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-secondary btn-danger"
-                              onClick={() => {
-                                setSelectedApplicant(app);
-                                setRefusalReason("");
-                                setRefusalModalOpen(true);
-                              }}
-                              style={{ padding: "4px 8px", fontSize: "12px" }}
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Processed</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* Members Drafting Grid */}
+      {loading ? (
+        <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+          <span>Connecting to database & loading roster...</span>
+        </div>
+      ) : filteredList.length === 0 ? (
+        <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+          <p style={{ margin: "0 0 12px" }}>No members registered for {selectedYear}.</p>
+          <button type="button" className="btn-secondary" onClick={handleOpenAdd}>
+            Add member to {selectedYear}
+          </button>
         </div>
       ) : (
-        /* Staff Roster Grid View */
-        <>
-          {/* Filter Bar: Seasons Pills + Search Input */}
-          <div className="member-filters-bar">
-            <div className="filter-pills-row">
-              {yearsList.map((yr) => {
-                const count = members.filter((m) => {
-                  const mYears = getMemberYears(m);
-                  return (
-                    mYears.includes(yr) ||
-                    (yr === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
-                    (yr === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
-                    (yr === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")))
-                  );
-                }).length;
+        <div className="members-drafting-grid">
+          {filteredList.map((m) => {
+            const avatar = getMemberAvatar(m);
+            const name = getMemberName(m);
+            const currentSeasonRole = getMemberRoleForYear(m, selectedYear);
+            const filiere = getMemberFiliere(m);
+            const seasonRoles = getMemberSeasonRoles(m);
+            const orderValue = getMemberPostOrder(m, selectedYear);
 
-                return (
-                  <button
-                    key={yr}
-                    type="button"
-                    className={`filter-pill-btn ${selectedYear === yr ? "is-active" : ""}`}
-                    onClick={() => setSelectedYear(yr)}
-                  >
-                    <span>{yr}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", marginLeft: "4px", color: "var(--text-muted)" }}>
-                      ({count})
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ width: "240px" }}>
-              <input
-                type="text"
-                placeholder="Search member, role, department..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-text-input"
-                style={{ padding: "6px 10px", fontSize: "12px" }}
-              />
-            </div>
-          </div>
-
-          {/* Members Drafting Grid */}
-          {loading ? (
-            <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-              <span>Connecting to database & loading roster...</span>
-            </div>
-          ) : filteredList.length === 0 ? (
-            <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-              <p style={{ margin: "0 0 12px" }}>No members registered for {selectedYear}.</p>
-              <button type="button" className="btn-secondary" onClick={handleOpenAdd}>
-                Add member to {selectedYear}
-              </button>
-            </div>
-          ) : (
-            <div className="members-drafting-grid">
-              {filteredList.map((m) => {
-                const avatar = getMemberAvatar(m);
-                const name = getMemberName(m);
-                const currentSeasonRole = getMemberRoleForYear(m, selectedYear);
-                const filiere = getMemberFiliere(m);
-                const seasonRoles = getMemberSeasonRoles(m);
-                const orderValue = getMemberPostOrder(m, selectedYear);
-
-                return (
-                  <div
-                    key={m.id}
-                    className="member-drafting-card"
-                    onClick={() => handleOpenProfile(m)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleOpenProfile(m);
-                      }
-                    }}
-                  >
-                    <div className="member-card-header">
-                      <div className="member-avatar-box">
-                        <img src={avatar} alt={name} className="member-avatar-img" loading="lazy" />
-                      </div>
-
-                      {orderValue !== Infinity && (
-                        <span className="member-card-order-tag">
-                          #{orderValue}
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="member-card-title">{name}</h3>
-                    <div className="member-card-role-text">{currentSeasonRole}</div>
-                    {filiere && <div className="member-card-dept-text">{filiere}</div>}
-
-                    <div className="member-card-foot-row">
-                      <span>{Object.keys(seasonRoles).length} {Object.keys(seasonRoles).length === 1 ? "season" : "seasons"}</span>
-
-                      <div className="member-card-quick-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="btn-hairline-icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEdit(m);
-                          }}
-                          title="Edit member"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-hairline-icon btn-danger"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteMember(m.id);
-                          }}
-                          title="Delete member"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+            return (
+              <div
+                key={m.id}
+                className="member-drafting-card"
+                onClick={() => handleOpenProfile(m)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleOpenProfile(m);
+                  }
+                }}
+              >
+                <div className="member-card-header">
+                  <div className="member-avatar-box">
+                    <img src={avatar} alt={name} className="member-avatar-img" loading="lazy" />
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+
+                  <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                    {getMemberPostAbbr(m, selectedYear) && (
+                      <span
+                        className="member-card-order-tag"
+                        style={{
+                          background: "rgba(59, 130, 246, 0.12)",
+                          color: "#60a5fa",
+                          borderColor: "rgba(59, 130, 246, 0.3)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                        }}
+                        title="Post Abbreviation"
+                      >
+                        {getMemberPostAbbr(m, selectedYear)}
+                      </span>
+                    )}
+                    {orderValue !== Infinity && (
+                      <span className="member-card-order-tag" title="Website Display Order">
+                        #{orderValue}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <h3 className="member-card-title">{name}</h3>
+                <div className="member-card-role-text">{currentSeasonRole}</div>
+                {filiere && <div className="member-card-dept-text">{filiere}</div>}
+
+                <div className="member-card-foot-row">
+                  <span>{Object.keys(seasonRoles).length} {Object.keys(seasonRoles).length === 1 ? "season" : "seasons"}</span>
+
+                  <div className="member-card-quick-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-hairline-icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEdit(m);
+                      }}
+                      title="Edit member"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-hairline-icon btn-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMember(m);
+                      }}
+                      title="Delete member or remove from season"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Member Profile Details Inspection Modal */}
@@ -875,6 +936,11 @@ export default function AdminTeam() {
                     {getMemberRoleForYear(selectedProfileMember, selectedYear)} ({selectedYear})
                   </div>
                   <div className="profile-dept-info">{getMemberFiliere(selectedProfileMember) || "EST Safi"}</div>
+                  {selectedProfileMember.birthday && (
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                      🎂 Birthday: {selectedProfileMember.birthday}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -888,20 +954,35 @@ export default function AdminTeam() {
                     <tr>
                       <th>Season</th>
                       <th>Assigned role</th>
+                      <th>Post Abbr</th>
                       <th style={{ textAlign: "right" }}>Post order</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(getMemberSeasonRoles(selectedProfileMember)).map(([yr, role]) => {
-                      const yrOrder = getMemberPostOrder(selectedProfileMember, yr);
+                    {(Array.isArray(selectedProfileMember.team_seasons) && selectedProfileMember.team_seasons.length > 0
+                      ? selectedProfileMember.team_seasons
+                      : Object.entries(getMemberSeasonRoles(selectedProfileMember)).map(([yr, role]) => ({
+                          season: yr,
+                          role,
+                          post_abbr: getMemberPostAbbr(selectedProfileMember, yr),
+                          post_order: getMemberPostOrder(selectedProfileMember, yr),
+                        }))
+                    ).map((ts) => {
+                      const order =
+                        ts.post_order !== null && ts.post_order !== undefined && ts.post_order !== Infinity
+                          ? `#${ts.post_order}`
+                          : "Default";
                       return (
-                        <tr key={yr}>
+                        <tr key={ts.season}>
                           <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text)" }}>
-                            {yr}
+                            {ts.season}
                           </td>
-                          <td>{role}</td>
+                          <td>{ts.role}</td>
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>
+                            {ts.post_abbr || "—"}
+                          </td>
                           <td style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-                            {yrOrder !== Infinity ? `#${yrOrder}` : "Default"}
+                            {order}
                           </td>
                         </tr>
                       );
@@ -965,13 +1046,10 @@ export default function AdminTeam() {
               <button
                 type="button"
                 className="btn-secondary btn-danger"
-                onClick={() => {
-                  const id = selectedProfileMember.id;
-                  setIsProfileModalOpen(false);
-                  handleDeleteMember(id);
-                }}
+                onClick={() => handlePermanentDelete(selectedProfileMember.id)}
+                title="Permanently delete member from all seasons and database"
               >
-                Delete member
+                Delete completely
               </button>
               <button
                 type="button"
@@ -1011,8 +1089,8 @@ export default function AdminTeam() {
 
             <form onSubmit={handleSaveMember} style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div className="admin-modal-body">
-                {/* Full name & department */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                {/* Full name, department & birthday */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1fr", gap: "12px" }}>
                   <div className="form-field-group">
                     <label className="form-field-label">Full name *</label>
                     <input
@@ -1036,6 +1114,16 @@ export default function AdminTeam() {
                         <option key={f} value={f}>{f}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="form-field-label">Date of birth (Optional)</label>
+                    <input
+                      type="date"
+                      value={formBirthday}
+                      onChange={(e) => setFormBirthday(e.target.value)}
+                      className="form-text-input"
+                    />
                   </div>
                 </div>
 
@@ -1151,10 +1239,10 @@ export default function AdminTeam() {
                 {/* Seasons & Assigned Roles */}
                 <div className="form-field-group">
                   <label className="form-field-label">
-                    Active seasons & roles (select seasons to assign role)
+                    Active seasons & roles (select seasons to assign role, abbreviation, and website order)
                   </label>
 
-                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
                     {yearsList.map((yr) => {
                       const isSelected = formSeasonRoles[yr] !== undefined;
                       return (
@@ -1180,7 +1268,7 @@ export default function AdminTeam() {
                   </div>
 
                   {showCustomYearInput && (
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
                       <input
                         type="text"
                         placeholder="e.g. 26-27 or 27-28"
@@ -1200,21 +1288,46 @@ export default function AdminTeam() {
                     </div>
                   )}
 
-                  {/* Input for each active season's role */}
+                  {/* Input table header for active seasons */}
+                  <div style={{ display: "grid", gridTemplateColumns: "70px 1.4fr 1fr 90px", gap: "8px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, paddingBottom: "4px" }}>
+                    <span>Season</span>
+                    <span>Assigned role *</span>
+                    <span>Abbreviation</span>
+                    <span style={{ textAlign: "right" }}>Order #</span>
+                  </div>
+
+                  {/* Input for each active season's role, abbr, and order */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {Object.keys(formSeasonRoles).map((yr) => (
-                      <div key={yr} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ width: "90px", fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
+                      <div key={yr} style={{ display: "grid", gridTemplateColumns: "70px 1.4fr 1fr 90px", gap: "8px", alignItems: "center" }}>
+                        <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>
                           {yr}:
                         </span>
                         <input
                           type="text"
                           required
-                          placeholder={`Role in ${yr} (e.g. President, AI Lead)`}
+                          placeholder={`Role in ${yr} (e.g. President)`}
                           value={formSeasonRoles[yr] || ""}
                           onChange={(e) => handleRoleChangeForSeason(yr, e.target.value)}
                           className="form-text-input"
-                          style={{ flex: 1 }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="e.g. PRES"
+                          value={formPostAbbrs[yr] || ""}
+                          onChange={(e) => setFormPostAbbrs((prev) => ({ ...prev, [yr]: e.target.value }))}
+                          className="form-text-input"
+                          title="Post Abbreviation (e.g. PRES, AI-LEAD)"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Order #"
+                          value={formPostOrders[yr] ?? ""}
+                          onChange={(e) => setFormPostOrders((prev) => ({ ...prev, [yr]: e.target.value }))}
+                          className="form-text-input"
+                          min="1"
+                          title="Website display order (1 appears first)"
+                          style={{ textAlign: "right" }}
                         />
                       </div>
                     ))}
@@ -1263,48 +1376,6 @@ export default function AdminTeam() {
         </div>
       )}
 
-      {/* Refusal Confirmation Modal */}
-      {refusalModalOpen && selectedApplicant && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-dialog" style={{ maxWidth: "480px" }}>
-            <div className="admin-modal-header">
-              <h2 className="admin-modal-title">Decline registration</h2>
-              <button type="button" className="admin-modal-close-btn" onClick={() => setRefusalModalOpen(false)}>
-                &times;
-              </button>
-            </div>
-
-            <form onSubmit={handleConfirmRefusal}>
-              <div className="admin-modal-body">
-                <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "0 0 12px" }}>
-                  Provide reason for declining <strong>{selectedApplicant.name}</strong>&apos;s application:
-                </p>
-
-                <div className="form-field-group">
-                  <label className="form-field-label">Decline notes *</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="e.g. Prerequisite lab experience not met for current embedded systems track..."
-                    value={refusalReason}
-                    onChange={(e) => setRefusalReason(e.target.value)}
-                    className="form-textarea"
-                  />
-                </div>
-              </div>
-
-              <div className="admin-modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setRefusalModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary btn-danger">
-                  Confirm decline
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

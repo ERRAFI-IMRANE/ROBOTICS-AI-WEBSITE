@@ -70,14 +70,18 @@ body {
   }
 
   .hero-zoom-wrapper {
-    height: 100svh;
-    min-height: 100svh;
+    height: 100dvh;
+    min-height: 100dvh;
+    margin-bottom: -2px;
     overflow: hidden;
+    background: #07101f;
   }
 
   .hero-zoom-inner {
+    height: 100dvh;
     transform: none !important;
     border-radius: 0 !important;
+    background: #07101f;
   }
 
   .hero-dark-overlay,

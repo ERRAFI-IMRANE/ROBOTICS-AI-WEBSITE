@@ -736,8 +736,9 @@
 
 @media (max-width: 767px) {
   .hero {
-    height: 100svh;
-    min-height: 100svh;
+    height: 100dvh;
+    min-height: 100dvh;
+    margin: 0;
     align-items: flex-end;
     isolation: isolate;
     background:

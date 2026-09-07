@@ -347,7 +347,7 @@ export default function HeroSection() {
       CHROME_SRC: "/RAI/RAI-ORI.png",
       IMG_W: 1920,
       IMG_H: 1080,
-      imgScale: 1.0,
+      imgScale: window.innerWidth < 760 ? 1.1 : 1.0,
       imgFocus: [0.5, 0.5],
       simLong: 288,
       simHz: 120,
@@ -899,5 +899,4 @@ export default function HeroSection() {
     </section>
   );
 }
-
 

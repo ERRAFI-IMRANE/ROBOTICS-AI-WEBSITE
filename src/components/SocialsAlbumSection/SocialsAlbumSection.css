@@ -263,6 +263,7 @@
 @media (max-width: 600px) {
   .socials-album-section { padding: 76px 0 64px; }
   .socials-album-container { padding: 0 20px; }
+  .socials-club-logo-wrap { width: 82px; margin-bottom: 14px; }
   .socials-heading-sans,
   .socials-heading-serif { font-size: clamp(2rem, 10.5vw, 2.65rem); }
   .socials-album-deck {

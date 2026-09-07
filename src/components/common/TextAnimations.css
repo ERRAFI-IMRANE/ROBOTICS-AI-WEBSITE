@@ -165,6 +165,12 @@
   user-select: none;
 }
 
+@media (max-width: 767px) {
+  .ambient-ticker-bar {
+    margin-top: -1px;
+  }
+}
+
 .ambient-ticker-track {
   display: flex;
   width: max-content;

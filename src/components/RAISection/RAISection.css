@@ -393,8 +393,9 @@
   .rai-mobile-robot-stage {
     position: relative;
     z-index: 2;
-    height: 330px;
-    margin: 28px 0 0;
+    width: 100vw;
+    height: 340px;
+    margin: 28px 0 0 calc(50% - 50vw);
     overflow: hidden;
     border-top: 1px solid rgba(15, 23, 42, 0.12);
     border-bottom: 1px solid rgba(15, 23, 42, 0.12);
@@ -419,9 +420,9 @@
 
   .rai-mobile-robot {
     position: absolute;
-    bottom: -25px;
-    width: 67%;
-    height: 310px;
+    bottom: -18px;
+    width: 62%;
+    height: 320px;
     object-fit: contain;
     object-position: center bottom;
     pointer-events: none;
@@ -430,12 +431,12 @@
   }
 
   .rai-mobile-robot--wire {
-    left: -14%;
+    left: -3%;
     z-index: 1;
   }
 
   .rai-mobile-robot--solid {
-    right: -14%;
+    right: -3%;
     z-index: 2;
   }
 

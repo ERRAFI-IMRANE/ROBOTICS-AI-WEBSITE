@@ -24,9 +24,27 @@ export default function RAISection() {
 
     if (!section || !leftImg || !rightImg || !leftText || !rightText) return;
 
-    // The split composition is static on phones; the desktop scroll choreography
-    // depends on a landscape canvas and would otherwise push content off-screen.
-    if (window.matchMedia("(max-width: 767px)").matches) return;
+    // Phones retain the two-robot entrance, tuned for the compact composition
+    // without the full-screen pinned swipe used on desktop.
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      const mobileTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 92%",
+          end: "top 38%",
+          scrub: 0.8,
+        },
+      });
+
+      mobileTl.fromTo(leftImg, { xPercent: -42, opacity: 0.35 }, { xPercent: 0, opacity: 1, ease: "none" }, 0);
+      mobileTl.fromTo(rightImg, { xPercent: 42, opacity: 0.35 }, { xPercent: 0, opacity: 1, ease: "none" }, 0);
+      mobileTl.fromTo([leftText, rightText], { y: 28, opacity: 0 }, { y: 0, opacity: 1, ease: "none" }, 0.15);
+
+      return () => {
+        mobileTl.scrollTrigger?.kill();
+        mobileTl.kill();
+      };
+    }
 
     // Original RAI section animation — untouched
     const tl = gsap.timeline({

@@ -425,11 +425,13 @@ export default function TeamSection() {
               <div key={colIdx} className={`team-showcase-col team-col-${colIdx + 1}`}>
                 {column.map((card) => {
                   const isHovered = hoveredCardId === card.id;
+                  const memberOrder = filteredMembers.indexOf(card);
 
                   return (
                     <div
                       key={card.id}
-                      className={`team-showcase-card ${isHovered ? "is-hovered" : ""}`}
+                      className={`team-showcase-card ${isHovered ? "is-hovered" : ""} ${memberOrder === filteredMembers.length - 1 ? "is-last-member" : ""}`}
+                      style={{ "--team-order": memberOrder }}
                       onMouseEnter={() => setHoveredCardId(card.id)}
                       onMouseLeave={() => setHoveredCardId(null)}
                     >

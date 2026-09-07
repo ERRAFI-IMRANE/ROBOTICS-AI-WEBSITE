@@ -462,12 +462,24 @@
   .hf-col--right { padding-right: 0; }
   .hf-col--left,
   .hf-col--right { order: initial; }
-  .hf-robot-center { grid-column: 1 / -1; order: 3; margin: -22px 0 -105px; }
+  .hf-robot-center {
+    grid-column: 1 / -1;
+    order: 3;
+    margin: -10px 0 -150px;
+    transform: translateY(34px);
+  }
   .hf-robot-frame { width: min(88vw, 390px); }
   .hf-nav-list { gap: 10px; }
   .hf-nav-list li a { min-height: 32px; font-size: 1rem; }
   .hf-accent-link-wrap { margin-top: 12px; }
-  .hf-marquee-container { margin-top: 94px; padding: 18px 0; }
+  .hf-marquee-container {
+    margin-top: 28px;
+    padding: 18px 0;
+    z-index: 2;
+  }
+
+  .hf-marquee-track { gap: 48px; }
+  .hf-partner-logo { height: 27px; opacity: 0.82; }
 
   .hf-bottom-bar {
     position: static;

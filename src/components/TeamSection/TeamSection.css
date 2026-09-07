@@ -614,6 +614,22 @@
     gap: 16px;
   }
 
+  /* Flatten the desktop masonry columns so mobile keeps the exact roster order. */
+  .team-showcase-col,
+  .team-col-4 {
+    display: contents;
+  }
+
+  .team-showcase-card {
+    order: var(--team-order);
+  }
+
+  .team-showcase-card.is-last-member {
+    grid-column: 1 / -1;
+    width: calc(50% - 8px);
+    justify-self: center;
+  }
+
   .team-col-1,
   .team-col-3 {
     margin-top: 0px;
@@ -660,7 +676,6 @@
     margin-top: 0;
   }
 
-  .team-showcase-col { gap: 12px; }
   .team-card-bottom-bar { padding: 28px 8px 6px; }
   .team-card-name-group { max-width: 95px; padding-bottom: 16px; }
   .team-card-name { font-size: 0.72rem; }
@@ -668,6 +683,10 @@
   .team-card-socials-notch { gap: 5px; }
   .team-notch-social-link { min-width: 22px; min-height: 22px; }
   .team-notch-social-link svg { width: 12px; height: 12px; }
+
+  .team-showcase-card.is-last-member {
+    width: calc(50% - 6px);
+  }
 
   .team-thanks-logo {
     height: 40px;

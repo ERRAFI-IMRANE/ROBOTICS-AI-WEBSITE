@@ -209,13 +209,36 @@
 }
 
 @media (max-width: 600px) {
-  .partners-section { padding: 76px 0 68px; }
+  .partners-section { padding: 76px 0 68px; isolation: isolate; }
   .partners-content-wrap { padding: 0 20px; }
-  .partners-header-grid { gap: 16px; }
-  .partners-title-sans,
-  .partners-title-serif { font-size: clamp(2.35rem, 12vw, 3rem); }
-  .partners-narrative-text { font-size: 0.88rem; line-height: 1.55; }
-  .partners-club-sign-backdrop { width: 310px; opacity: 0.38; top: 54%; }
+  .partners-header-grid { gap: 24px; }
+  .partners-title-block { width: 100%; }
+  .partners-title-sans { font-size: clamp(2.35rem, 12vw, 3rem); }
+  .partners-title-serif {
+    font-size: clamp(2rem, 9.5vw, 2.4rem);
+    letter-spacing: -0.04em;
+  }
+  .partners-narrative-block {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    padding: 18px 0 0;
+    border-top: 1px solid rgba(15, 23, 42, 0.16);
+  }
+  .partners-narrative-text {
+    max-width: 330px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  .partners-club-sign-backdrop {
+    width: 118vw;
+    max-width: none;
+    top: 57%;
+    left: 50%;
+    opacity: 0.12;
+    transform: translate(-50%, -50%) rotate(-16deg);
+    filter: grayscale(1);
+  }
   .partners-marquee-container { margin-top: 58px; }
   .partner-item-card { height: 44px; }
 }

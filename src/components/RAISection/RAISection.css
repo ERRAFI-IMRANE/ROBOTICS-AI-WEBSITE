@@ -317,11 +317,14 @@
 
 @media (max-width: 768px) {
   .rai-section {
-    min-height: 580px;
-    padding: 48px 12px;
+    min-height: 610px;
+    padding: 36px 12px 28px;
   }
 
-  .rai-container { min-height: 490px; }
+  .rai-container {
+    min-height: 530px;
+    max-width: 430px;
+  }
 
   .rai-club-sign-img {
     max-width: 60%;
@@ -330,19 +333,49 @@
   }
 
   .rai-side-img {
-    max-width: 78vw;
-    max-height: 54vh;
-    top: 10%;
-    transform: none !important;
+    width: auto;
+    max-width: 80vw;
+    max-height: 430px;
+    top: 1%;
   }
 
+  .rai-left-img { left: -27%; }
+  .rai-right-img { right: -27%; }
+
   .rai-word-part {
-    font-size: clamp(2.5rem, 11vw, 5.5rem);
+    font-size: clamp(2rem, 10vw, 2.8rem);
+    line-height: 0.9;
   }
 
   .rai-text-center-wrapper {
     left: 50%;
-    top: 48%;
+    top: auto;
+    bottom: 8px;
+    width: calc(100% - 20px);
+    padding: 22px 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid rgba(29, 78, 216, 0.14);
+    border-radius: 20px;
+    background: rgba(248, 249, 246, 0.82);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+
+  .rai-text-center-wrapper::after {
+    content: "STUDENT-BUILT  ·  FUTURE-READY";
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    white-space: nowrap;
+    color: rgba(29, 78, 216, 0.7);
   }
 
   .rai-subtext-row {
@@ -373,8 +406,8 @@
 
   .rai-btn {
     min-height: 42px;
-    padding: 8px 11px;
-    font-size: 0.62rem;
+    padding: 8px 9px;
+    font-size: 0.58rem;
     gap: 4px;
   }
 
@@ -383,7 +416,6 @@
     height: 10px;
   }
 
-  .rai-text-half { transform: none !important; }
   .rai-swipe-wrapper { display: none; }
 }
 

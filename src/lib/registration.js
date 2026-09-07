@@ -59,6 +59,7 @@ export async function submitRegistration(client, values, expectedSeason) {
     message: values.message.trim() || null,
     registration_season: settings.season,
     status: "pending",
+    refusal_reason: null,
   };
   // Do not request the inserted row: public applicants don't need SELECT permission.
   const { error } = await client.from("registrations").insert(payload);

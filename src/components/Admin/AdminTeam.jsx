@@ -185,12 +185,36 @@ const getMemberPostOrder = (m, season) => {
   return Infinity;
 };
 
-export default function AdminTeam() {
-  const [members, setMembers] = useState([]);
-  const [yearsList, setYearsList] = useState(PRESET_YEARS);
+const deriveTeamYears = (rows) => {
+  const combinedYearsSet = new Set(PRESET_YEARS);
+  rows.forEach((member) => {
+    getMemberYears(member).forEach((year) => {
+      if (!year) return;
+      const normalized = String(year).trim();
+      if (!["23-24", "2023-2024", "2023", "23/24"].includes(normalized)) combinedYearsSet.add(normalized);
+    });
+  });
+  const preferredOrder = ["24-25", "25-26", "26-27"];
+  return [...combinedYearsSet]
+    .filter((year) => !["23-24", "2023-2024", "2023", "23/24"].includes(year))
+    .sort((a, b) => {
+      const indexA = preferredOrder.indexOf(a);
+      const indexB = preferredOrder.indexOf(b);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+};
+
+export default function AdminTeam({ initialMembers = null }) {
+  const hasInitialMembers = Array.isArray(initialMembers);
+  const seededMembers = hasInitialMembers ? initialMembers : [];
+  const [members, setMembers] = useState(seededMembers);
+  const [yearsList, setYearsList] = useState(() => deriveTeamYears(seededMembers));
   const [selectedYear, setSelectedYear] = useState("25-26");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!hasInitialMembers);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -298,29 +322,7 @@ export default function AdminTeam() {
       const rows = data && Array.isArray(data) ? data : [];
       setMembers(rows);
 
-      const combinedYearsSet = new Set(PRESET_YEARS);
-      rows.forEach((m) => {
-        const mYears = getMemberYears(m);
-        mYears.forEach((yr) => {
-          if (!yr) return;
-          const str = String(yr).trim();
-          if (str !== "23-24" && str !== "2023-2024" && str !== "2023" && str !== "23/24") {
-            combinedYearsSet.add(str);
-          }
-        });
-      });
-
-      const sortedYears = Array.from(combinedYearsSet)
-        .filter((yr) => yr !== "23-24" && yr !== "2023-2024" && yr !== "2023" && yr !== "23/24")
-        .sort((a, b) => {
-          const order = ["24-25", "25-26", "26-27"];
-          const idxA = order.indexOf(a);
-          const idxB = order.indexOf(b);
-          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-          if (idxA !== -1) return -1;
-          if (idxB !== -1) return 1;
-          return a.localeCompare(b);
-        });
+      const sortedYears = deriveTeamYears(rows);
       setYearsList(sortedYears);
 
       setSelectedYear((current) => sortedYears.length && !sortedYears.includes(current) ? sortedYears[0] : current);
@@ -333,8 +335,8 @@ export default function AdminTeam() {
   }, []);
 
   useEffect(() => {
-    loadTeamData();
-  }, [loadTeamData]);
+    if (!hasInitialMembers) loadTeamData();
+  }, [hasInitialMembers, loadTeamData]);
 
   const showToast = (msg) => {
     setToastMsg(msg);

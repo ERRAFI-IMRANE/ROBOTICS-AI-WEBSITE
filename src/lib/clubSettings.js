@@ -32,10 +32,11 @@ export async function saveClubSettings(client, values) {
 export async function decideRegistration(client, id, decision, reason = "") {
   if (!id || !["accepted", "refused"].includes(decision)) throw new Error("Choose a valid application and decision.");
   if (decision === "refused" && !reason.trim()) throw new Error("Please enter a reason for refusal.");
+  if (reason.trim().length > 2000) throw new Error("Keep the refusal reason under 2,000 characters.");
   const { data, error } = await client.rpc("decide_club_registration", {
     p_registration_id: id, p_decision: decision, p_reason: reason.trim() || null,
   });
-  if (error) throw new Error(error.code === "PGRST202" ? "Apply the admin rebuild SQL to enable atomic admission decisions." : error.message);
+  if (error) throw new Error(error.code === "PGRST202" ? "Apply the single-table registrations migration to enable admission decisions." : error.message);
   if (!data || String(data.registration_id) !== String(id) || data.decision !== decision) throw new Error("The decision was not confirmed. Refresh the queue before retrying.");
   return data;
 }

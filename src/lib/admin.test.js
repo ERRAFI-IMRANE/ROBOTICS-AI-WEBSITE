@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { normalizeSeason, shortSeason, saveClubSettings, decideRegistration } from "./clubSettings.js";
 import { eventPayload, eventView, safeEventUrl, saveEvent, deleteEvent } from "./adminEvents.js";
 import { saveStaff, deleteStaff } from "./adminStaff.js";
@@ -37,7 +38,7 @@ test("settings use one atomic RPC with independent current and published seasons
   assert.equal(client.calls[0].name, "save_club_settings");
   await assert.rejects(saveClubSettings(client, { ...data, current_season: "bad" }));
 });
-test("admissions call the atomic endpoint exactly once", async () => {
+test("admissions update the registration through one atomic decision endpoint", async () => {
   const client = rpcMock({ data: { registration_id: 15, decision: "accepted" }, error: null });
   await decideRegistration(client, 15, "accepted");
   assert.deepEqual(client.calls, [{ name: "decide_club_registration", args: { p_registration_id: 15, p_decision: "accepted", p_reason: null } }]);
@@ -46,12 +47,25 @@ test("refusal requires a reason and never performs a partial fallback", async ()
   const client = rpcMock({ data: null, error: { code: "PGRST202" } });
   await assert.rejects(decideRegistration(client, 15, "refused", " "), /reason/);
   assert.equal(client.calls.length, 0);
-  await assert.rejects(decideRegistration(client, 15, "refused", "Not eligible"), /SQL/);
+  await assert.rejects(decideRegistration(client, 15, "refused", "Not eligible"), /migration/);
   assert.equal(client.calls.length, 1);
+});
+test("refusal sends the trimmed reason with no secondary table write", async () => {
+  const client = rpcMock({ data: { registration_id: 15, decision: "refused" }, error: null });
+  await decideRegistration(client, 15, "refused", "  Incomplete application  ");
+  assert.deepEqual(client.calls, [{ name: "decide_club_registration", args: { p_registration_id: 15, p_decision: "refused", p_reason: "Incomplete application" } }]);
 });
 test("wrong or missing admission confirmation is not a success", async () => {
   await assert.rejects(decideRegistration(rpcMock({ data: null }), 2, "accepted"), /not confirmed/);
   await assert.rejects(decideRegistration(rpcMock({ data: { registration_id: 3, decision: "accepted" } }), 2, "accepted"));
+});
+test("single-table migration updates registration history without copying or deleting applicants", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_registrations_single_table.sql", import.meta.url), "utf8");
+  assert.match(migration, /UPDATE public\.registrations[\s\S]*SET status = p_decision/);
+  assert.match(migration, /refusal_reason = CASE WHEN p_decision = 'refused'/);
+  assert.doesNotMatch(migration, /INSERT INTO public\.(?:members|refused_members)/);
+  assert.doesNotMatch(migration, /DELETE FROM public\.registrations/);
+  assert.doesNotMatch(migration, /public\.club_settings/);
 });
 test("legacy unclassified events are completed", () => {
   assert.equal(eventView({ id: 1, data: '{"title":"Workshop"}' }).status, "Completed");
@@ -148,7 +162,7 @@ test("overview uses the public reader only for public content", async () => {
   const authClient = { from(table) { privateTables.push(table); return privateMock.from(table); } };
   await loadAdminOverview(authClient, contentClient);
   assert.deepEqual(publicTables.sort(), ["club_settings", "events", "team"]);
-  assert.deepEqual(privateTables.sort(), ["members", "registrations"]);
+  assert.deepEqual(privateTables.sort(), ["registrations", "registrations"]);
 });
 test("stalled requests produce an actionable timeout instead of loading forever", async () => {
   await assert.rejects(withRequestTimeout(new Promise(() => {}), "Events", 5), /Events timed out/);

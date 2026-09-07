@@ -5,12 +5,12 @@ import { withRequestTimeout } from "./requestTimeout.js";
 export async function loadAdminOverview(client, contentClient = client) {
   const results = await Promise.allSettled([
     contentClient.from("team").select("id", { count: "exact", head: true }),
-    client.from("members").select("id", { count: "exact", head: true }),
+    client.from("registrations").select("id", { count: "exact", head: true }).eq("status", "accepted"),
     client.from("registrations").select("id", { count: "exact", head: true }).eq("status", "pending"),
     contentClient.from("events").select("*").order("id", { ascending: false }),
     readClubSettings(contentClient),
   ].map((request, index) => withRequestTimeout(request, ["Staff", "Members", "Applications", "Events", "Season settings"][index])));
-  const labels = ["Staff", "Members", "Applications", "Events"];
+  const labels = ["Staff", "Applications", "Applications", "Events"];
   const errors = [];
   const rows = results.slice(0, 4).map((result, index) => {
     const error = result.status === "rejected" ? result.reason : result.value.error;

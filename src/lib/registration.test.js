@@ -40,7 +40,7 @@ test("submission matches live schema and normalizes values", async () => {
   await submitRegistration(client, valid, campaign.season);
   assert.equal(writes.length, 1);
   assert.equal(writes[0].table, "registrations");
-  assert.deepEqual(writes[0].payload, { ...valid, full_name: "Test Applicant", email: "test@example.com", years_of_study: 2, message: "A robot project", status: "pending", registration_season: campaign.season });
+  assert.deepEqual(writes[0].payload, { ...valid, full_name: "Test Applicant", email: "test@example.com", years_of_study: 2, message: "A robot project", status: "pending", refusal_reason: null, registration_season: campaign.season });
 });
 test("closing or changing the campaign prevents stale submissions", async () => {
   for (const settings of [{ ...campaign, is_open: false }, { ...campaign, season: "2027-2028" }]) {

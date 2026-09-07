@@ -13,9 +13,10 @@ const EMPTY = {
   status: "Upcoming",
 };
 
-export default function AdminEvents() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function AdminEvents({ initialEvents = null }) {
+  const hasInitialEvents = Array.isArray(initialEvents);
+  const [events, setEvents] = useState(hasInitialEvents ? initialEvents : []);
+  const [loading, setLoading] = useState(!hasInitialEvents);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -48,8 +49,8 @@ export default function AdminEvents() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!hasInitialEvents) load();
+  }, [hasInitialEvents, load]);
 
   useEffect(() => {
     if (!file) {

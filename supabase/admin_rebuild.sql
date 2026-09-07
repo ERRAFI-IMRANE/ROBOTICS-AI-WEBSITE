@@ -19,25 +19,48 @@ ON CONFLICT (id) DO NOTHING;
 -- If this fails, resolve duplicate campaign seasons manually; no records are deleted here.
 CREATE UNIQUE INDEX IF NOT EXISTS registration_settings_season_unique ON public.registration_settings(season);
 
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS refusal_reason text;
+ALTER TABLE public.registrations ALTER COLUMN status SET DEFAULT 'pending';
+UPDATE public.registrations SET status = 'pending' WHERE status IS NULL;
+UPDATE public.registrations SET refusal_reason = NULL WHERE status IN ('pending', 'accepted');
+UPDATE public.registrations SET refusal_reason = 'Legacy refusal reason unavailable' WHERE status = 'refused' AND coalesce(length(trim(refusal_reason)), 0) = 0;
+ALTER TABLE public.registrations ALTER COLUMN status SET NOT NULL;
+ALTER TABLE public.registrations DROP CONSTRAINT IF EXISTS check_reg_status;
+ALTER TABLE public.registrations ADD CONSTRAINT check_reg_status CHECK (status IN ('pending', 'accepted', 'refused'));
+ALTER TABLE public.registrations DROP CONSTRAINT IF EXISTS registrations_refusal_reason_check;
+ALTER TABLE public.registrations ADD CONSTRAINT registrations_refusal_reason_check CHECK (
+  (status = 'refused' AND length(trim(refusal_reason)) BETWEEN 1 AND 2000)
+  OR (status IN ('pending', 'accepted') AND refusal_reason IS NULL)
+);
+
 -- Explicitly remove the old public-write policies, including differently named live variants.
 DO $$ DECLARE t text; p record; BEGIN
-  FOREACH t IN ARRAY ARRAY['club_settings','registration_settings','registrations','members','refused_members','team','team_seasons','events'] LOOP
+  FOREACH t IN ARRAY ARRAY['club_settings','registration_settings','registrations','team','team_seasons','events'] LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     FOR p IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = t LOOP
       EXECUTE format('DROP POLICY %I ON public.%I', p.policyname, t);
     END LOOP;
-    EXECUTE format('CREATE POLICY club_officer_access ON public.%I FOR ALL TO authenticated USING (public.is_club_admin()) WITH CHECK (public.is_club_admin())', t);
-    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+    IF t = 'registrations' THEN
+      EXECUTE 'CREATE POLICY club_officer_registration_read ON public.registrations FOR SELECT TO authenticated USING (public.is_club_admin())';
+      EXECUTE 'CREATE POLICY club_officer_registration_decision ON public.registrations FOR UPDATE TO authenticated USING (public.is_club_admin() AND status = ''pending'') WITH CHECK (public.is_club_admin() AND status IN (''accepted'',''refused''))';
+      EXECUTE 'REVOKE UPDATE, DELETE ON public.registrations FROM authenticated';
+      EXECUTE 'GRANT SELECT, INSERT ON public.registrations TO authenticated';
+      EXECUTE 'GRANT UPDATE(status, refusal_reason) ON public.registrations TO authenticated';
+    ELSE
+      EXECUTE format('CREATE POLICY club_officer_access ON public.%I FOR ALL TO authenticated USING (public.is_club_admin()) WITH CHECK (public.is_club_admin())', t);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+    END IF;
   END LOOP;
   FOREACH t IN ARRAY ARRAY['club_settings','registration_settings','team','team_seasons','events'] LOOP
     EXECUTE format('CREATE POLICY club_public_read ON public.%I FOR SELECT TO anon, authenticated USING (true)', t);
     EXECUTE format('GRANT SELECT ON public.%I TO anon', t);
   END LOOP;
 END $$;
-GRANT INSERT ON public.registrations TO anon;
+GRANT INSERT ON public.registrations TO anon, authenticated;
+REVOKE SELECT, UPDATE, DELETE ON public.registrations FROM anon;
 -- Identity/serial sequences used by these tables only.
 DO $$ DECLARE t text; seq text; BEGIN
-  FOREACH t IN ARRAY ARRAY['registration_settings','registrations','members','refused_members','team','team_seasons','events'] LOOP
+  FOREACH t IN ARRAY ARRAY['registration_settings','registrations','team','team_seasons','events'] LOOP
     seq := pg_get_serial_sequence('public.' || t, 'id');
     IF seq IS NOT NULL THEN EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated', seq); END IF;
     IF t = 'registrations' AND seq IS NOT NULL THEN EXECUTE format('GRANT USAGE ON SEQUENCE %s TO anon', seq); END IF;
@@ -45,7 +68,7 @@ DO $$ DECLARE t text; seq text; BEGIN
 END $$;
 CREATE POLICY club_public_apply ON public.registrations FOR INSERT TO anon, authenticated
 WITH CHECK (
-  status = 'pending' AND length(trim(full_name)) BETWEEN 1 AND 120
+  status = 'pending' AND refusal_reason IS NULL AND length(trim(full_name)) BETWEEN 1 AND 120
   AND email IS NOT NULL AND length(email) BETWEEN 3 AND 254
   AND phone IS NOT NULL AND department IS NOT NULL AND filiere IS NOT NULL
   AND years_of_study BETWEEN 1 AND 5
@@ -74,18 +97,15 @@ DECLARE r public.registrations%ROWTYPE;
 BEGIN
   IF NOT public.is_club_admin() THEN RAISE EXCEPTION 'Officer access required'; END IF;
   IF p_decision IS NULL OR p_decision NOT IN ('accepted','refused') THEN RAISE EXCEPTION 'Invalid decision'; END IF;
-  SELECT * INTO r FROM public.registrations WHERE id = p_registration_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Application already processed or no longer exists. Refresh the queue.'; END IF;
-  IF r.status <> 'pending' THEN RAISE EXCEPTION 'Only pending applications can be reviewed'; END IF;
-  IF p_decision = 'accepted' THEN
-    INSERT INTO public.members(full_name,email,phone,department,filiere,years_of_study,message,registration_season)
-    VALUES (r.full_name,r.email,r.phone,r.department,r.filiere,r.years_of_study,r.message,r.registration_season);
-  ELSE
-    IF coalesce(length(trim(p_reason)),0) = 0 OR length(p_reason) > 2000 THEN RAISE EXCEPTION 'Enter a refusal reason (up to 2000 characters)'; END IF;
-    INSERT INTO public.refused_members(original_registration_id,full_name,email,phone,department,filiere,years_of_study,message,registration_season,refusal_reason)
-    VALUES (r.id,r.full_name,r.email,r.phone,r.department,r.filiere,r.years_of_study,r.message,r.registration_season,trim(p_reason));
+  IF p_decision = 'refused' AND (coalesce(length(trim(p_reason)),0) = 0 OR length(p_reason) > 2000) THEN
+    RAISE EXCEPTION 'Enter a refusal reason (up to 2000 characters)';
   END IF;
-  DELETE FROM public.registrations WHERE id = r.id;
+  UPDATE public.registrations
+  SET status = p_decision,
+      refusal_reason = CASE WHEN p_decision = 'refused' THEN trim(p_reason) ELSE NULL END
+  WHERE id = p_registration_id AND status = 'pending'
+  RETURNING * INTO r;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Application already processed or no longer exists. Refresh the registration history.'; END IF;
   RETURN jsonb_build_object('registration_id', r.id, 'decision', p_decision);
 END; $$;
 
@@ -148,6 +168,8 @@ DO $$ DECLARE f record; BEGIN
     EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon, authenticated', f.signature);
   END LOOP;
 END $$;
+DROP FUNCTION IF EXISTS public.accept_club_registration(bigint);
+DROP FUNCTION IF EXISTS public.refuse_club_registration(bigint,text);
 REVOKE EXECUTE ON FUNCTION public.save_club_settings(text,text) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.decide_club_registration(bigint,text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.save_club_settings(text,text), public.decide_club_registration(bigint,text,text) TO authenticated;

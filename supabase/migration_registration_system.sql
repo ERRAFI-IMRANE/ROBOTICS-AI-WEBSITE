@@ -32,8 +32,13 @@ CREATE TABLE IF NOT EXISTS public.registrations (
   message TEXT,
   registration_season TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
+  refusal_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT check_reg_status CHECK (status IN ('pending', 'accepted', 'refused')),
+  CONSTRAINT registrations_refusal_reason_check CHECK (
+    (status = 'refused' AND length(trim(refusal_reason)) BETWEEN 1 AND 2000)
+    OR (status IN ('pending', 'accepted') AND refusal_reason IS NULL)
+  ),
   CONSTRAINT check_reg_years CHECK (years_of_study IN ('first_year', 'second_year', 'bachelor', 'master', 'phd'))
 );
 
@@ -83,6 +88,10 @@ ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.refused_members ENABLE ROW LEVEL SECURITY;
 
+CREATE OR REPLACE FUNCTION public.is_club_admin()
+RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER SET search_path = ''
+AS $$ SELECT coalesce((auth.jwt() -> 'app_metadata' ->> 'club_admin') = 'true', false); $$;
+
 -- 1. registration_settings: Public can read, authenticated or admin can update
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'registration_settings' AND policyname = 'Public can view registration_settings') THEN
@@ -99,15 +108,21 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'registrations' AND policyname = 'Public can insert registrations when open') THEN
     CREATE POLICY "Public can insert registrations when open" ON public.registrations
     FOR INSERT WITH CHECK (
-      status = 'pending' AND
+      status = 'pending' AND refusal_reason IS NULL AND
       EXISTS (
         SELECT 1 FROM public.registration_settings
         WHERE is_open = true AND active_season = registration_season
       )
     );
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'registrations' AND policyname = 'Full access to registrations') THEN
-    CREATE POLICY "Full access to registrations" ON public.registrations FOR ALL USING (true);
+  EXECUTE 'DROP POLICY IF EXISTS "Full access to registrations" ON public.registrations';
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'registrations' AND policyname = 'Officer can read registrations') THEN
+    CREATE POLICY "Officer can read registrations" ON public.registrations FOR SELECT TO authenticated USING (public.is_club_admin());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'registrations' AND policyname = 'Officer can decide registrations') THEN
+    CREATE POLICY "Officer can decide registrations" ON public.registrations FOR UPDATE TO authenticated
+    USING (public.is_club_admin() AND status = 'pending')
+    WITH CHECK (public.is_club_admin() AND status IN ('accepted', 'refused'));
   END IF;
 END $$;
 
@@ -132,103 +147,28 @@ END $$;
 -- Atomic Stored Procedures for Acceptance, Refusal, and Season Closing
 -- ==============================================================================
 
--- Atomic Acceptance: copies from registrations into members, then deletes from registrations
-CREATE OR REPLACE FUNCTION public.accept_club_registration(p_registration_id BIGINT)
-RETURNS public.members
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_reg public.registrations%ROWTYPE;
-  v_member public.members%ROWTYPE;
+-- Decisions update the application in place so registrations remains the only history.
+DROP FUNCTION IF EXISTS public.accept_club_registration(bigint);
+DROP FUNCTION IF EXISTS public.refuse_club_registration(bigint,text);
+CREATE OR REPLACE FUNCTION public.decide_club_registration(p_registration_id bigint, p_decision text, p_reason text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+DECLARE registration_record public.registrations%ROWTYPE;
 BEGIN
-  -- 1. Fetch the application
-  SELECT * INTO v_reg FROM public.registrations WHERE id = p_registration_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Registration application with ID % not found', p_registration_id;
+  IF NOT public.is_club_admin() THEN RAISE EXCEPTION 'Officer access required'; END IF;
+  IF p_decision NOT IN ('accepted', 'refused') THEN RAISE EXCEPTION 'Invalid decision'; END IF;
+  IF p_decision = 'refused' AND (coalesce(length(trim(p_reason)), 0) = 0 OR length(p_reason) > 2000) THEN
+    RAISE EXCEPTION 'Enter a refusal reason (up to 2000 characters)';
   END IF;
-
-  -- 2. Insert into members
-  INSERT INTO public.members (
-    full_name,
-    email,
-    phone,
-    department,
-    filiere,
-    years_of_study,
-    message,
-    registration_season,
-    joined_at
-  ) VALUES (
-    v_reg.full_name,
-    v_reg.email,
-    v_reg.phone,
-    v_reg.department,
-    v_reg.filiere,
-    v_reg.years_of_study,
-    v_reg.message,
-    v_reg.registration_season,
-    NOW()
-  )
-  RETURNING * INTO v_member;
-
-  -- 3. Delete from registrations only after successful insertion
-  DELETE FROM public.registrations WHERE id = p_registration_id;
-
-  RETURN v_member;
-END;
-$$;
-
--- Atomic Refusal: copies from registrations into refused_members, then deletes from registrations
-CREATE OR REPLACE FUNCTION public.refuse_club_registration(p_registration_id BIGINT, p_reason TEXT DEFAULT NULL)
-RETURNS public.refused_members
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_reg public.registrations%ROWTYPE;
-  v_refused public.refused_members%ROWTYPE;
-BEGIN
-  -- 1. Fetch the application
-  SELECT * INTO v_reg FROM public.registrations WHERE id = p_registration_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Registration application with ID % not found', p_registration_id;
-  END IF;
-
-  -- 2. Insert into refused_members
-  INSERT INTO public.refused_members (
-    original_registration_id,
-    full_name,
-    email,
-    phone,
-    department,
-    filiere,
-    years_of_study,
-    message,
-    registration_season,
-    refusal_reason,
-    refused_at
-  ) VALUES (
-    v_reg.id,
-    v_reg.full_name,
-    v_reg.email,
-    v_reg.phone,
-    v_reg.department,
-    v_reg.filiere,
-    v_reg.years_of_study,
-    v_reg.message,
-    v_reg.registration_season,
-    p_reason,
-    NOW()
-  )
-  RETURNING * INTO v_refused;
-
-  -- 3. Delete from registrations only after successful insertion
-  DELETE FROM public.registrations WHERE id = p_registration_id;
-
-  RETURN v_refused;
-END;
-$$;
+  UPDATE public.registrations
+  SET status = p_decision,
+      refusal_reason = CASE WHEN p_decision = 'refused' THEN trim(p_reason) ELSE NULL END
+  WHERE id = p_registration_id AND status = 'pending'
+  RETURNING * INTO registration_record;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Application already processed or no longer exists'; END IF;
+  RETURN jsonb_build_object('registration_id', registration_record.id, 'decision', p_decision);
+END; $$;
+REVOKE EXECUTE ON FUNCTION public.decide_club_registration(bigint,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.decide_club_registration(bigint,text,text) TO authenticated;
 
 -- Safe Season Closing: checks if pending registrations exist before closing
 CREATE OR REPLACE FUNCTION public.close_registration_season()

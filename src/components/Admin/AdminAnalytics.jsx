@@ -1,295 +1,270 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { supabase, publicContent } from "../../lib/supabaseClient";
-import { loadAdminOverview } from "../../lib/adminOverview";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { eventView } from "../../lib/adminEvents";
+import { loadAdminWorkspace } from "../../lib/adminWorkspace";
+import { publicContent, supabase } from "../../lib/supabaseClient";
 
-// Predefined activity telemetry points (Monthly engagement index)
-const ACTIVITY_POINTS = [
-  { month: "Oct", val: 32, label: "32 hrs active lab time" },
-  { month: "Nov", val: 58, label: "58 hrs · Hackathon cycle" },
-  { month: "Dec", val: 45, label: "45 hrs · Midterm builds" },
-  { month: "Jan", val: 76, label: "76 hrs · ROS2 workshop" },
-  { month: "Feb", val: 92, label: "92 hrs · Competition prep" },
-  { month: "Mar", val: 110, label: "110 hrs · Rover v4 integration" },
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const CHART_COLORS = ["#1468f2", "#35b9da", "#6d5dfc", "#20ad85", "#ff9f43", "#e35d76"];
+const MONTH_LOOKUP = {
+  jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+  may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+};
 
-export default function AdminAnalytics({ onNavigate }) {
-  const [summary, setSummary] = useState(null);
+function clean(value, fallback = "Not specified") {
+  const normalized = String(value ?? "").trim();
+  return normalized || fallback;
+}
+
+function groupRows(rows, getKey, order = null) {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const key = clean(getKey(row));
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const data = [...counts].map(([label, value]) => ({ label, value }));
+  if (order) return order.map((label) => data.find((entry) => entry.label === label) || { label, value: 0 });
+  return data.sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+}
+
+function parseEventDate(row) {
+  const raw = clean(eventView(row).date || row.created_at, "");
+  const parsed = raw ? new Date(raw) : null;
+  if (parsed && !Number.isNaN(parsed.getTime())) return { year: parsed.getFullYear(), month: parsed.getMonth() };
+  const yearMatch = raw.match(/\b(20\d{2})\b/);
+  const monthMatch = raw.toLowerCase().match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec)\b/);
+  return { year: yearMatch ? Number(yearMatch[1]) : null, month: monthMatch ? MONTH_LOOKUP[monthMatch[1]] : null };
+}
+
+function VizCard({ className = "", eyebrow, title, subtitle, leader, children }) {
+  return (
+    <section className={`admin-viz-card ${className}`}>
+      <header className="admin-viz-header">
+        <div><span>{eyebrow}</span><h2>{title}</h2><p>{subtitle}</p></div>
+        {leader && <strong>{leader}</strong>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function AreaTrend({ data, suffix }) {
+  const peakIndex = Math.max(0, data.reduce((best, item, index) => item.value > (data[best]?.value ?? -1) ? index : best, 0));
+  const [activeIndex, setActiveIndex] = useState(peakIndex);
+  const width = 720;
+  const height = 236;
+  const left = 32;
+  const right = 18;
+  const top = 26;
+  const bottom = 34;
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const points = data.map((item, index) => ({
+    ...item,
+    x: left + (index * (width - left - right)) / Math.max(data.length - 1, 1),
+    y: top + (1 - item.value / max) * (height - top - bottom),
+  }));
+  const line = points.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
+  const area = points.length ? `${line} L${points.at(-1).x},${height - bottom} L${points[0].x},${height - bottom} Z` : "";
+  const active = points[activeIndex] || points[0];
+
+  useEffect(() => { setActiveIndex(peakIndex); }, [peakIndex]);
+
+  if (!data.some((item) => item.value)) return <div className="admin-viz-empty">Registration history will appear here as members join.</div>;
+  return (
+    <div className="admin-area-chart">
+      <div className="admin-area-readout"><strong>{active?.value || 0}</strong><span>{active?.label} · {suffix}</span></div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Member registrations by month">
+        <defs>
+          <linearGradient id="raiAreaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2579f5" stopOpacity="0.34" />
+            <stop offset="100%" stopColor="#2579f5" stopOpacity="0.015" />
+          </linearGradient>
+        </defs>
+        {[0, 1, 2, 3].map((lineIndex) => <line key={lineIndex} x1={left} x2={width - right} y1={top + lineIndex * 50} y2={top + lineIndex * 50} className="admin-area-gridline" />)}
+        <path d={area} fill="url(#raiAreaGradient)" />
+        <path d={line} className="admin-area-line" />
+        {points.map((point, index) => (
+          <g
+            key={point.label}
+            role="button"
+            tabIndex="0"
+            aria-label={`${point.label}: ${point.value} ${suffix}`}
+            onMouseEnter={() => setActiveIndex(index)}
+            onFocus={() => setActiveIndex(index)}
+            onClick={() => setActiveIndex(index)}
+            onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setActiveIndex(index); }}
+          >
+            <circle cx={point.x} cy={point.y} r={activeIndex === index ? 6 : 3.5} className={activeIndex === index ? "is-active" : ""} />
+            <text x={point.x} y={height - 10} textAnchor="middle">{point.label}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function DonutChart({ data, suffix }) {
+  const items = data.filter((item) => item.value > 0).slice(0, 6);
+  const [activeLabel, setActiveLabel] = useState(items[0]?.label || "");
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  let cursor = 0;
+  const stops = items.map((item, index) => {
+    const start = cursor;
+    cursor += (item.value / Math.max(total, 1)) * 100;
+    return `${CHART_COLORS[index]} ${start}% ${cursor}%`;
+  });
+  const active = items.find((item) => item.label === activeLabel) || items[0];
+
+  if (!items.length) return <div className="admin-viz-empty">Member distribution will appear here.</div>;
+  return (
+    <div className="admin-donut-layout">
+      <div className="admin-donut" style={{ background: `conic-gradient(${stops.join(",")})` }}>
+        <div><strong>{active?.value || total}</strong><span>{active?.label || suffix}</span></div>
+      </div>
+      <div className="admin-donut-legend">
+        {items.map((item, index) => (
+          <button key={item.label} type="button" className={active?.label === item.label ? "is-active" : ""} onMouseEnter={() => setActiveLabel(item.label)} onFocus={() => setActiveLabel(item.label)} onClick={() => setActiveLabel(item.label)}>
+            <i style={{ background: CHART_COLORS[index] }} /><span title={item.label}>{item.label}</span><strong>{Math.round((item.value / total) * 100)}%</strong>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ColumnChart({ data, suffix }) {
+  const [activeLabel, setActiveLabel] = useState(data.reduce((best, item) => item.value > (best?.value ?? -1) ? item : best, null)?.label || "");
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const active = data.find((item) => item.label === activeLabel);
+  return (
+    <div className="admin-column-chart">
+      <div className="admin-column-readout"><strong>{active?.value || 0}</strong><span>{active?.label || "Select a column"} · {suffix}</span></div>
+      <div className="admin-column-plot">
+        {data.map((item) => (
+          <button key={item.label} type="button" className={activeLabel === item.label ? "is-active" : ""} onMouseEnter={() => setActiveLabel(item.label)} onFocus={() => setActiveLabel(item.label)} onClick={() => setActiveLabel(item.label)} aria-label={`${item.label}: ${item.value} ${suffix}`}>
+            <span><i style={{ height: `${Math.max(item.value ? 8 : 2, (item.value / max) * 100)}%` }} /></span><small>{item.label}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RankedProgress({ data, suffix }) {
+  const [activeLabel, setActiveLabel] = useState(data[0]?.label || "");
+  const max = Math.max(...data.map((item) => item.value), 1);
+  if (!data.length) return <div className="admin-viz-empty">Member distribution will appear here.</div>;
+  return (
+    <div className="admin-ranked-progress">
+      {data.slice(0, 7).map((item, index) => (
+        <button key={item.label} type="button" className={activeLabel === item.label ? "is-active" : ""} onMouseEnter={() => setActiveLabel(item.label)} onFocus={() => setActiveLabel(item.label)} onClick={() => setActiveLabel(item.label)}>
+          <span className="admin-rank-number">{String(index + 1).padStart(2, "0")}</span>
+          <span className="admin-rank-copy"><strong title={item.label}>{item.label}</strong><i><b style={{ width: `${(item.value / max) * 100}%` }} /></i></span>
+          <span className="admin-rank-value">{item.value}<small>{suffix}</small></span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function AdminAnalytics({ onNavigate, initialData }) {
+  const [dataset, setDataset] = useState(initialData);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [hoveredPoint, setHoveredPoint] = useState(null);
+
+  useEffect(() => { setDataset(initialData); }, [initialData]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const result = await loadAdminOverview(supabase, publicContent);
-      setSummary(result);
-      setError(result.errors.join(" "));
-    } catch (err) {
-      setError(err.message || "Could not load the overview.");
+      setDataset(await loadAdminWorkspace(supabase, publicContent));
+    } catch (loadError) {
+      setError(loadError.message || "Analytics could not be refreshed.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const analytics = useMemo(() => {
+    const registrations = dataset?.registrations || [];
+    const events = dataset?.events || [];
+    const accepted = registrations.filter((row) => String(row.status).toLowerCase() === "accepted");
+    const pending = registrations.filter((row) => !row.status || String(row.status).toLowerCase() === "pending").length;
+    const departments = groupRows(registrations, (row) => row.department);
+    const years = groupRows(registrations, (row) => getYearOfStudyLabel(row.years_of_study) || `Year ${row.years_of_study}`);
+    const filieres = groupRows(registrations, (row) => row.filiere);
+    const timestampedRegistrations = registrations.filter(
+      (row) => row.created_at && !Number.isNaN(new Date(row.created_at).getTime()),
+    );
+    const registrationMonths = groupRows(
+      timestampedRegistrations,
+      (row) => MONTHS[new Date(row.created_at).getMonth()],
+      MONTHS,
+    );
+    const datedEvents = events.map((row) => ({ row, date: parseEventDate(row) }));
+    const eventYears = groupRows(datedEvents.filter((item) => item.date.year), (item) => String(item.date.year));
+    const eventMonths = groupRows(datedEvents.filter((item) => item.date.month !== null), (item) => MONTHS[item.date.month], MONTHS);
+    return { pending, members: accepted.length, applicants: registrations.length, departments, years, filieres, registrationMonths, eventYears, eventMonths };
+  }, [dataset]);
 
+  const leader = (data) => data.reduce((best, item) => item.value > (best?.value ?? -1) ? item : best, null);
   const metrics = [
-    { label: "Staff profiles", count: summary?.staff, target: "team", sub: "Committee & leads" },
-    { label: "Club members", count: summary?.members, target: "members", sub: "Admitted members" },
-    { label: "Pending applications", count: summary?.pending, target: "members", sub: "Awaiting review" },
-    { label: "Club events", count: summary?.events?.length, target: "events", sub: "Active season track" },
+    { label: "Team profiles", value: dataset?.team?.length || 0, target: "team", note: "Public leadership", tone: "blue" },
+    { label: "Active members", value: analytics.members, target: "registrations", note: "Accepted members", tone: "cyan" },
+    { label: "Pending reviews", value: analytics.pending, target: "registrations", note: "Needs a decision", tone: "violet" },
+    { label: "Club events", value: dataset?.events?.length || 0, target: "events", note: "Published records", tone: "navy" },
   ];
 
-  // SVG Chart Geometry Calculations (Width: 600, Height: 150)
-  const maxVal = 120;
-  const chartWidth = 600;
-  const chartHeight = 150;
-  const points = ACTIVITY_POINTS.map((pt, i) => {
-    const x = (i / (ACTIVITY_POINTS.length - 1)) * (chartWidth - 60) + 30;
-    const y = chartHeight - (pt.val / maxVal) * (chartHeight - 30) - 15;
-    return { ...pt, x, y };
-  });
-
-  // Create smooth bezier curve path
-  const curvePath = points.reduce((acc, pt, i, arr) => {
-    if (i === 0) return `M ${pt.x},${pt.y}`;
-    const prev = arr[i - 1];
-    const cx = (prev.x + pt.x) / 2;
-    return `${acc} C ${cx},${prev.y} ${cx},${pt.y} ${pt.x},${pt.y}`;
-  }, "");
-
-  const areaPath = `${curvePath} L ${points[points.length - 1].x},${chartHeight} L ${points[0].x},${chartHeight} Z`;
-
   return (
-    <div className="admin-tab-content">
-      {/* View Header */}
-      <div className="admin-view-header">
-        <div>
-          <p className="admin-eyebrow">Robotics & AI / EST Safi</p>
-          <h1 className="admin-page-title">Command Overview</h1>
-          <p className="admin-page-desc">Real-time club health, membership telemetry, and event velocity.</p>
+    <div className="admin-tab-content admin-overview-infographic">
+      <div className="admin-overview-hero">
+        <div className="admin-overview-hero-copy">
+          <span className="admin-overview-mini-logo"><img src="/RAI/club-icon-light.png" alt="" /></span>
+          <div><p className="admin-eyebrow">CLUB INTELLIGENCE CENTER</p><h1>Welcome to the RAI dashboard</h1><span>One live view of your team, membership, registration, and event activity.</span></div>
         </div>
-        <div className="admin-header-actions">
-          <button className="btn-secondary" onClick={load} disabled={loading}>
-            {loading ? "Refreshing…" : "Refresh telemetry"}
-          </button>
+        <div className="admin-overview-hero-actions">
+          <span className={`admin-intake-indicator ${dataset?.settings?.is_open ? "is-open" : "is-closed"}`}><i />Registration {dataset?.settings?.is_open ? "open" : "closed"}</span>
+          <button className="admin-hero-refresh" type="button" onClick={load} disabled={loading}>{loading ? "Syncing…" : "Sync live data ↻"}</button>
         </div>
       </div>
 
       {error && <div className="admin-inline-error" role="alert">{error}</div>}
 
-      {summary?.settingsWarning && (
-        <div className="admin-demo-notice" role="status">
-          <span>Season settings are unavailable. Staff and events are loaded independently.</span>
-          <button className="btn-secondary" onClick={() => onNavigate("settings")}>
-            View setup details ↗
-          </button>
-        </div>
-      )}
-
-      {/* Hero Card */}
-      <div className="admin-overview-hero">
-        <div>
-          <p className="admin-eyebrow">EST SAFI ACADEMIC SEASON</p>
-          <h2>Precision engineering.<br />Collaborative intelligence.</h2>
-          <p>
-            {summary?.settings
-              ? `Current active season · ${summary.settings.current_season}`
-              : "Robotics & AI Club Officer Workspace"}
-          </p>
-          <button className="btn-primary" onClick={() => onNavigate("settings")}>
-            Configure parameters ↗
-          </button>
-        </div>
-        <img src="/RAI/club sign.png" alt="Club sign" />
-      </div>
-
-      {/* Key Performance Metrics Grid */}
-      <div className="admin-metric-grid">
-        {metrics.map(({ label, count, target, sub }) => (
-          <button
-            className="admin-metric-card"
-            key={label}
-            onClick={() => onNavigate(target)}
-            type="button"
-            title={`Go to ${label}`}
-          >
-            <span>{label}</span>
-            {loading ? (
-              <div className="skeleton-shimmer skeleton-line" style={{ height: "36px", width: "45%" }} />
-            ) : (
-              <strong>{count ?? "0"}</strong>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 400 }}>{sub}</span>
-              <span>Manage ↗</span>
-            </div>
+      <div className="admin-infographic-kpis">
+        {metrics.map((metric, index) => (
+          <button key={metric.label} className={`admin-infographic-kpi is-${metric.tone}`} type="button" onClick={() => onNavigate(metric.target)}>
+            <span><small>0{index + 1}</small><i>↗</i></span><strong>{metric.value}</strong><b>{metric.label}</b><small>{metric.note}</small>
           </button>
         ))}
       </div>
 
-      {/* Activity Velocity SVG Chart Panel */}
-      <section className="admin-panel admin-chart-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h2 className="admin-panel-heading">Hardware lab activity & workshop velocity</h2>
-            <p className="admin-panel-meta">Aggregated logged bench hours and technical sessions</p>
-          </div>
-          <span className="status-chip status-chip-positive">
-            <span className="status-chip-dot" />
-            <span>Telemetry active</span>
-          </span>
-        </div>
+      <div className="admin-infographic-grid">
+        <VizCard className="is-trend" eyebrow="APPLICATION TREND" title="Registrations through the year" subtitle="All applications grouped by submission month" leader={leader(analytics.registrationMonths)?.value ? `Peak · ${leader(analytics.registrationMonths).label}` : "Waiting for data"}>
+          <AreaTrend data={analytics.registrationMonths} suffix="applications" />
+        </VizCard>
 
-        <div className="admin-chart-svg-wrap">
-          <svg
-            className="admin-chart-svg"
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
+        <VizCard className="is-departments" eyebrow="APPLICANT MIX" title="Department share" subtitle="All registration requests" leader={`${analytics.applicants} total`}>
+          <DonutChart data={analytics.departments} suffix="applicants" />
+        </VizCard>
 
-            {/* Horizontal Grid lines */}
-            <line x1="0" y1="35" x2={chartWidth} y2="35" className="chart-grid-line" />
-            <line x1="0" y1="80" x2={chartWidth} y2="80" className="chart-grid-line" />
-            <line x1="0" y1="125" x2={chartWidth} y2="125" className="chart-grid-line" />
+        <VizCard className="is-event-months" eyebrow="EVENT RHYTHM" title="Most active event months" subtitle="Activity across every recorded year" leader={leader(analytics.eventMonths)?.value ? `${leader(analytics.eventMonths).label} leads` : "No activity"}>
+          <ColumnChart data={analytics.eventMonths} suffix="events" />
+        </VizCard>
 
-            {/* Gradient Fill Area */}
-            <path d={areaPath} className="chart-path-area" />
+        <VizCard className="is-filieres" eyebrow="ACADEMIC PROGRAMMES" title="Filière representation" subtitle="Programmes ranked by applicants" leader={leader(analytics.filieres)?.label || "Waiting for data"}>
+          <RankedProgress data={analytics.filieres} suffix="applicants" />
+        </VizCard>
 
-            {/* Bezier Line */}
-            <path d={curvePath} className="chart-path-line" />
+        <VizCard className="is-study-years" eyebrow="STUDY LEVELS" title="Applicants by study year" subtitle="Current application distribution" leader={leader(analytics.years)?.label || "Waiting for data"}>
+          <DonutChart data={analytics.years} suffix="applicants" />
+        </VizCard>
 
-            {/* Interactive Data Points */}
-            {points.map((pt, idx) => (
-              <g key={pt.month}>
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r="4"
-                  className="chart-point"
-                  onMouseEnter={() => setHoveredPoint(pt)}
-                  onMouseLeave={() => setHoveredPoint(null)}
-                />
-                <text
-                  x={pt.x}
-                  y={chartHeight - 4}
-                  textAnchor="middle"
-                  fill="var(--text-muted)"
-                  fontSize="11"
-                  fontFamily="var(--font-mono)"
-                >
-                  {pt.month}
-                </text>
-              </g>
-            ))}
-          </svg>
-
-          {/* Hover Tooltip Badge */}
-          {hoveredPoint && (
-            <div
-              className="chart-tooltip-badge"
-              style={{
-                left: `${(hoveredPoint.x / chartWidth) * 100}%`,
-                top: `${(hoveredPoint.y / chartHeight) * 100}%`,
-              }}
-            >
-              {hoveredPoint.label}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Latest Events Section */}
-      <section className="admin-panel">
-        <div className="admin-panel-header">
-          <div>
-            <h2 className="admin-panel-heading">Recent event records</h2>
-            <p className="admin-panel-meta">Loaded from Supabase live database</p>
-          </div>
-          <button className="btn-secondary" onClick={() => onNavigate("events")}>
-            All events ↗
-          </button>
-        </div>
-
-        <div className="table-container">
-          <table className="hairline-table">
-            <thead>
-              <tr>
-                <th>Experience title</th>
-                <th>Scheduled date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <>
-                  <tr className="skeleton-row">
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "60%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "40%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "30%" }} /></td>
-                  </tr>
-                  <tr className="skeleton-row">
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "75%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "45%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "35%" }} /></td>
-                  </tr>
-                  <tr className="skeleton-row">
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "50%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "40%" }} /></td>
-                    <td><div className="skeleton-shimmer skeleton-line" style={{ width: "30%" }} /></td>
-                  </tr>
-                </>
-              )}
-
-              {!loading && summary?.events === null && (
-                <tr>
-                  <td colSpan={3} className="admin-empty-state">
-                    Events could not be loaded. Use &ldquo;Refresh telemetry&rdquo; to retry.
-                  </td>
-                </tr>
-              )}
-
-              {!loading && summary?.events?.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="admin-empty-state">
-                    No club events registered yet.
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                summary?.events?.slice(0, 5).map((row) => {
-                  const event = eventView(row);
-                  const isCompleted = event.status === "Completed";
-                  return (
-                    <tr key={row.id}>
-                      <td style={{ fontWeight: 600 }}>{event.title}</td>
-                      <td style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
-                        {event.date || "Date not set"}
-                      </td>
-                      <td>
-                        <span className={`status-chip status-chip-${isCompleted ? "positive" : "warning"}`}>
-                          <span className="status-chip-dot" />
-                          <span>{event.status}</span>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <VizCard className="is-event-years" eyebrow="YEARLY ACTIVITY" title="Events by year" subtitle="Compare the club's busiest years" leader={leader(analytics.eventYears)?.value ? `${leader(analytics.eventYears).label} · ${leader(analytics.eventYears).value}` : "No activity"}>
+          <ColumnChart data={analytics.eventYears} suffix="events" />
+        </VizCard>
+      </div>
     </div>
   );
 }

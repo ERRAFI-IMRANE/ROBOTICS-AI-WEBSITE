@@ -14,7 +14,6 @@ import SocialsAlbumSection from "./components/SocialsAlbumSection/SocialsAlbumSe
 import Footer from "./components/Footer/Footer";
 import { AmbientTicker } from "./components/common/TextAnimations";
 import AdminDashboard from "./components/Admin/AdminDashboard";
-import AdminAuthModal from "./components/Admin/AdminAuthModal";
 import RegistrationPage from "./components/RegistrationPage/RegistrationPage";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
@@ -36,20 +35,13 @@ export default function App() {
   const darkOverlayRef = useRef(null);
 
   const navigateTo = (view) => {
-    if (view === "admin") {
-      window.location.hash = "admin";
-      setCurrentView("admin");
-    } else if (view === "register") {
-      window.location.hash = "register";
-      setCurrentView("register");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
-      if (window.location.hash) {
-        window.history.pushState(null, "", window.location.pathname + window.location.search);
-      }
-      setCurrentView("home");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    // A query route must not override the next hash route or the return-home action.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("view");
+    url.hash = view === "home" ? "" : view;
+    window.history.pushState(null, "", url.pathname + url.search + url.hash);
+    setCurrentView(view);
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   useEffect(() => {
@@ -90,35 +82,41 @@ export default function App() {
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 2,
+      prevent: (node) => Boolean(node.closest('[role="dialog"]')),
     });
+
+    const whyJoinEl = document.getElementById("why-join");
+    const teamEl = document.getElementById("team");
+    const raiEl = document.getElementById("rai");
+    const eventsEl = document.getElementById("events");
+    let lastTheme = "";
+    let themeFrame = 0;
+    const setHeaderTheme = (theme) => {
+      if (theme === lastTheme) return;
+      lastTheme = theme;
+      header.classList.toggle("btn-is-black", theme === "light");
+      header.classList.toggle("is-dark", theme === "dark");
+    };
 
     // Dynamic 3-dash button & header theme coordinator matching user section specifications
     const updateHeaderTheme = () => {
-      const whyJoinEl = document.getElementById("why-join");
-      const teamEl = document.getElementById("team");
-      const raiEl = document.getElementById("rai");
-      const eventsEl = document.getElementById("events");
-
       const headerOffset = 65;
 
       // 1. After team section until the end of the page (WhyJoin, Partners, Socials, Footer) -> BLACK
       if (whyJoinEl && whyJoinEl.getBoundingClientRect().top <= headerOffset) {
-        header.classList.add("btn-is-black");
-        header.classList.remove("is-dark");
+        setHeaderTheme("light");
         return;
       }
 
       // 2. Team section (dark #0c0d12 background) -> WHITE
       if (teamEl && teamEl.getBoundingClientRect().top <= headerOffset) {
-        header.classList.remove("btn-is-black");
-        header.classList.add("is-dark");
+        setHeaderTheme("dark");
         return;
       }
 
       // 3. Img slide section (RAI - light #f4f3ee background) -> BLACK
       if (raiEl && raiEl.getBoundingClientRect().top <= headerOffset) {
-        header.classList.add("btn-is-black");
-        header.classList.remove("is-dark");
+        setHeaderTheme("light");
         return;
       }
 
@@ -126,76 +124,90 @@ export default function App() {
       if (eventsEl && eventsEl.getBoundingClientRect().top <= headerOffset) {
         const isEventsScrolledLight = eventsEl.dataset.scrolledLight === "true";
         if (isEventsScrolledLight) {
-          header.classList.add("btn-is-black");
-          header.classList.remove("is-dark");
+          setHeaderTheme("light");
         } else {
-          header.classList.remove("btn-is-black");
-          header.classList.add("is-dark");
+          setHeaderTheme("dark");
         }
         return;
       }
 
       // 5. Before event section (Hero until event section) -> WHITE
-      header.classList.remove("btn-is-black");
-      header.classList.add("is-dark");
+      setHeaderTheme("dark");
+    };
+
+    const scheduleHeaderTheme = () => {
+      if (themeFrame) return;
+      themeFrame = requestAnimationFrame(() => {
+        themeFrame = 0;
+        updateHeaderTheme();
+      });
     };
 
     lenis.on("scroll", () => {
       ScrollTrigger.update();
-      updateHeaderTheme();
+      scheduleHeaderTheme();
     });
 
     const updateTicker = (time) => {
       lenis.raf(time * 1000);
-      updateHeaderTheme();
     };
 
     gsap.ticker.add(updateTicker);
     gsap.ticker.lagSmoothing(0);
 
-    window.addEventListener("scroll", updateHeaderTheme, { passive: true });
-    window.addEventListener("resize", updateHeaderTheme, { passive: true });
+    window.addEventListener("scroll", scheduleHeaderTheme, { passive: true });
+    window.addEventListener("resize", scheduleHeaderTheme, { passive: true });
+    window.addEventListener("rai:theme-change", scheduleHeaderTheme);
     updateHeaderTheme();
 
-    // Pin the hero and zoom-out on scroll
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: wrapper,
-        start: "top top",
-        end: "+=120%",  // faster zoom-out transition
-        scrub: 0.8,
-        pin: true,
-        pinSpacing: true,
-        anticipatePin: 1,
-        refreshPriority: 3,
-      },
-    });
+    // Keep the cinematic pinned transition on desktop. Mobile uses a shorter,
+    // native-scrolling hero so content is immediate and touch scrolling stays fluid.
+    let tl = null;
+    if (!window.matchMedia("(max-width: 767px)").matches) {
+      tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: wrapper,
+          start: "top top",
+          end: "+=120%",
+          scrub: 0.8,
+          pin: true,
+          pinSpacing: true,
+          anticipatePin: 1,
+          refreshPriority: 3,
+        },
+      });
 
-    // Zoom out the hero card further while keeping sharp corners
-    tl.to(inner, {
-      scale: 0.52,
-      opacity: 1,
-      borderRadius: "0px",
-      ease: "none",
-      duration: 1,
-    });
+      tl.to(inner, {
+        scale: 0.52,
+        opacity: 1,
+        borderRadius: "0px",
+        ease: "none",
+        duration: 1,
+      });
 
-    // A blue filter grows over the fully opaque hero as it enters dark mode.
-    tl.to(darkOverlay, {
-      opacity: 0.76,
-      ease: "none",
-      duration: 1,
-    }, 0);
+      tl.to(darkOverlay, {
+        opacity: 0.76,
+        ease: "none",
+        duration: 1,
+      }, 0);
+    }
 
+    let active = true;
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
+    document.fonts.ready.then(() => { if (active) ScrollTrigger.refresh(); });
     return () => {
-      window.removeEventListener("scroll", updateHeaderTheme);
-      window.removeEventListener("resize", updateHeaderTheme);
+      active = false;
+      cancelAnimationFrame(refreshFrame);
+      cancelAnimationFrame(themeFrame);
+      window.removeEventListener("scroll", scheduleHeaderTheme);
+      window.removeEventListener("resize", scheduleHeaderTheme);
+      window.removeEventListener("rai:theme-change", scheduleHeaderTheme);
       gsap.ticker.remove(updateTicker);
       lenis.destroy();
-      tl.scrollTrigger?.kill();
-      tl.kill();
+      tl?.scrollTrigger?.kill();
+      tl?.kill();
     };
-  }, []);
+  }, [currentView]);
 
   return (
     <>

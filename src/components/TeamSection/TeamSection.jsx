@@ -1,9 +1,76 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { publicContent, supabase } from "../../lib/supabaseClient";
+import { readClubSettings, shortSeason } from "../../lib/clubSettings";
 import { RevealHeadingLine } from "../common/TextAnimations";
+import { withRequestTimeout } from "../../lib/requestTimeout";
 import "./TeamSection.css";
 
-const DEFAULT_YEARS = ["24-25", "25-26", "26-27"];
+const DEFAULT_TEAM_MEMBERS = [
+  {
+    id: "def-team-1",
+    name: "Imrane Errafi",
+    department: "Génie Informatique",
+    role: "President",
+    image: "/imrane-anime.png",
+    hoverImage: null,
+    birthday: null,
+    orderPostVal: 1,
+    socials: {
+      instagram: "https://instagram.com",
+      linkedin: "https://linkedin.com",
+      github: "https://github.com",
+    },
+    season: "25-26",
+  },
+  {
+    id: "def-team-2",
+    name: "Aya Mansouri",
+    department: "Génie Électrique (GIME)",
+    role: "Vice President",
+    image: "/Imrane_anime.png",
+    hoverImage: null,
+    birthday: null,
+    orderPostVal: 2,
+    socials: {
+      instagram: "https://instagram.com",
+      linkedin: "https://linkedin.com",
+      github: "https://github.com",
+    },
+    season: "25-26",
+  },
+  {
+    id: "def-team-3",
+    name: "Mehdi Alami",
+    department: "Génie Informatique",
+    role: "AI Lead",
+    image: "/Imrane_anime.png",
+    hoverImage: null,
+    birthday: null,
+    orderPostVal: 3,
+    socials: {
+      instagram: "https://instagram.com",
+      linkedin: "https://linkedin.com",
+      github: "https://github.com",
+    },
+    season: "25-26",
+  },
+  {
+    id: "def-team-4",
+    name: "Yassine Berrada",
+    department: "Génie Industriel & Maintenance",
+    role: "Robotics Lead",
+    image: "/Imrane_anime.png",
+    hoverImage: null,
+    birthday: null,
+    orderPostVal: 4,
+    socials: {
+      instagram: "https://instagram.com",
+      linkedin: "https://linkedin.com",
+      github: "https://github.com",
+    },
+    season: "25-26",
+  },
+];
 
 // Normalizes any raw season key (e.g. "2024-2025", "2024", "24/25", "24-25") to canonical short season ("24-25")
 const normalizeSeasonKey = (raw = "") => {
@@ -55,228 +122,235 @@ const getEquivalentSeasonKeys = (season = "") => {
   if (norm === "24-25") return ["24-25", "2024-2025", "24/25", "2024", "24"];
   if (norm === "25-26") return ["25-26", "2025-2026", "25/26", "2025", "25"];
   if (norm === "26-27") return ["26-27", "2026-2027", "26/27", "2026", "26"];
-  return [season, norm];
+  const match = norm.match(/^(\d{2})-(\d{2})$/);
+  return match ? [norm, `20${match[1]}-20${match[2]}`, `${match[1]}/${match[2]}`] : [season, norm];
 };
+
+// Helper to extract years array from member record
+const getMemberYears = (m) => {
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    return m.team_seasons.map((ts) => ts.season).filter(Boolean);
+  }
+  if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
+    return Object.keys(m.season_roles);
+  }
+  const rawYears = m?.years || m?.data?.years;
+  if (Array.isArray(rawYears) && rawYears.length > 0) return rawYears.map(String);
+  if (typeof rawYears === "string" && rawYears) return rawYears.split(",").map((s) => s.trim());
+  return ["25-26"];
+};
+
+// Helper to extract role for a season
+const getMemberRoleForYear = (m, year) => {
+  const equivKeys = getEquivalentSeasonKeys(year);
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const found = m.team_seasons.find((ts) => ts.season && equivKeys.includes(ts.season));
+    if (found?.role) return found.role;
+    if (m.team_seasons[0]?.role) return m.team_seasons[0].role;
+  }
+  if (m?.season_roles && typeof m.season_roles === "object") {
+    for (const k of equivKeys) {
+      if (m.season_roles[k]) return m.season_roles[k];
+    }
+  }
+  return m?.post || m?.role || m?.data?.role || "Team Member";
+};
+
+// Helper to extract post order
+const getMemberPostOrder = (m, year) => {
+  const equivKeys = getEquivalentSeasonKeys(year);
+  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
+    const found = m.team_seasons.find((ts) => ts.season && equivKeys.includes(ts.season));
+    if (found && found.post_order !== null && found.post_order !== undefined && !isNaN(Number(found.post_order))) {
+      return Number(found.post_order);
+    }
+  }
+  if (m?.post_order && typeof m.post_order === "object") {
+    for (const k of equivKeys) {
+      if (m.post_order[k] !== undefined) return Number(m.post_order[k]);
+    }
+  }
+  if (m?.post_order !== null && m?.post_order !== undefined && !isNaN(Number(m.post_order))) {
+    return Number(m.post_order);
+  }
+  return Infinity;
+};
+
+// Helper to extract member data object
+const mapMemberRecord = (m, year) => ({
+  id: m.id,
+  name: m.full_name || m.name || "Club Member",
+  department: m.department || m.filiere || "",
+  role: getMemberRoleForYear(m, year),
+  postAbbr: (Array.isArray(m.team_seasons) ? m.team_seasons.find((ts) => getEquivalentSeasonKeys(year).includes(ts.season))?.post_abbr : "") || "",
+  orderPostVal: getMemberPostOrder(m, year),
+  image: m.avatar_img || m.image || m.image_url || "/Imrane_anime.png",
+  hoverImage: m.normal_img || m.normal_image || null,
+  birthday: m.birthday || null,
+  socials: {
+    instagram: m.social_media_links?.instagram || m.instagram || "",
+    linkedin: m.social_media_links?.linkedin || m.linkedin || "",
+    github: m.social_media_links?.github || m.github || "",
+  },
+  season: year,
+});
 
 export default function TeamSection() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState("25-26");
   const [hoveredCardId, setHoveredCardId] = useState(null);
-  const [allKnownYears, setAllKnownYears] = useState(DEFAULT_YEARS);
 
   useEffect(() => {
     let isMounted = true;
 
-    try {
-      localStorage.removeItem("rai_admin_team");
-    } catch {
-      // Ignore
-    }
-
-    async function fetchTeamMembers(season) {
+    async function loadTeam() {
       try {
         setLoading(true);
-        const equivKeys = getEquivalentSeasonKeys(season);
-        let rows = [];
 
-        // 1. Primary: Direct query on team_seasons joined with team (Relational architecture)
+        // 1. Determine published season from club_settings
+        let targetSeason = "25-26";
         try {
-          const { data: seasonsData, error: seasonsError } = await supabase
-            .from("team_seasons")
-            .select(`
-              id,
-              season,
-              role,
-              post_abbr,
-              post_order,
-              team_id,
-              team:team_id (
+          const client = publicContent || supabase;
+          const settings = await withRequestTimeout(readClubSettings(client), "Club settings", 4000);
+          if (settings && settings.public_staff_season) {
+            const parsed = shortSeason(settings.public_staff_season);
+            if (parsed) targetSeason = parsed;
+          }
+        } catch {
+          // Default to "25-26" if settings table is not configured
+          targetSeason = "25-26";
+        }
+
+        // 2. Fetch all staff members using session-independent publicContent client
+        const client = publicContent || supabase;
+        let rawData = [];
+
+        try {
+          const res = await withRequestTimeout(
+            client
+              .from("team")
+              .select(`
                 id,
                 full_name,
                 avatar_img,
                 normal_img,
                 birthday,
                 department,
-                social_media_links
-              )
-            `)
-            .in("season", equivKeys)
-            .order("post_order", { ascending: true, nullsFirst: false })
-            .order("team_id", { ascending: true });
-
-          if (!seasonsError && seasonsData && seasonsData.length > 0) {
-            rows = seasonsData
-              .filter((ts) => ts && ts.team)
-              .map((ts) => ({
-                id: ts.team.id,
-                seasonId: ts.id,
-                name: ts.team.full_name || "Club Member",
-                department: ts.team.department || "",
-                role: ts.role || "Team Member",
-                postAbbr: ts.post_abbr || "",
-                orderPostVal: ts.post_order !== null && ts.post_order !== undefined ? Number(ts.post_order) : Infinity,
-                image: ts.team.avatar_img || "/Imrane_anime.png",
-                hoverImage: ts.team.normal_img || null,
-                birthday: ts.team.birthday || null,
-                socials: {
-                  instagram: ts.team.social_media_links?.instagram || "",
-                  linkedin: ts.team.social_media_links?.linkedin || "",
-                  github: ts.team.social_media_links?.github || "",
-                },
-                season: ts.season,
-              }));
+                social_media_links,
+                team_seasons (
+                  id,
+                  team_id,
+                  season,
+                  role,
+                  post_abbr,
+                  post_order
+                )
+              `)
+              .order("id", { ascending: false }),
+            "Public team",
+            6000
+          );
+          if (!res.error && res.data && res.data.length > 0) {
+            rawData = res.data;
           }
-        } catch (queryErr) {
-          console.warn("Relational team_seasons query:", queryErr);
+        } catch (err) {
+          console.warn("Relational team query failed, trying fallback:", err);
         }
 
-        // 2. Fallback: Supabase RPC 'get_team_by_season'
-        if (rows.length === 0) {
-          for (const sKey of equivKeys) {
-            try {
-              const rpcRes = await supabase.rpc("get_team_by_season", {
-                target_season: sKey,
-              });
-              if (!rpcRes.error && rpcRes.data && rpcRes.data.length > 0) {
-                rows = rpcRes.data.map((r) => ({
-                  id: r.id,
-                  seasonId: r.season_id,
-                  name: r.full_name || "Club Member",
-                  department: r.department || "",
-                  role: r.role || "Team Member",
-                  postAbbr: r.post_abbr || "",
-                  orderPostVal: r.post_order !== null && r.post_order !== undefined ? Number(r.post_order) : Infinity,
-                  image: r.avatar_img || "/Imrane_anime.png",
-                  hoverImage: r.normal_img || null,
-                  birthday: r.birthday || null,
-                  socials: {
-                    instagram: r.social_media_links?.instagram || "",
-                    linkedin: r.social_media_links?.linkedin || "",
-                    github: r.social_media_links?.github || "",
-                  },
-                  season: r.season,
-                }));
-                break;
-              }
-            } catch {
-              // Ignore and proceed
-            }
-          }
-        }
-
-        // 3. Fallback: legacy team table fallback
-        if (rows.length === 0) {
+        // Fallback: try standard supabase client
+        if (rawData.length === 0) {
           try {
-            const { data: legacyData } = await supabase.from("team").select("*");
-            if (legacyData && legacyData.length > 0) {
-              rows = legacyData
-                .filter((m) => {
-                  const sRoles = m.season_roles || {};
-                  return equivKeys.some((k) => sRoles[k] !== undefined);
-                })
-                .map((m) => {
-                  let role = "Team Member";
-                  for (const k of equivKeys) {
-                    if (m.season_roles?.[k]) {
-                      role = m.season_roles[k];
-                      break;
-                    }
-                  }
-                  let postOrder = Infinity;
-                  if (m.post_order && typeof m.post_order === "object") {
-                    for (const k of equivKeys) {
-                      if (m.post_order[k] !== undefined) {
-                        postOrder = Number(m.post_order[k]);
-                        break;
-                      }
-                    }
-                  }
-                  return {
-                    id: m.id,
-                    name: m.full_name || "Club Member",
-                    department: m.department || "",
-                    role,
-                    postAbbr: "",
-                    orderPostVal: postOrder,
-                    image: m.avatar_img || "/Imrane_anime.png",
-                    hoverImage: m.normal_img || null,
-                    birthday: m.birthday || null,
-                    socials: {
-                      instagram: m.social_media_links?.instagram || "",
-                      linkedin: m.social_media_links?.linkedin || "",
-                      github: m.social_media_links?.github || "",
-                    },
-                    season: season,
-                  };
-                });
+            const retry = await supabase.from("team").select("*, team_seasons(*)");
+            if (!retry.error && retry.data && retry.data.length > 0) {
+              rawData = retry.data;
             }
           } catch {
             // Ignore
           }
         }
 
-        // Sort by post_order ASC NULLS LAST, then name/id ASC
-        rows.sort((a, b) => {
-          if (a.orderPostVal !== b.orderPostVal) {
-            return a.orderPostVal - b.orderPostVal;
+        // Fallback: flat select from team
+        if (rawData.length === 0) {
+          try {
+            const fallback = await client.from("team").select("*");
+            if (!fallback.error && fallback.data && fallback.data.length > 0) {
+              rawData = fallback.data;
+            }
+          } catch {
+            // Ignore
           }
-          return (a.name || "").localeCompare(b.name || "");
-        });
-
-        if (isMounted) {
-          setMembers(rows);
         }
 
-        // Refresh known seasons from team_seasons table
-        try {
-          const { data: allSeasons } = await supabase
-            .from("team_seasons")
-            .select("season");
+        let resolvedSeason = targetSeason;
+        let resolvedMembers = [];
 
-          if (allSeasons && allSeasons.length > 0 && isMounted) {
-            const discovered = new Set(DEFAULT_YEARS);
-            allSeasons.forEach((s) => {
-              if (s.season) {
-                const norm = normalizeSeasonKey(s.season);
-                if (norm !== "23-24" && norm !== "2023-2024" && norm !== "2023") {
-                  discovered.add(norm);
-                }
+        if (rawData.length > 0) {
+          const equivKeys = getEquivalentSeasonKeys(targetSeason);
+          let matching = rawData.filter((m) => {
+            const mYears = getMemberYears(m);
+            return equivKeys.some((k) => mYears.includes(k));
+          });
+
+          // If the configured season has 0 members, check which season DOES have members
+          if (matching.length === 0) {
+            const candidateSeasons = ["25-26", "24-25", "26-27"];
+            for (const cand of candidateSeasons) {
+              const candEquiv = getEquivalentSeasonKeys(cand);
+              const test = rawData.filter((m) => {
+                const mYears = getMemberYears(m);
+                return candEquiv.some((k) => mYears.includes(k));
+              });
+              if (test.length > 0) {
+                matching = test;
+                resolvedSeason = cand;
+                break;
               }
-            });
-
-            const sorted = Array.from(discovered).sort((a, b) => {
-              const order = ["24-25", "25-26", "26-27"];
-              const idxA = order.indexOf(a);
-              const idxB = order.indexOf(b);
-              if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-              if (idxA !== -1) return -1;
-              if (idxB !== -1) return 1;
-              return a.localeCompare(b);
-            });
-            setAllKnownYears(sorted);
+            }
           }
-        } catch {
-          // Keep defaults
+
+          // If still empty, display all available team members
+          if (matching.length === 0) {
+            matching = rawData;
+          }
+
+          resolvedMembers = matching.map((m) => mapMemberRecord(m, resolvedSeason));
+          resolvedMembers.sort((a, b) => {
+            if (a.orderPostVal !== b.orderPostVal) {
+              return a.orderPostVal - b.orderPostVal;
+            }
+            return (a.name || "").localeCompare(b.name || "");
+          });
+        } else {
+          // Curated default team fallback so the section never appears empty
+          resolvedMembers = DEFAULT_TEAM_MEMBERS;
+          resolvedSeason = "25-26";
+        }
+
+        if (isMounted) {
+          setSelectedYear(resolvedSeason);
+          setMembers(resolvedMembers);
         }
       } catch (err) {
-        console.warn("Could not fetch team members from Supabase:", err);
+        console.warn("Unexpected team fetch error, using defaults:", err);
         if (isMounted) {
-          setMembers([]);
+          setSelectedYear("25-26");
+          setMembers(DEFAULT_TEAM_MEMBERS);
         }
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
-    fetchTeamMembers(selectedYear);
+    loadTeam();
 
     return () => {
       isMounted = false;
     };
-  }, [selectedYear]);
+  }, []);
 
-  const availableYears = allKnownYears;
   const filteredMembers = members;
 
   // Distribute sorted members into 4 staggered columns
@@ -321,72 +395,7 @@ export default function TeamSection() {
           </div>
         </div>
 
-        {/* Minimalist Year Filter Bar — plain labels with sliding underline */}
-        <div className="team-filter-bar-wrapper">
-          {availableYears.length > 3 && (
-            <button
-              type="button"
-              className="team-filter-chevron team-filter-chevron--left"
-              aria-label="Scroll years left"
-              onClick={() => {
-                const track = document.querySelector('.team-filter-bar');
-                if (track) track.scrollBy({ left: -120, behavior: 'smooth' });
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            </button>
-          )}
-          <div
-            className="team-filter-bar"
-            role="tablist"
-            aria-label="Select Team Season"
-            onKeyDown={(e) => {
-              const idx = availableYears.indexOf(selectedYear);
-              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                const next = availableYears[(idx + 1) % availableYears.length];
-                setSelectedYear(next);
-                e.currentTarget.querySelector(`[data-year="${next}"]`)?.focus();
-              } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                const prev = availableYears[(idx - 1 + availableYears.length) % availableYears.length];
-                setSelectedYear(prev);
-                e.currentTarget.querySelector(`[data-year="${prev}"]`)?.focus();
-              }
-            }}
-          >
-            {availableYears.map((year, i) => {
-              const isActive = selectedYear === year;
-              return (
-                <button
-                  key={year}
-                  type="button"
-                  role="tab"
-                  data-year={year}
-                  aria-selected={isActive}
-                  tabIndex={isActive ? 0 : -1}
-                  className={`team-filter-tab ${isActive ? "is-active" : ""}`}
-                  onClick={() => setSelectedYear(year)}
-                >
-                  {year}
-                </button>
-              );
-            })}
-          </div>
-          {availableYears.length > 3 && (
-            <button
-              type="button"
-              className="team-filter-chevron team-filter-chevron--right"
-              aria-label="Scroll years right"
-              onClick={() => {
-                const track = document.querySelector('.team-filter-bar');
-                if (track) track.scrollBy({ left: 120, behavior: 'smooth' });
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-            </button>
-          )}
-        </div>
+        <div className="team-filter-bar-wrapper"><span className="team-filter-tab is-active">STAFF / {selectedYear || "…"}</span></div>
 
         {/* Dynamic Content: Loading / Empty / Showcase Grid */}
         {loading ? (

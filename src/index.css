@@ -59,7 +59,32 @@ body {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
   background: #0a0e1a;
+  overflow-x: hidden;
   /* Dark navy — visible behind the zoomed-out hero card */
+}
+
+@media (max-width: 767px) {
+  section[id],
+  footer[id] {
+    scroll-margin-top: 76px;
+  }
+
+  .hero-zoom-wrapper {
+    height: 100svh;
+    min-height: 650px;
+    overflow: hidden;
+  }
+
+  .hero-zoom-inner {
+    transform: none !important;
+    border-radius: 0 !important;
+  }
+
+  .hero-dark-overlay,
+  .hero-topo-bg,
+  .hero-behind-text-container {
+    display: none;
+  }
 }
 
 /* Hide scrollbars globally across the entire website */

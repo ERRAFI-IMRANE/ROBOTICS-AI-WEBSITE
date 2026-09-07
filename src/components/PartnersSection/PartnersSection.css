@@ -207,3 +207,15 @@
     margin-top: 80px;
   }
 }
+
+@media (max-width: 600px) {
+  .partners-section { padding: 76px 0 68px; }
+  .partners-content-wrap { padding: 0 20px; }
+  .partners-header-grid { gap: 16px; }
+  .partners-title-sans,
+  .partners-title-serif { font-size: clamp(2.35rem, 12vw, 3rem); }
+  .partners-narrative-text { font-size: 0.88rem; line-height: 1.55; }
+  .partners-club-sign-backdrop { width: 310px; opacity: 0.38; top: 54%; }
+  .partners-marquee-container { margin-top: 58px; }
+  .partner-item-card { height: 44px; }
+}

@@ -35,6 +35,7 @@ export const YEARS_OF_STUDY = [
 ];
 
 export const getYearOfStudyLabel = (value) => {
+  if (Number.isInteger(Number(value)) && Number(value) > 0) return `Year ${Number(value)}`;
   const found = YEARS_OF_STUDY.find((y) => y.value === value);
   return found ? found.label : value;
 };

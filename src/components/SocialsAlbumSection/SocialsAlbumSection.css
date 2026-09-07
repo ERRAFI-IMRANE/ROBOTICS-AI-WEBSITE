@@ -261,17 +261,34 @@
 }
 
 @media (max-width: 600px) {
+  .socials-album-section { padding: 76px 0 64px; }
+  .socials-album-container { padding: 0 20px; }
+  .socials-heading-sans,
+  .socials-heading-serif { font-size: clamp(2rem, 10.5vw, 2.65rem); }
   .socials-album-deck {
-    padding: 25px 0;
+    justify-content: flex-start;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    padding: 20px 2px 28px;
     margin: 15px auto 25px;
   }
 
   .socials-album-card {
-    width: clamp(95px, 24vw, 135px);
-    height: clamp(155px, 38vw, 215px);
-    margin: 0 clamp(-28px, -4vw, -12px);
-    border-radius: 16px;
+    width: 68vw;
+    max-width: 250px;
+    height: 94vw;
+    max-height: 350px;
+    margin: 0;
+    border-radius: 20px;
+    transform: none !important;
+    scroll-snap-align: center;
   }
+
+  .socials-album-card:hover,
+  .socials-album-card:focus-visible,
+  .socials-album-card.is-selected { transform: translateY(-6px) !important; }
 
   .socials-links-row {
     gap: 12px;

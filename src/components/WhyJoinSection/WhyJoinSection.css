@@ -363,9 +363,17 @@
 }
 
 @media (max-width: 560px) {
+  .why-join-section { padding: 72px 20px 88px; }
+  .why-join-container { gap: 44px; }
+  .why-join-tag { margin-bottom: 16px; font-size: 0.72rem; }
+  .why-join-headline { margin-bottom: 18px; }
   .headline-line-part {
-    font-size: 2.7rem;
+    font-size: clamp(2.35rem, 12.4vw, 3rem);
+    line-height: 0.94;
   }
+
+  .why-join-description { font-size: 0.88rem; line-height: 1.55; margin-bottom: 24px; }
+  .why-join-mini-card-left { display: none; }
 
   .why-join-btn {
     width: 100%;
@@ -375,19 +383,19 @@
   }
 
   .why-join-floating-gold-card {
-    width: 130px;
+    width: 118px;
     top: 5px;
     right: 0;
   }
 
   .why-join-floating-white-card {
-    width: 110px;
+    width: 98px;
     bottom: -20px;
     left: 0;
   }
 
   .why-join-club-sign-wrap {
-    width: 125px;
+    width: 112px;
     right: 5%;
   }
 }

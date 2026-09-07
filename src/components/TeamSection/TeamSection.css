@@ -638,12 +638,19 @@
 }
 
 @media (max-width: 540px) {
+  .team-section { padding-top: 72px; }
+  .team-container { padding: 0 16px; }
+  .team-split-header { gap: 14px; }
+  .team-main-title { font-size: 1.85rem; line-height: 1.05; }
+  .team-description-text { font-size: 0.88rem; line-height: 1.55; }
+
   .team-filter-tab {
     font-size: 0.82rem;
   }
 
   .team-showcase-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .team-col-1,
@@ -652,6 +659,15 @@
   .team-col-4 {
     margin-top: 0;
   }
+
+  .team-showcase-col { gap: 12px; }
+  .team-card-bottom-bar { padding: 28px 8px 6px; }
+  .team-card-name-group { max-width: 95px; padding-bottom: 16px; }
+  .team-card-name { font-size: 0.72rem; }
+  .team-card-role { font-size: 0.56rem; }
+  .team-card-socials-notch { gap: 5px; }
+  .team-notch-social-link { min-width: 22px; min-height: 22px; }
+  .team-notch-social-link svg { width: 12px; height: 12px; }
 
   .team-thanks-logo {
     height: 40px;

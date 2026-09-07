@@ -317,8 +317,11 @@
 
 @media (max-width: 768px) {
   .rai-section {
-    padding: 40px 16px;
+    min-height: 580px;
+    padding: 48px 12px;
   }
+
+  .rai-container { min-height: 490px; }
 
   .rai-club-sign-img {
     max-width: 60%;
@@ -327,9 +330,10 @@
   }
 
   .rai-side-img {
-    max-width: 65vw;
-    max-height: 58vh;
-    top: 3%;
+    max-width: 78vw;
+    max-height: 54vh;
+    top: 10%;
+    transform: none !important;
   }
 
   .rai-word-part {
@@ -337,11 +341,12 @@
   }
 
   .rai-text-center-wrapper {
-    left: calc(50% + 12px);
+    left: 50%;
+    top: 48%;
   }
 
   .rai-subtext-row {
-    transform: translateX(-10px);
+    display: none;
   }
 
   .rai-subtext-first {
@@ -354,8 +359,8 @@
   }
 
   .rai-btn-row {
-    margin-top: 12px;
-    transform: translateX(-18px);
+    margin-top: 18px;
+    transform: none;
   }
 
   .rai-btn-row-left {
@@ -367,8 +372,9 @@
   }
 
   .rai-btn {
-    padding: 6px 12px;
-    font-size: 0.65rem;
+    min-height: 42px;
+    padding: 8px 11px;
+    font-size: 0.62rem;
     gap: 4px;
   }
 
@@ -376,6 +382,9 @@
     width: 10px;
     height: 10px;
   }
+
+  .rai-text-half { transform: none !important; }
+  .rai-swipe-wrapper { display: none; }
 }
 
 /* Full-screen Swipe-up Container */

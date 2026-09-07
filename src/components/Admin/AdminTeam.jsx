@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { supabase, publicContent } from "../../lib/supabaseClient";
+import { withRequestTimeout } from "../../lib/requestTimeout";
+import { saveStaff, deleteStaff } from "../../lib/adminStaff";
 import "./AdminDashboard.css";
 
 const PRESET_YEARS = ["24-25", "25-26", "26-27"];
@@ -189,6 +191,7 @@ export default function AdminTeam() {
   const [selectedYear, setSelectedYear] = useState("25-26");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
 
   // Profile Details Inspection Modal
@@ -252,12 +255,13 @@ export default function AdminTeam() {
 
   const [toastMsg, setToastMsg] = useState(null);
 
-  const loadTeamData = async () => {
+  const loadTeamData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError("");
 
       // Query team and embed all related team_seasons records (Staff ONLY)
-      let { data, error } = await supabase
+      let { data, error } = await withRequestTimeout(publicContent
         .from("team")
         .select(`
           id,
@@ -276,15 +280,20 @@ export default function AdminTeam() {
             post_order
           )
         `)
-        .order("id", { ascending: false });
+        .order("id", { ascending: false }), "Loading staff");
 
       if (error || !data) {
         // Fallback: simple team query
-        const retryRes = await supabase.from("team").select("*");
+        const retryRes = await withRequestTimeout(publicContent.from("team").select("*"), "Loading staff");
         if (!retryRes.error && retryRes.data) {
           data = retryRes.data;
+          error = null;
+        } else {
+          error = retryRes.error || error;
         }
       }
+
+      if (error) throw error;
 
       const rows = data && Array.isArray(data) ? data : [];
       setMembers(rows);
@@ -314,20 +323,18 @@ export default function AdminTeam() {
         });
       setYearsList(sortedYears);
 
-      if (sortedYears.length > 0 && !sortedYears.includes(selectedYear)) {
-        setSelectedYear(sortedYears[0]);
-      }
+      setSelectedYear((current) => sortedYears.length && !sortedYears.includes(current) ? sortedYears[0] : current);
     } catch (err) {
       console.warn("Could not fetch team from database:", err);
-      setMembers([]);
+      setLoadError("Could not load staff from Supabase: " + (err.message || "Check your connection and access permissions."));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTeamData();
-  }, []);
+  }, [loadTeamData]);
 
   const showToast = (msg) => {
     setToastMsg(msg);
@@ -484,6 +491,7 @@ export default function AdminTeam() {
 
   const handleSaveMember = async (e) => {
     e.preventDefault();
+    if (saving) return;
     if (!formName.trim()) {
       showToast("Please provide the full name.");
       return;
@@ -526,107 +534,15 @@ export default function AdminTeam() {
         social_media_links: socialLinks,
       };
 
-      if (editingMember) {
-        // 1. UPDATE 'team' table (permanent info)
-        const { error: teamError } = await supabase
-          .from("team")
-          .update(teamPayload)
-          .eq("id", editingMember.id);
-
-        if (teamError) {
-          showToast("Error updating profile: " + teamError.message);
-          return;
-        }
-
-        // 2. UPDATE / INSERT / DELETE 'team_seasons'
-        const existingSeasons = Array.isArray(editingMember.team_seasons) ? editingMember.team_seasons : [];
-
-        for (const yr of seasons) {
-          const role = formSeasonRoles[yr]?.trim() || "Team Member";
-          const postAbbr = formPostAbbrs[yr]?.trim() || "";
-          const postOrder =
-            formPostOrders[yr] !== "" && formPostOrders[yr] !== undefined && !isNaN(Number(formPostOrders[yr]))
-              ? Number(formPostOrders[yr])
-              : null;
-
-          const existingRow = existingSeasons.find((ts) => ts.season === yr);
-          if (existingRow) {
-            // Update existing team_seasons row
-            await supabase
-              .from("team_seasons")
-              .update({
-                role,
-                post_abbr: postAbbr,
-                post_order: postOrder,
-              })
-              .eq("id", existingRow.id);
-          } else {
-            // Insert new team_seasons row
-            await supabase
-              .from("team_seasons")
-              .insert({
-                team_id: editingMember.id,
-                season: yr,
-                role,
-                post_abbr: postAbbr,
-                post_order: postOrder,
-              });
-          }
-        }
-
-        // Delete unassigned seasons
-        const unassignedSeasons = existingSeasons.filter((ts) => !seasons.includes(ts.season));
-        for (const unassigned of unassignedSeasons) {
-          await supabase
-            .from("team_seasons")
-            .delete()
-            .eq("id", unassigned.id);
-        }
-
-        await loadTeamData();
-        showToast("Profile record updated.");
-      } else {
-        // INSERT OPERATION (New Member)
-        // 1. Insert into 'team'
-        const { data: newTeamData, error: teamError } = await supabase
-          .from("team")
-          .insert([teamPayload])
-          .select();
-
-        if (teamError || !newTeamData || !newTeamData[0]) {
-          showToast("Error creating member: " + (teamError?.message || "Failed to create team record"));
-          return;
-        }
-
-        const newMember = newTeamData[0];
-
-        // 2. Insert season rows into 'team_seasons'
-        const seasonInserts = seasons.map((yr) => ({
-          team_id: newMember.id,
-          season: yr,
-          role: formSeasonRoles[yr]?.trim() || "Team Member",
-          post_abbr: formPostAbbrs[yr]?.trim() || "",
-          post_order:
-            formPostOrders[yr] !== "" && formPostOrders[yr] !== undefined && !isNaN(Number(formPostOrders[yr]))
-              ? Number(formPostOrders[yr])
-              : null,
-        }));
-
-        const { error: seasonError } = await supabase
-          .from("team_seasons")
-          .insert(seasonInserts);
-
-        if (seasonError) {
-          // Atomic rollback
-          await supabase.from("team").delete().eq("id", newMember.id);
-          showToast("Error saving seasons: " + seasonError.message);
-          return;
-        }
-
-        await loadTeamData();
-        showToast("Member profile added.");
-      }
-
+      const assignments = seasons.map((season) => ({
+        season,
+        role: formSeasonRoles[season]?.trim() || "Team Member",
+        post_abbr: formPostAbbrs[season]?.trim() || "",
+        post_order: formPostOrders[season] !== "" && formPostOrders[season] !== undefined ? Number(formPostOrders[season]) : null,
+      }));
+      await saveStaff(supabase, editingMember?.id, teamPayload, assignments);
+      await loadTeamData();
+      showToast(editingMember ? "Staff profile and seasons updated." : "Staff profile added.");
       setIsModalOpen(false);
     } catch (err) {
       showToast("Error saving profile: " + (err?.message || ""));
@@ -655,30 +571,8 @@ export default function AdminTeam() {
     }
 
     try {
-      if (deleteSeasonOnly) {
-        // DELETE season assignment only
-        const { error } = await supabase
-          .from("team_seasons")
-          .delete()
-          .eq("team_id", member.id)
-          .eq("season", selectedYear);
-
-        if (error) {
-          showToast("Error removing season record: " + error.message);
-          return;
-        }
-        showToast(`Removed from season ${selectedYear}.`);
-      } else {
-        // DELETE member completely
-        await supabase.from("team_seasons").delete().eq("team_id", member.id);
-        const { error } = await supabase.from("team").delete().eq("id", member.id);
-        if (error) {
-          showToast("Error deleting member: " + error.message);
-          return;
-        }
-        showToast("Member record completely removed.");
-      }
-
+      await deleteStaff(supabase, member.id, deleteSeasonOnly ? selectedYear : null);
+      showToast(deleteSeasonOnly ? "Staff member removed from this season." : "Staff profile deleted.");
       await loadTeamData();
     } catch (err) {
       console.warn("Delete error:", err);
@@ -690,12 +584,7 @@ export default function AdminTeam() {
     if (!window.confirm("Are you sure you want to permanently delete this member from all seasons? This action cannot be undone.")) return;
 
     try {
-      await supabase.from("team_seasons").delete().eq("team_id", memberId);
-      const { error } = await supabase.from("team").delete().eq("id", memberId);
-      if (error) {
-        showToast("Error deleting: " + error.message);
-        return;
-      }
+      await deleteStaff(supabase, memberId);
       setIsProfileModalOpen(false);
       await loadTeamData();
       showToast("Member permanently deleted from database.");
@@ -738,7 +627,7 @@ export default function AdminTeam() {
   return (
     <div className="admin-tab-content">
       {/* Toast Notification */}
-      {toastMsg && <div className="admin-toast-bar">{toastMsg}</div>}
+      {toastMsg && <div className="admin-toast-bar" role="status">{toastMsg}</div>}
 
       {/* Page Header */}
       <div className="admin-view-header">
@@ -750,7 +639,8 @@ export default function AdminTeam() {
         </div>
 
         <div className="admin-header-actions">
-          <button type="button" className="btn-primary" onClick={handleOpenAdd}>
+          <button type="button" className="btn-secondary" onClick={loadTeamData} disabled={loading}>Refresh staff</button>
+          <button type="button" className="btn-primary" onClick={handleOpenAdd} disabled={Boolean(loadError)}>
             Add staff officer
           </button>
         </div>
@@ -799,11 +689,26 @@ export default function AdminTeam() {
       </div>
 
       {/* Members Drafting Grid */}
+      {loadError && <div className="admin-inline-error" role="alert">{loadError}</div>}
       {loading ? (
-        <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-          <span>Connecting to database & loading roster...</span>
+        <div className="members-drafting-grid">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="member-drafting-card" style={{ minHeight: "170px", gap: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="skeleton-shimmer skeleton-circle" />
+                <div className="skeleton-shimmer skeleton-line" style={{ width: "36px", height: "18px" }} />
+              </div>
+              <div className="skeleton-shimmer skeleton-line" style={{ width: "70%", height: "16px" }} />
+              <div className="skeleton-shimmer skeleton-line" style={{ width: "50%", height: "12px" }} />
+              <div className="skeleton-shimmer skeleton-line" style={{ width: "40%", height: "10px" }} />
+              <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between" }}>
+                <div className="skeleton-shimmer skeleton-line" style={{ width: "50px", height: "12px" }} />
+                <div className="skeleton-shimmer skeleton-line" style={{ width: "30px", height: "12px" }} />
+              </div>
+            </div>
+          ))}
         </div>
-      ) : filteredList.length === 0 ? (
+      ) : loadError ? null : filteredList.length === 0 ? (
         <div className="admin-panel" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
           <p style={{ margin: "0 0 12px" }}>No members registered for {selectedYear}.</p>
           <button type="button" className="btn-secondary" onClick={handleOpenAdd}>

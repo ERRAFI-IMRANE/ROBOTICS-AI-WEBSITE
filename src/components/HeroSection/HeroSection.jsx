@@ -338,6 +338,9 @@ export default function HeroSection() {
 
     let running = true;
     let animFrameId = null;
+    let visible = true;
+    let imagesReady = false;
+    let sizeDirty = true;
 
     const P = {
       BASE_SRC: "/RAI/RAI-XRAY.png",
@@ -417,8 +420,8 @@ export default function HeroSection() {
       noiseSize: 256,
       noiseScale: 9.0,
       noiseDrift: 0.1,
-      dprCap: 2.0,
-      dprCapMobile: 1.5,
+      dprCap: 1.5,
+      dprCapMobile: 1.25,
       idleStopEps: 0.0015,
     };
 
@@ -591,6 +594,7 @@ export default function HeroSection() {
         const img = new Image();
         img.decoding = "async";
         img.onload = () => {
+          if (!running) { resolve(img); return; }
           try {
             gl.bindTexture(gl.TEXTURE_2D, tex);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -618,7 +622,12 @@ export default function HeroSection() {
 
     hero.addEventListener("pointermove", onPointer, { passive: true });
     hero.addEventListener("pointerdown", onPointer, { passive: true });
-    hero.addEventListener("pointerleave", () => { ptr.has = false; }, { passive: true });
+    const onPointerLeave = () => { ptr.has = false; };
+    hero.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    const onResize = () => { sizeDirty = true; };
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(hero);
+    window.addEventListener("resize", onResize, { passive: true });
 
     let W = 1, H = 1;
     function resize() {
@@ -790,20 +799,40 @@ export default function HeroSection() {
     }
 
     function frame(now) {
-      if (!running) return;
+      animFrameId = null;
+      if (!running || !visible || document.hidden) return;
       animFrameId = requestAnimationFrame(frame);
-      if (document.hidden) { prevT = now; return; }
 
       let dt = (now - prevT) / 1000;
       prevT = now;
       if (dt > 0.05) dt = 0.05;
       if (dt <= 0) return;
 
-      resize();
+      if (sizeDirty) { resize(); sizeDirty = false; }
       stepSim(now, dt);
       stepNoise(now);
       stepComposite(now);
     }
+
+    // Stop GPU work outside the viewport; resume without simulating the entire pause.
+    const syncRendering = () => {
+      if (!running || !imagesReady || !visible || document.hidden) {
+        if (animFrameId !== null) cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+        return;
+      }
+      if (animFrameId === null) {
+        prevT = performance.now();
+        acc = 0;
+        animFrameId = requestAnimationFrame(frame);
+      }
+    };
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      syncRendering();
+    });
+    visibilityObserver.observe(hero);
+    document.addEventListener("visibilitychange", syncRendering);
 
     Promise.all([
       loadImage(P.BASE_SRC, texBase),
@@ -812,18 +841,36 @@ export default function HeroSection() {
       if (!running) return;
       resize();
       t0 = prevT = performance.now();
-      animFrameId = requestAnimationFrame(frame);
+      imagesReady = true;
+      syncRendering();
     }).catch((err) => {
       console.error("Liquid reveal image load error:", err);
       if (!running) return;
       resize();
       t0 = prevT = performance.now();
-      animFrameId = requestAnimationFrame(frame);
+      imagesReady = true;
+      syncRendering();
     });
 
     return () => {
       running = false;
       if (animFrameId) cancelAnimationFrame(animFrameId);
+      visibilityObserver.disconnect();
+      resizeObserver.disconnect();
+      document.removeEventListener("visibilitychange", syncRendering);
+      window.removeEventListener("resize", onResize);
+      hero.removeEventListener("pointermove", onPointer);
+      hero.removeEventListener("pointerdown", onPointer);
+      hero.removeEventListener("pointerleave", onPointerLeave);
+      [simA, simB, noiseRT].forEach((target) => {
+        if (!target) return;
+        gl.deleteTexture(target.tex);
+        gl.deleteFramebuffer(target.fbo);
+      });
+      gl.deleteTexture(texBase);
+      gl.deleteTexture(texChrome);
+      gl.deleteBuffer(quad);
+      [progSim, progComp, progNoise].forEach((prog) => gl.deleteProgram(prog));
     };
   }, []);
 
@@ -834,10 +881,23 @@ export default function HeroSection() {
       <div className="hover-portrait" />
       {/* Subtle side black shadow gradient overlay matching reference image */}
       <div className="hero-side-shadows" aria-hidden="true" />
+      <div className="hero-mobile-content">
+        <span className="hero-mobile-kicker">EST SAFI · EST. 2024</span>
+        <h1 className="hero-mobile-title">
+          Build the <span>future</span><br />with robotics &amp; AI
+        </h1>
+        <p className="hero-mobile-copy">
+          A student community turning ambitious ideas into intelligent machines,
+          real projects, and national competition wins.
+        </p>
+        <div className="hero-mobile-actions">
+          <a className="hero-mobile-primary" href="#join">Join the club <span aria-hidden="true">↗</span></a>
+          <a className="hero-mobile-secondary" href="#events">Explore events</a>
+        </div>
+        <span className="hero-mobile-scroll" aria-hidden="true">Scroll to explore <b>↓</b></span>
+      </div>
     </section>
   );
 }
-
-
 
 

@@ -9,15 +9,24 @@ gsap.registerPlugin(ScrollTrigger);
 export default function EventsSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
+  const refreshTimerRef = useRef(null);
 
   const refreshScroll = useCallback(() => {
-    ScrollTrigger.refresh();
+    clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => ScrollTrigger.refresh(), 150);
   }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
     const track = trackRef.current;
     if (!section || !track) return;
+
+    // On phones the events become a native vertical feed instead of a pinned
+    // horizontal timeline. This avoids clipped cards and keeps touch navigation natural.
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      section.dataset.scrolledLight = "false";
+      return;
+    }
 
     const getScrollDistance = () => Math.max(0, track.scrollWidth - window.innerWidth + 60);
 
@@ -60,21 +69,24 @@ export default function EventsSection() {
     // Track when Events scroll turns into light background to coordinate header button color
     tl.eventCallback("onUpdate", () => {
       const p = tl.progress();
-      section.dataset.scrolledLight = p >= 0.18 ? "true" : "false";
+      const light = p >= 0.18 ? "true" : "false";
+      if (section.dataset.scrolledLight !== light) {
+        section.dataset.scrolledLight = light;
+        window.dispatchEvent(new Event("rai:theme-change"));
+      }
     });
 
     // ResizeObserver dynamically recalculates bounds when images and Supabase cards finish mounting
-    const resizeObserver = new ResizeObserver(() => {
-      ScrollTrigger.refresh();
-    });
+    const resizeObserver = new ResizeObserver(refreshScroll);
     resizeObserver.observe(track);
 
     return () => {
       resizeObserver.disconnect();
+      clearTimeout(refreshTimerRef.current);
       tl.scrollTrigger?.kill();
       tl.kill();
     };
-  }, []);
+  }, [refreshScroll]);
 
   return (
     <section ref={sectionRef} id="events" className="events-section-pin">

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { publicContent, supabase } from "../lib/supabaseClient";
+import { eventView, safeEventUrl } from "../lib/adminEvents";
+import { withRequestTimeout } from "../lib/requestTimeout";
 
 export interface EventRow {
   id: string | number;
@@ -28,6 +30,57 @@ interface EventsListProps {
   onLoaded?: () => void;
 }
 
+const DEFAULT_EVENTS: EventRow[] = [
+  {
+    id: "def-1",
+    title: "National AI & Innovation Summit",
+    date: "15 Feb 2025",
+    image_url: "/events/summit.png",
+    link: "https://ests.uca.ma",
+    status: "Completed",
+  },
+  {
+    id: "def-2",
+    title: "Autonomous Robotics Workshop",
+    date: "13-14 Oct 2024",
+    image_url: "/events/workshop.png",
+    link: "https://ests.uca.ma",
+    status: "Completed",
+  },
+  {
+    id: "def-3",
+    title: "National AI Hackathon EST Safi",
+    date: "18-19 Nov 2024",
+    image_url: "/events/hackathon.png",
+    link: "https://ests.uca.ma",
+    status: "Completed",
+  },
+  {
+    id: "def-4",
+    title: "Moroccan Robotics Challenge",
+    date: "08-09 Dec 2024",
+    image_url: "/events/competition.png",
+    link: "https://ests.uca.ma",
+    status: "Completed",
+  },
+  {
+    id: "def-5",
+    title: "ROS2 Drone & PX4 Flight Testing",
+    date: "20 Jan 2025",
+    image_url: "/events/drone.png",
+    link: "https://ests.uca.ma",
+    status: "Completed",
+  },
+  {
+    id: "def-6",
+    title: "Engineering Tech Expo",
+    date: "12 Mar 2025",
+    image_url: "/events/expo.png",
+    link: "https://ests.uca.ma",
+    status: "Upcoming",
+  },
+];
+
 const CARD_SIZES = ["medium", "small", "large", "medium", "small"];
 // Subtle, balanced vertical offsets so cards are never cropped at top/bottom of the screen
 const OFFSETS = ["15px", "-15px", "20px", "-10px", "10px", "-20px"];
@@ -48,9 +101,20 @@ const MONTH_MAP: Record<string, number> = {
 };
 
 export function parseEventDate(item: EventRow): number {
-  const dataObj = item?.data || {};
-  const dateStr = String(dataObj.date || item?.date || "");
-  const titleStr = String(dataObj.title || item?.title || "");
+  let dataObj: any = item?.data;
+  if (typeof dataObj === "string") {
+    try {
+      dataObj = JSON.parse(dataObj);
+    } catch {
+      dataObj = {};
+    }
+  }
+  if (!dataObj || typeof dataObj !== "object") {
+    dataObj = {};
+  }
+
+  const dateStr = String(item?.date || dataObj.date || item?.event_date || dataObj.event_date || "");
+  const titleStr = String(item?.title || dataObj.title || "");
 
   // 1. Extract 4-digit year from date string or title
   let year: number | null = null;
@@ -165,21 +229,61 @@ export default function EventsList({ onLoaded }: EventsListProps) {
       try {
         setLoading(true);
         setError(null);
-        const { data, error: fetchErr } = await supabase
-          .from("events")
-          .select("*");
 
-        if (fetchErr) {
-          console.error("Error fetching events from Supabase:", fetchErr);
-          setError(fetchErr.message);
-        } else if (data && Array.isArray(data)) {
-          // Sort events from newest to oldest by event date
-          const sortedEvents = [...data].sort((a, b) => parseEventDate(b) - parseEventDate(a));
+        // Use publicContent client (session-independent) to avoid expired officer token issues
+        const client = publicContent || supabase;
+        let data: any[] | null = null;
+        let fetchErr: any = null;
+
+        try {
+          const res = await withRequestTimeout(
+            client.from("events").select("*").order("id", { ascending: false }),
+            "Public events",
+            6000
+          );
+          data = res.data;
+          fetchErr = res.error;
+        } catch (err) {
+          fetchErr = err;
+        }
+
+        // Fallback to standard supabase client if publicContent returned an error
+        if (fetchErr || !data || data.length === 0) {
+          try {
+            const fallbackRes = await supabase.from("events").select("*").order("id", { ascending: false });
+            if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+              data = fallbackRes.data;
+              fetchErr = null;
+            }
+          } catch {
+            // Ignore fallback error
+          }
+        }
+
+        if (data && Array.isArray(data) && data.length > 0) {
+          const mapped: EventRow[] = data.map((row) => {
+            const view = eventView(row);
+            return {
+              id: row.id,
+              title: view.title,
+              date: view.date,
+              image_url: safeEventUrl(view.image_url, true) || "/events/workshop.png",
+              link: view.link,
+              status: view.status,
+              description: view.description,
+              created_at: row.created_at,
+              data: row.data,
+            };
+          });
+          const sortedEvents = mapped.sort((a, b) => parseEventDate(b) - parseEventDate(a));
           setEvents(sortedEvents);
+        } else {
+          // If database returned 0 records or error occurred, provide curated default events
+          setEvents(DEFAULT_EVENTS);
         }
       } catch (err: any) {
-        console.error("Unexpected error fetching events:", err);
-        setError(err?.message || "Failed to load events");
+        console.warn("Error fetching events from Supabase, using defaults:", err);
+        setEvents(DEFAULT_EVENTS);
       } finally {
         setLoading(false);
         if (onLoaded) {
@@ -195,14 +299,6 @@ export default function EventsList({ onLoaded }: EventsListProps) {
     return (
       <div className="events-loading" style={{ padding: "40px", color: "#94a3b8", fontSize: "15px" }}>
         Loading events...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="events-error" style={{ padding: "40px", color: "#ef4444", fontSize: "14px" }}>
-        Unable to load events ({error})
       </div>
     );
   }
@@ -268,13 +364,14 @@ export default function EventsList({ onLoaded }: EventsListProps) {
                 <img
                   src={image}
                   alt={title}
-                  loading="eager"
+                  loading="lazy"
+                  decoding="async"
                   className="event-img"
-                  onLoad={() => {
-                    if (onLoaded) onLoaded();
-                  }}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/events/summit.png";
+                    const img = e.currentTarget;
+                    if (img.dataset.fallback) return;
+                    img.dataset.fallback = "true";
+                    img.src = "/events/summit.png";
                   }}
                 />
                 <div className="event-img-overlay" />

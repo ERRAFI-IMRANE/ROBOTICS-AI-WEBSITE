@@ -24,6 +24,10 @@ export default function RAISection() {
 
     if (!section || !leftImg || !rightImg || !leftText || !rightText) return;
 
+    // The split composition is static on phones; the desktop scroll choreography
+    // depends on a landscape canvas and would otherwise push content off-screen.
+    if (window.matchMedia("(max-width: 767px)").matches) return;
+
     // Original RAI section animation — untouched
     const tl = gsap.timeline({
       scrollTrigger: {

@@ -3,6 +3,8 @@ import AdminAnalytics from "./AdminAnalytics";
 import AdminEvents from "./AdminEvents";
 import AdminTeam from "./AdminTeam";
 import AdminMembers from "./AdminMembers";
+import AdminSettings from "./AdminSettings";
+import { supabase } from "../../lib/supabaseClient";
 import "./AdminDashboard.css";
 
 class AdminErrorBoundary extends Component {
@@ -28,13 +30,13 @@ class AdminErrorBoundary extends Component {
             style={{
               textAlign: "center",
               padding: "40px 20px",
-              maxWidth: "560px",
+              maxWidth: "540px",
               margin: "40px auto",
               border: "1px solid var(--critical)",
             }}
           >
-            <h3 style={{ color: "var(--critical)", margin: "0 0 8px", fontSize: "16px" }}>
-              Panel Render Notice
+            <h3 style={{ color: "var(--critical)", margin: "0 0 8px", fontSize: "16px", fontFamily: "var(--font-display)" }}>
+              Tab render notice
             </h3>
             <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "0 0 16px" }}>
               {this.state.error?.message || "An unexpected error occurred while loading this view."}
@@ -55,25 +57,45 @@ class AdminErrorBoundary extends Component {
 }
 
 export default function AdminDashboard({ onClose }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem("rai_admin_auth") === "true";
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [email, setEmail] = useState("");
   const [passcode, setPasscode] = useState("");
-  const [authError, setAuthError] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    function applySession(session) {
+      if (!active) return;
+      setIsAuthenticated(session?.user?.app_metadata?.club_admin === true);
+      setAuthLoading(false);
+    }
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error && active) setAuthError("Could not restore your session. Please sign in.");
+      applySession(data?.session);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => applySession(session));
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
   const [activeTab, setActiveTab] = useState("overview");
   const [isRailExpanded, setIsRailExpanded] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem("rai_admin_theme") === "dark" ||
-      (!localStorage.getItem("rai_admin_theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return (
+      localStorage.getItem("rai_admin_theme") === "dark" ||
+      (!localStorage.getItem("rai_admin_theme") && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
   });
 
-  // Apply dark mode class to root
+  // Apply dark mode state
   useEffect(() => {
     if (isDarkMode) {
-      document.documentElement.classList.add("dark");
       localStorage.setItem("rai_admin_theme", "dark");
     } else {
-      document.documentElement.classList.remove("dark");
       localStorage.setItem("rai_admin_theme", "light");
     }
   }, [isDarkMode]);
@@ -82,79 +104,115 @@ export default function AdminDashboard({ onClose }) {
     setIsDarkMode((prev) => !prev);
   };
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    const trimmed = passcode.trim().toLowerCase();
-    if (trimmed === "admin2025" || trimmed === "rai2025" || trimmed === "ests" || trimmed === "admin") {
-      sessionStorage.setItem("rai_admin_auth", "true");
+  const handleLoginSubmit = async (event) => {
+    event.preventDefault();
+    if (authBusy) return;
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: passcode,
+      });
+      if (error) throw new Error("Unable to sign in. Check your email and password.");
+      if (data.user?.app_metadata?.club_admin !== true) {
+        await supabase.auth.signOut();
+        throw new Error("This account does not have club officer access.");
+      }
+      setPasscode("");
       setIsAuthenticated(true);
-      setAuthError(false);
-    } else {
-      setAuthError(true);
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setAuthBusy(false);
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("rai_admin_auth");
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      window.alert("Could not sign out. Please try again.");
+      return;
+    }
     setIsAuthenticated(false);
     onClose();
   };
 
-  // Standalone Auth Screen (Drafting table calibration style)
+  // 1. Standalone Auth Screen (High-polish SaaS card)
   if (!isAuthenticated) {
     return (
       <div className={`admin-root-layout admin-auth-screen-layout ${isDarkMode ? "dark" : ""}`}>
         <div className="admin-auth-card-standalone">
           <div className="admin-auth-mark">
-            <div className="admin-auth-mark-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M7 12h10M12 7v10" />
-              </svg>
+            <img className="admin-login-logo" src="/RAI/club-icon-light.png" alt="Robotics & AI Club logo" />
+            <div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "15px", color: "var(--text)" }}>
+                Robotics & AI Club
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>EST Safi Workspace</div>
             </div>
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "14px" }}>
-              Robotics & AI Club
-            </span>
           </div>
 
-          <h1 className="admin-auth-title">Console access</h1>
+          <h1 className="admin-auth-title">Officer sign in</h1>
           <p className="admin-auth-subtitle">
-            Enter authorized club officer passcode to unlock telemetry and controls.
+            Enter your credentials to access the administrative command console.
           </p>
 
           <form onSubmit={handleLoginSubmit} className="admin-auth-standalone-form">
             <div className="admin-auth-input-wrapper">
-              <label className="admin-auth-label">Officer passcode</label>
+              <label className="admin-auth-label" htmlFor="admin-email">Officer email</label>
               <input
+                id="admin-email"
+                type="email"
+                required
+                autoComplete="username"
+                className="admin-standalone-input"
+                placeholder="officer@estsafi.ac.ma"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="admin-auth-input-wrapper">
+              <label className="admin-auth-label" htmlFor="admin-password">Password</label>
+              <input
+                id="admin-password"
+                required
+                autoComplete="current-password"
                 type="password"
                 className={`admin-standalone-input ${authError ? "has-error" : ""}`}
-                placeholder="Passcode (default: admin2025)"
+                placeholder="••••••••••••"
                 value={passcode}
                 onChange={(e) => {
                   setPasscode(e.target.value);
-                  if (authError) setAuthError(false);
+                  if (authError) setAuthError("");
                 }}
                 autoFocus
               />
               {authError && (
-                <span className="admin-standalone-error">
-                  Invalid authentication passcode.
+                <span className="admin-standalone-error" role="alert">
+                  {authError}
                 </span>
               )}
             </div>
 
             <div className="admin-auth-btn-row">
               <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={onClose}>
-                Return to website
+                Return to site
               </button>
-              <button type="submit" className="btn-primary" style={{ flex: 1.3 }}>
-                Unlock console
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={authBusy || authLoading}
+                style={{ flex: 1.3 }}
+              >
+                {authLoading ? "Checking session…" : authBusy ? "Signing in…" : "Sign in ↗"}
               </button>
             </div>
           </form>
 
           <div className="admin-auth-footer-hint">
-            <span>EST Safi &bull; Control panel</span>
+            <span>EST Safi &bull; Control Center</span>
             <span style={{ fontFamily: "var(--font-mono)" }}>v2.4.0</span>
           </div>
         </div>
@@ -162,7 +220,7 @@ export default function AdminDashboard({ onClose }) {
     );
   }
 
-  // Navigation Items Specification
+  // Navigation Items
   const navSections = [
     {
       id: "overview",
@@ -178,7 +236,7 @@ export default function AdminDashboard({ onClose }) {
     },
     {
       id: "team",
-      label: "Team",
+      label: "Staff",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -246,7 +304,7 @@ export default function AdminDashboard({ onClose }) {
     },
     {
       id: "settings",
-      label: "Settings",
+      label: "Parameters",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="12" r="3" />
@@ -260,18 +318,17 @@ export default function AdminDashboard({ onClose }) {
 
   return (
     <div className={`admin-root-layout ${isDarkMode ? "dark" : ""}`}>
-      {/* Left Rail Navigation (72px collapsed / 240px expanded) */}
+      {/* Left Rail Navigation */}
       <aside className={`admin-rail ${isRailExpanded ? "is-expanded" : "is-collapsed"}`}>
         <div className="admin-rail-top">
-          {/* Header & Rail Toggle */}
           <div className="admin-rail-header">
             <button
               type="button"
               className="admin-rail-brand-mark"
               onClick={() => setIsRailExpanded((v) => !v)}
-              title="Toggle rail expansion"
+              title="Toggle sidebar expansion"
             >
-              RAI
+              <img src="/RAI/club-icon-light.png" alt="RAI" className="admin-rail-logo" />
             </button>
             {isRailExpanded && (
               <div className="admin-rail-brand-meta">
@@ -281,7 +338,6 @@ export default function AdminDashboard({ onClose }) {
             )}
           </div>
 
-          {/* Navigation Sections */}
           <nav className="admin-rail-nav">
             {navSections.map((sec) => {
               const isActive = activeTab === sec.id;
@@ -292,6 +348,8 @@ export default function AdminDashboard({ onClose }) {
                   className={`admin-rail-item ${isActive ? "is-active" : ""}`}
                   onClick={() => setActiveTab(sec.id)}
                   title={sec.label}
+                  aria-label={sec.label}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {sec.icon}
                   {isRailExpanded && <span>{sec.label}</span>}
@@ -301,13 +359,12 @@ export default function AdminDashboard({ onClose }) {
           </nav>
         </div>
 
-        {/* Rail Footer */}
         <div className="admin-rail-footer">
           <button
             type="button"
             className="rail-toggle-btn"
             onClick={() => setIsRailExpanded((v) => !v)}
-            title={isRailExpanded ? "Collapse rail" : "Expand rail"}
+            title={isRailExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {isRailExpanded ? (
@@ -323,13 +380,11 @@ export default function AdminDashboard({ onClose }) {
 
       {/* Main Viewport */}
       <main className="admin-main-viewport">
-        {/* Top Bar (56px) */}
+        {/* Topbar */}
         <header className="admin-topbar">
           <div className="admin-topbar-left">
             <div className="admin-topbar-mark">
-              <span className="mark-bracket">[</span>
-              <span>RAI</span>
-              <span className="mark-bracket">]</span>
+              <img className="admin-topbar-sign" src="/RAI/club sign.png" alt="RAI" />
             </div>
             <span className="topbar-breadcrumb-sep">/</span>
             <span className="topbar-breadcrumb-item">Console</span>
@@ -338,20 +393,7 @@ export default function AdminDashboard({ onClose }) {
           </div>
 
           <div className="admin-topbar-right">
-            {/* Topbar Search */}
-            <div className="topbar-search-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="topbar-search-input"
-              />
-            </div>
-
-            {/* Theme Toggle (Light Drafting / Dark Oscilloscope) */}
+            {/* Theme Toggle */}
             <button
               type="button"
               className="topbar-icon-btn"
@@ -359,7 +401,7 @@ export default function AdminDashboard({ onClose }) {
               title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDarkMode ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="theme-toggle-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="5" />
                   <line x1="12" y1="1" x2="12" y2="3" />
                   <line x1="12" y1="21" x2="12" y2="23" />
@@ -371,18 +413,18 @@ export default function AdminDashboard({ onClose }) {
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="theme-toggle-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
               )}
             </button>
 
-            {/* Settings Quick Shortcut */}
+            {/* Quick Settings */}
             <button
               type="button"
               className="topbar-icon-btn"
               onClick={() => setActiveTab("settings")}
-              title="Console settings"
+              title="Parameters & settings"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="3" />
@@ -390,28 +432,28 @@ export default function AdminDashboard({ onClose }) {
               </svg>
             </button>
 
-            {/* View Public Website */}
+            {/* Public Site Shortcut */}
             <button
               type="button"
               className="topbar-view-site-btn"
               onClick={onClose}
-              title="Return to public website"
+              title="Return to public club website"
             >
-              <span>Public site</span>
+              <span>Public site ↗</span>
             </button>
 
             {/* Officer Profile Badge */}
             <div className="topbar-user-badge">
-              <span className="user-avatar-initials">IE</span>
-              <span className="user-name-text">Imrane Errafi</span>
+              <span className="user-avatar-initials">RAI</span>
+              <span className="user-name-text">Club officer</span>
             </div>
 
-            {/* Lock / Exit */}
+            {/* Logout */}
             <button
               type="button"
               className="topbar-icon-btn"
               onClick={handleLogout}
-              title="Lock and exit console"
+              title="Sign out of console"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -421,9 +463,14 @@ export default function AdminDashboard({ onClose }) {
           </div>
         </header>
 
-        {/* Dynamic Tab Views */}
+        {/* Tab Content Router */}
         <AdminErrorBoundary key={activeTab}>
-          {activeTab === "overview" && <AdminAnalytics eventsCount={12} membersCount={118} />}
+          {activeTab === "overview" && <AdminAnalytics onNavigate={setActiveTab} />}
+          {["projects", "inventory", "budget"].includes(activeTab) && (
+            <div className="admin-demo-notice" role="note" style={{ margin: "16px 32px 0" }}>
+              <span>Preview workspace &bull; This section contains demonstration records for technical tracking.</span>
+            </div>
+          )}
           {activeTab === "team" && <AdminTeam />}
           {activeTab === "members" && <AdminMembers />}
           {activeTab === "events" && <AdminEvents />}
@@ -433,357 +480,301 @@ export default function AdminDashboard({ onClose }) {
             <div className="admin-tab-content">
               <div className="admin-view-header">
                 <div>
+                  <p className="admin-eyebrow">RESEARCH & DEVELOPMENT</p>
                   <h1 className="admin-page-title">Engineering projects</h1>
                   <p className="admin-page-desc">Autonomous systems, drone firmware, and embedded AI builds.</p>
                 </div>
                 <div className="admin-header-actions">
-                  <button type="button" className="btn-primary">Add project</button>
-                </div>
-              </div>
-
-            <div className="admin-panel">
-              <div className="admin-panel-header">
-                <div>
-                  <h3 className="admin-panel-heading">Active builds (4)</h3>
-                  <p className="admin-panel-meta">Technical tracking and subsystem readiness</p>
-                </div>
-              </div>
-
-              <div className="table-container">
-                <table className="hairline-table">
-                  <thead>
-                    <tr>
-                      <th>Project code</th>
-                      <th>Platform name</th>
-                      <th>Subsystem track</th>
-                      <th>Project lead</th>
-                      <th>Status</th>
-                      <th className="col-numeric">Budget</th>
-                      <th>Milestone date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-01</td>
-                      <td style={{ fontWeight: 500 }}>Autonomous Rover V4</td>
-                      <td>Computer vision & obstacle avoidance</td>
-                      <td>Imrane Errafi</td>
-                      <td>
-                        <span className="status-chip status-chip-positive">
-                          <span className="status-chip-dot" />
-                          <span>Active</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">$1,200</td>
-                      <td>15 Apr 2025</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-02</td>
-                      <td style={{ fontWeight: 500 }}>ROS2 Quadcopter</td>
-                      <td>PX4 flight controller & GPS telemetry</td>
-                      <td>Aya Mansouri</td>
-                      <td>
-                        <span className="status-chip status-chip-positive">
-                          <span className="status-chip-dot" />
-                          <span>Active</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">$850</td>
-                      <td>28 Mar 2025</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-03</td>
-                      <td style={{ fontWeight: 500 }}>Smart Agribot</td>
-                      <td>Soil analysis & edge camera model</td>
-                      <td>Mehdi Alami</td>
-                      <td>
-                        <span className="status-chip status-chip-warning">
-                          <span className="status-chip-dot" />
-                          <span>Planning</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">$620</td>
-                      <td>10 May 2025</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-04</td>
-                      <td style={{ fontWeight: 500 }}>Bipedal Walking Platform</td>
-                      <td>Inverse kinematics & high-torque servos</td>
-                      <td>Yassine Berrada</td>
-                      <td>
-                        <span className="status-chip status-chip-critical">
-                          <span className="status-chip-dot" />
-                          <span>Blocked</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">$1,450</td>
-                      <td>02 Jun 2025</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Inventory View */}
-        {activeTab === "inventory" && (
-          <div className="admin-tab-content">
-            <div className="admin-view-header">
-              <div>
-                <h1 className="admin-page-title">Hardware lab inventory</h1>
-                <p className="admin-page-desc">Microcontrollers, sensors, motors, and electronic test gear.</p>
-              </div>
-              <div className="admin-header-actions">
-                <button type="button" className="btn-primary">Add component</button>
-              </div>
-            </div>
-
-            <div className="admin-panel">
-              <div className="admin-panel-header">
-                <div>
-                  <h3 className="admin-panel-heading">Component stock registry</h3>
-                  <p className="admin-panel-meta">Lab benches 1–4 stock level telemetry</p>
-                </div>
-              </div>
-
-              <div className="table-container">
-                <table className="hairline-table">
-                  <thead>
-                    <tr>
-                      <th>Part number</th>
-                      <th>Component description</th>
-                      <th>Category</th>
-                      <th>Bench location</th>
-                      <th>Status</th>
-                      <th className="col-numeric">In stock</th>
-                      <th className="col-numeric">Min threshold</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>MCU-ESP32-S3</td>
-                      <td style={{ fontWeight: 500 }}>ESP32-S3 Dual-Core WiFi/BLE</td>
-                      <td>Microcontroller</td>
-                      <td>Bench 1 &bull; Bin A4</td>
-                      <td>
-                        <span className="status-chip status-chip-positive">
-                          <span className="status-chip-dot" />
-                          <span>Nominal</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">24</td>
-                      <td className="col-numeric">10</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>SBC-RPI-4B-4G</td>
-                      <td style={{ fontWeight: 500 }}>Raspberry Pi 4 Model B (4GB)</td>
-                      <td>Single Board Computer</td>
-                      <td>Bench 1 &bull; Bin B2</td>
-                      <td>
-                        <span className="status-chip status-chip-warning">
-                          <span className="status-chip-dot" />
-                          <span>Low stock</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">3</td>
-                      <td className="col-numeric">5</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>SEN-LIDAR-A1M8</td>
-                      <td style={{ fontWeight: 500 }}>RPLIDAR A1 360° 12m Scanner</td>
-                      <td>Sensor / Lidar</td>
-                      <td>Bench 2 &bull; Cabinet 1</td>
-                      <td>
-                        <span className="status-chip status-chip-positive">
-                          <span className="status-chip-dot" />
-                          <span>Nominal</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">6</td>
-                      <td className="col-numeric">2</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>MOT-MG996R-SRV</td>
-                      <td style={{ fontWeight: 500 }}>MG996R High-Torque Metal Gear Servo</td>
-                      <td>Actuators</td>
-                      <td>Bench 3 &bull; Bin D1</td>
-                      <td>
-                        <span className="status-chip status-chip-positive">
-                          <span className="status-chip-dot" />
-                          <span>Nominal</span>
-                        </span>
-                      </td>
-                      <td className="col-numeric">42</td>
-                      <td className="col-numeric">15</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Budget View */}
-        {activeTab === "budget" && (
-          <div className="admin-tab-content">
-            <div className="admin-view-header">
-              <div>
-                <h1 className="admin-page-title">Equipment budget & grants</h1>
-                <p className="admin-page-desc">Financial allocations, university grants, and component purchases.</p>
-              </div>
-              <div className="admin-header-actions">
-                <button type="button" className="btn-primary">Log transaction</button>
-              </div>
-            </div>
-
-            <div className="data-metrics-grid">
-              <div className="data-metric-panel">
-                <span className="metric-label">Total allocated budget</span>
-                <div className="metric-readout-row">
-                  <span className="metric-readout">$7,500</span>
-                  <span className="metric-delta delta-positive">Annual grant</span>
-                </div>
-                <span className="metric-subtext">2024-2025 academic funding</span>
-              </div>
-              <div className="data-metric-panel">
-                <span className="metric-label">Disbursed funds</span>
-                <div className="metric-readout-row">
-                  <span className="metric-readout">$4,850</span>
-                  <span className="metric-delta delta-positive">64.6% utilized</span>
-                </div>
-                <span className="metric-subtext">Components & competition registration</span>
-              </div>
-              <div className="data-metric-panel">
-                <span className="metric-label">Available balance</span>
-                <div className="metric-readout-row">
-                  <span className="metric-readout">$2,650</span>
-                  <span className="metric-delta delta-positive">Available</span>
-                </div>
-                <span className="metric-subtext">Remaining contingency reserve</span>
-              </div>
-              <div className="data-metric-panel">
-                <span className="metric-label">Sponsorship partnerships</span>
-                <div className="metric-readout-row">
-                  <span className="metric-readout">03</span>
-                  <span className="metric-delta delta-positive">Active</span>
-                </div>
-                <span className="metric-subtext">Industrial partners at Safi</span>
-              </div>
-            </div>
-
-            <div className="admin-panel">
-              <div className="admin-panel-header">
-                <div>
-                  <h3 className="admin-panel-heading">Recent ledger transactions</h3>
-                  <p className="admin-panel-meta">Approved equipment and travel reimbursements</p>
-                </div>
-              </div>
-
-              <div className="table-container">
-                <table className="hairline-table">
-                  <thead>
-                    <tr>
-                      <th>Ref code</th>
-                      <th>Description</th>
-                      <th>Category</th>
-                      <th>Authorization</th>
-                      <th>Date</th>
-                      <th className="col-numeric">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-014</td>
-                      <td style={{ fontWeight: 500 }}>Jetson Orin Nano Developer Kit (2x)</td>
-                      <td>Embedded Hardware</td>
-                      <td>Supervisor approval</td>
-                      <td>12 Feb 2025</td>
-                      <td className="col-numeric" style={{ color: "var(--critical)" }}>-$980.00</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-013</td>
-                      <td style={{ fontWeight: 500 }}>University Innovation Grant Tranche 2</td>
-                      <td>Grant Inflow</td>
-                      <td>EST Safi Administration</td>
-                      <td>01 Feb 2025</td>
-                      <td className="col-numeric" style={{ color: "var(--positive)" }}>+$2,500.00</td>
-                    </tr>
-                    <tr>
-                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-012</td>
-                      <td style={{ fontWeight: 500 }}>3D Printing Filament PLA+ (10kg spool)</td>
-                      <td>Prototyping Consumables</td>
-                      <td>President approval</td>
-                      <td>20 Jan 2025</td>
-                      <td className="col-numeric" style={{ color: "var(--critical)" }}>-$220.00</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Settings View */}
-        {activeTab === "settings" && (
-          <div className="admin-tab-content">
-            <div className="admin-view-header">
-              <div>
-                <h1 className="admin-page-title">Console settings</h1>
-                <p className="admin-page-desc">Club parameters, season management, and authentication keys.</p>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <div className="admin-panel">
-                <h3 className="admin-panel-heading" style={{ marginBottom: "6px" }}>Academic season</h3>
-                <p className="admin-panel-meta" style={{ marginBottom: "16px" }}>Current active season for roster and competition scoring</p>
-
-                <div className="form-field-group" style={{ marginBottom: "14px" }}>
-                  <label className="form-field-label">Active season</label>
-                  <select className="form-select-input" defaultValue="25-26">
-                    <option value="26-27">26-27 (Upcoming)</option>
-                    <option value="25-26">25-26 (Active)</option>
-                    <option value="24-25">24-25 (Archived)</option>
-                  </select>
-                </div>
-
-                <div className="form-field-group">
-                  <label className="form-field-label">Default club department</label>
-                  <input
-                    type="text"
-                    defaultValue="École Supérieure de Technologie de Safi"
-                    className="form-text-input"
-                    disabled
-                  />
+                  <button type="button" className="btn-primary">Add project ↗</button>
                 </div>
               </div>
 
               <div className="admin-panel">
-                <h3 className="admin-panel-heading" style={{ marginBottom: "6px" }}>Database telemetry</h3>
-                <p className="admin-panel-meta" style={{ marginBottom: "16px" }}>Supabase PostgREST connection status</p>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "4px" }}>
-                    <span style={{ fontSize: "13px" }}>Supabase PostgreSQL</span>
-                    <span className="status-chip status-chip-positive">
-                      <span className="status-chip-dot" />
-                      <span>Connected</span>
-                    </span>
+                <div className="admin-panel-header">
+                  <div>
+                    <h3 className="admin-panel-heading">Active builds registry (4)</h3>
+                    <p className="admin-panel-meta">Technical tracking and subsystem readiness telemetry</p>
                   </div>
+                </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "4px" }}>
-                    <span style={{ fontSize: "13px" }}>Team table RPC</span>
-                    <span className="status-chip status-chip-positive">
-                      <span className="status-chip-dot" />
-                      <span>Online</span>
-                    </span>
-                  </div>
+                <div className="table-container">
+                  <table className="hairline-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Platform</th>
+                        <th>Subsystem track</th>
+                        <th>Lead engineer</th>
+                        <th>Status</th>
+                        <th className="col-numeric">Budget</th>
+                        <th>Target milestone</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-01</td>
+                        <td style={{ fontWeight: 600 }}>Autonomous Rover V4</td>
+                        <td>Computer vision & obstacle avoidance</td>
+                        <td>Imrane Errafi</td>
+                        <td>
+                          <span className="status-chip status-chip-positive">
+                            <span className="status-chip-dot" />
+                            <span>Active</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>$1,200</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>15 Apr 2025</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-02</td>
+                        <td style={{ fontWeight: 600 }}>ROS2 Quadcopter</td>
+                        <td>PX4 flight controller & GPS telemetry</td>
+                        <td>Aya Mansouri</td>
+                        <td>
+                          <span className="status-chip status-chip-positive">
+                            <span className="status-chip-dot" />
+                            <span>Active</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>$850</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>28 Mar 2025</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-03</td>
+                        <td style={{ fontWeight: 600 }}>Smart Agribot</td>
+                        <td>Soil analysis & edge camera inference</td>
+                        <td>Mehdi Alami</td>
+                        <td>
+                          <span className="status-chip status-chip-warning">
+                            <span className="status-chip-dot" />
+                            <span>Planning</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>$620</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>10 May 2025</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>PRJ-04</td>
+                        <td style={{ fontWeight: 600 }}>Bipedal Walking Platform</td>
+                        <td>Inverse kinematics & high-torque servos</td>
+                        <td>Yassine Berrada</td>
+                        <td>
+                          <span className="status-chip status-chip-critical">
+                            <span className="status-chip-dot" />
+                            <span>Blocked</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>$1,450</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>02 Jun 2025</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Hardware Lab Inventory View */}
+          {activeTab === "inventory" && (
+            <div className="admin-tab-content">
+              <div className="admin-view-header">
+                <div>
+                  <p className="admin-eyebrow">EQUIPMENT & LAB TELEMETRY</p>
+                  <h1 className="admin-page-title">Hardware lab inventory</h1>
+                  <p className="admin-page-desc">Microcontrollers, sensors, motors, and electronic test gear.</p>
+                </div>
+                <div className="admin-header-actions">
+                  <button type="button" className="btn-primary">Add component ↗</button>
+                </div>
+              </div>
+
+              <div className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <h3 className="admin-panel-heading">Component stock registry</h3>
+                    <p className="admin-panel-meta">Lab benches 1–4 stock level telemetry</p>
+                  </div>
+                </div>
+
+                <div className="table-container">
+                  <table className="hairline-table">
+                    <thead>
+                      <tr>
+                        <th>Part number</th>
+                        <th>Component description</th>
+                        <th>Category</th>
+                        <th>Bench location</th>
+                        <th>Status</th>
+                        <th className="col-numeric">In stock</th>
+                        <th className="col-numeric">Min threshold</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>MCU-ESP32-S3</td>
+                        <td style={{ fontWeight: 600 }}>ESP32-S3 Dual-Core WiFi/BLE</td>
+                        <td>Microcontroller</td>
+                        <td>Bench 1 &bull; Bin A4</td>
+                        <td>
+                          <span className="status-chip status-chip-positive">
+                            <span className="status-chip-dot" />
+                            <span>Nominal</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>24</td>
+                        <td className="col-numeric" style={{ color: "var(--text-muted)" }}>10</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>SBC-RPI-4B-4G</td>
+                        <td style={{ fontWeight: 600 }}>Raspberry Pi 4 Model B (4GB)</td>
+                        <td>Single Board Computer</td>
+                        <td>Bench 1 &bull; Bin B2</td>
+                        <td>
+                          <span className="status-chip status-chip-warning">
+                            <span className="status-chip-dot" />
+                            <span>Low stock</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600, color: "var(--warning)" }}>3</td>
+                        <td className="col-numeric" style={{ color: "var(--text-muted)" }}>5</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>SEN-LIDAR-A1M8</td>
+                        <td style={{ fontWeight: 600 }}>RPLIDAR A1 360° 12m Scanner</td>
+                        <td>Sensor / Lidar</td>
+                        <td>Bench 2 &bull; Cabinet 1</td>
+                        <td>
+                          <span className="status-chip status-chip-positive">
+                            <span className="status-chip-dot" />
+                            <span>Nominal</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>6</td>
+                        <td className="col-numeric" style={{ color: "var(--text-muted)" }}>2</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>MOT-MG996R-SRV</td>
+                        <td style={{ fontWeight: 600 }}>MG996R High-Torque Metal Gear Servo</td>
+                        <td>Actuators</td>
+                        <td>Bench 3 &bull; Bin D1</td>
+                        <td>
+                          <span className="status-chip status-chip-positive">
+                            <span className="status-chip-dot" />
+                            <span>Nominal</span>
+                          </span>
+                        </td>
+                        <td className="col-numeric" style={{ fontWeight: 600 }}>42</td>
+                        <td className="col-numeric" style={{ color: "var(--text-muted)" }}>15</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Budget & Ledger View */}
+          {activeTab === "budget" && (
+            <div className="admin-tab-content">
+              <div className="admin-view-header">
+                <div>
+                  <p className="admin-eyebrow">FISCAL TRANSPARENCY</p>
+                  <h1 className="admin-page-title">Equipment budget & grants</h1>
+                  <p className="admin-page-desc">Financial allocations, university grants, and component purchases.</p>
+                </div>
+                <div className="admin-header-actions">
+                  <button type="button" className="btn-primary">Log transaction ↗</button>
+                </div>
+              </div>
+
+              <div className="data-metrics-grid">
+                <div className="data-metric-panel">
+                  <span className="metric-label">Total allocated budget</span>
+                  <div className="metric-readout-row">
+                    <span className="metric-readout">$7,500</span>
+                    <span className="metric-delta delta-positive">Annual grant</span>
+                  </div>
+                  <span className="metric-subtext">2024–2025 academic funding</span>
+                </div>
+                <div className="data-metric-panel">
+                  <span className="metric-label">Disbursed funds</span>
+                  <div className="metric-readout-row">
+                    <span className="metric-readout">$4,850</span>
+                    <span className="metric-delta delta-positive">64.6% utilized</span>
+                  </div>
+                  <span className="metric-subtext">Components & competition registration</span>
+                </div>
+                <div className="data-metric-panel">
+                  <span className="metric-label">Available balance</span>
+                  <div className="metric-readout-row">
+                    <span className="metric-readout">$2,650</span>
+                    <span className="metric-delta delta-positive">Reserve ready</span>
+                  </div>
+                  <span className="metric-subtext">Contingency & rapid prototyping</span>
+                </div>
+                <div className="data-metric-panel">
+                  <span className="metric-label">Sponsorship partnerships</span>
+                  <div className="metric-readout-row">
+                    <span className="metric-readout">03</span>
+                    <span className="metric-delta delta-positive">Active</span>
+                  </div>
+                  <span className="metric-subtext">Industrial partners at Safi</span>
+                </div>
+              </div>
+
+              <div className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <h3 className="admin-panel-heading">Recent ledger transactions</h3>
+                    <p className="admin-panel-meta">Approved equipment and travel reimbursements</p>
+                  </div>
+                </div>
+
+                <div className="table-container">
+                  <table className="hairline-table">
+                    <thead>
+                      <tr>
+                        <th>Ref code</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Authorization</th>
+                        <th>Date</th>
+                        <th className="col-numeric">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-014</td>
+                        <td style={{ fontWeight: 600 }}>Jetson Orin Nano Developer Kit (2x)</td>
+                        <td>Embedded Hardware</td>
+                        <td>Supervisor approval</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>12 Feb 2025</td>
+                        <td className="col-numeric" style={{ color: "var(--critical)", fontWeight: 600 }}>-$980.00</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-013</td>
+                        <td style={{ fontWeight: 600 }}>University Innovation Grant Tranche 2</td>
+                        <td>Grant Inflow</td>
+                        <td>EST Safi Administration</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>01 Feb 2025</td>
+                        <td className="col-numeric" style={{ color: "var(--positive)", fontWeight: 600 }}>+$2,500.00</td>
+                      </tr>
+                      <tr>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>TX-2025-012</td>
+                        <td style={{ fontWeight: 600 }}>3D Printing Filament PLA+ (10kg spool)</td>
+                        <td>Prototyping Consumables</td>
+                        <td>President approval</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>20 Jan 2025</td>
+                        <td className="col-numeric" style={{ color: "var(--critical)", fontWeight: 600 }}>-$220.00</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "settings" && <AdminSettings />}
         </AdminErrorBoundary>
       </main>
     </div>

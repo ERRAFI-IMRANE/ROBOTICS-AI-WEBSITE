@@ -1,13 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Footer from "../Footer/Footer";
+import RegistrationForm from "./RegistrationForm";
 import "./RegistrationPage.css";
-
-const NAV_ITEMS = [
-  { id: "events", label: "EVENTS", target: "#events" },
-  { id: "team", label: "TEAM", target: "#team" },
-  { id: "contact", label: "CONTACT", target: "#contact" },
-  { id: "why-join", label: "WHY JOIN US", target: "#why-join" },
-];
 
 const GALLERY_COL_1 = [
   { src: "/why-join/why_join_main.jpg", alt: "Autonomous Rover & AI Lab" },
@@ -26,22 +20,26 @@ const GALLERY_COL_2 = [
 ];
 
 export default function RegistrationPage({ onBack, onOpenAdmin }) {
-  const [activeItem, setActiveItem] = useState("events");
   const [animateIn, setAnimateIn] = useState(false);
+  const closeTimer = useRef(null);
+
+  const handleClose = useCallback(() => {
+    if (closeTimer.current) return;
+    setAnimateIn(false);
+    closeTimer.current = setTimeout(onBack, 380);
+  }, [onBack]);
 
   // Smooth appearing animation on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
 
-    const raf = requestAnimationFrame(() => {
-      const timer = setTimeout(() => {
-        setAnimateIn(true);
-      }, 20);
-      return () => clearTimeout(timer);
-    });
+    const raf = requestAnimationFrame(() => setAnimateIn(true));
+    return () => { cancelAnimationFrame(raf); clearTimeout(closeTimer.current); };
+  }, []);
 
+  useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
         handleClose();
       }
     };
@@ -49,41 +47,12 @@ export default function RegistrationPage({ onBack, onOpenAdmin }) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
-
-  const handleClose = () => {
-    setAnimateIn(false);
-    setTimeout(() => {
-      onBack();
-    }, 380);
-  };
-
-  const handleNavClick = (item) => {
-    setActiveItem(item.id);
-    setAnimateIn(false);
-
-    setTimeout(() => {
-      onBack();
-      setTimeout(() => {
-        if (item.target === "#root") {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-        } else {
-          const el = document.querySelector(item.target);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
-          } else {
-            window.location.hash = item.target;
-          }
-        }
-      }, 100);
-    }, 380);
-  };
+  }, [handleClose]);
 
   return (
-    <div className={`reg-nav-overlay ${animateIn ? "is-visible" : ""}`} role="dialog" aria-modal="true">
+    <div className={`reg-nav-overlay ${animateIn ? "is-visible" : ""}`}>
       {/* Topographic Background Contour Vector — Light Mode */}
       <div className="reg-nav-topography" aria-hidden="true">
         <svg viewBox="0 0 1440 900" fill="none" preserveAspectRatio="xMidYMid slice">
@@ -141,49 +110,9 @@ export default function RegistrationPage({ onBack, onOpenAdmin }) {
         </div>
       </header>
 
-      {/* Main Hero Stage: LEFT = LIST, RIGHT = IMAGES (Light Mode, Swapped Columns) */}
-      <div className="reg-nav-body">
-        {/* LEFT COLUMN: High-Impact Centered Typography Navigation */}
+      <main className="reg-nav-body">
         <div className="reg-nav-left-content">
-          <nav className="reg-nav-list" aria-label="Registration navigation menu">
-            {NAV_ITEMS.map((item) => {
-              const isActive = activeItem === item.id;
-              return (
-                <div
-                  key={item.id}
-                  className={`reg-nav-item-wrapper ${isActive ? "is-active" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="reg-nav-item-btn"
-                    onClick={() => handleNavClick(item)}
-                  >
-                    <span className="reg-nav-item-text">{item.label}</span>
-                    <svg
-                      className="reg-nav-wavy-line"
-                      viewBox="0 0 260 28"
-                      fill="none"
-                      preserveAspectRatio="none"
-                    >
-                      <defs>
-                        <linearGradient id="regWaveBlueGradLight" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#38bdf8" />
-                          <stop offset="50%" stopColor="#2563eb" />
-                          <stop offset="100%" stopColor="#1d4ed8" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M 2 14 Q 28 3, 56 14 T 112 14 T 168 14 T 224 14 T 258 14"
-                        stroke="url(#regWaveBlueGradLight)"
-                        strokeWidth="4"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
-          </nav>
+          <RegistrationForm />
         </div>
 
         {/* RIGHT COLUMN: Two Columns in an Infinite Marquee Loop (3:4 ratio, frameless) */}
@@ -216,7 +145,7 @@ export default function RegistrationPage({ onBack, onOpenAdmin }) {
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
       {/* The Exact Same Website Footer Component */}
       <Footer

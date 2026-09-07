@@ -420,9 +420,9 @@
 
   .rai-mobile-robot {
     position: absolute;
-    bottom: -18px;
-    width: 62%;
-    height: 320px;
+    bottom: 0;
+    width: 48%;
+    height: 245px;
     object-fit: contain;
     object-position: center bottom;
     pointer-events: none;
@@ -431,12 +431,12 @@
   }
 
   .rai-mobile-robot--wire {
-    left: -3%;
+    left: 2%;
     z-index: 1;
   }
 
   .rai-mobile-robot--solid {
-    right: -3%;
+    right: 2%;
     z-index: 2;
   }
 

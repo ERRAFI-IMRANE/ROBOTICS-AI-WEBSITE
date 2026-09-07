@@ -342,12 +342,13 @@ export default function HeroSection() {
     let imagesReady = false;
     let sizeDirty = true;
 
+    const useMobileArtwork = window.innerWidth < 760;
     const P = {
-      BASE_SRC: "/RAI/RAI-XRAY.png",
-      CHROME_SRC: "/RAI/RAI-ORI.png",
-      IMG_W: 1920,
-      IMG_H: 1080,
-      imgScale: window.innerWidth < 760 ? 1.1 : 1.0,
+      BASE_SRC: useMobileArtwork ? "/RAI/RAI MOBILE X-RAY 1080.jpg" : "/RAI/RAI-XRAY.png",
+      CHROME_SRC: useMobileArtwork ? "/RAI/RAI MOBILE NORMAL 1080.jpg" : "/RAI/RAI-ORI.png",
+      IMG_W: useMobileArtwork ? 1080 : 1920,
+      IMG_H: useMobileArtwork ? 1920 : 1080,
+      imgScale: 1.0,
       imgFocus: [0.5, 0.5],
       simLong: 288,
       simHz: 120,
@@ -899,4 +900,3 @@ export default function HeroSection() {
     </section>
   );
 }
-

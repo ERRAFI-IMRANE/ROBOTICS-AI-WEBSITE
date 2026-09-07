@@ -26,31 +26,6 @@ const GALLERY_COL_2 = [
 
 export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
   const [activeItem, setActiveItem] = useState("events");
-  const [shouldRender, setShouldRender] = useState(isOpen);
-  const [animateIn, setAnimateIn] = useState(false);
-
-  // Smooth entrance and exit animation timer
-  useEffect(() => {
-    let timer;
-    if (isOpen) {
-      setShouldRender(true);
-      const raf = requestAnimationFrame(() => {
-        timer = setTimeout(() => {
-          setAnimateIn(true);
-        }, 20);
-      });
-      return () => {
-        cancelAnimationFrame(raf);
-        clearTimeout(timer);
-      };
-    } else {
-      setAnimateIn(false);
-      timer = setTimeout(() => {
-        setShouldRender(false);
-      }, 450);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
 
   // Close on Escape key and lock background scroll
   useEffect(() => {
@@ -64,15 +39,16 @@ export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
 
     window.addEventListener("keydown", handleKeyDown);
     const originalOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, [isOpen, onClose]);
-
-  if (!shouldRender) return null;
 
   const handleNavClick = (item) => {
     setActiveItem(item.id);
@@ -103,7 +79,7 @@ export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
   };
 
   return (
-    <div className={`full-nav-overlay ${animateIn ? "is-visible" : ""}`} role="dialog" aria-modal="true">
+    <div className={`full-nav-overlay ${isOpen ? "is-visible" : ""}`} role="dialog" aria-modal="true" aria-hidden={!isOpen}>
       {/* Topographic organic contour background lines */}
       <div className="full-nav-topography" aria-hidden="true">
         <svg viewBox="0 0 1440 900" fill="none" preserveAspectRatio="xMidYMid slice">

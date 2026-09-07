@@ -18,7 +18,8 @@
   opacity: 0;
   transform: translateY(-20px) scale(0.99);
   pointer-events: none;
-  transition: opacity 0.48s cubic-bezier(0.16, 1, 0.3, 1), transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+  visibility: hidden;
+  transition: opacity 0.2s ease-out, transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.24s;
   color: #ffffff;
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   padding-top: 96px;
@@ -29,6 +30,8 @@
   opacity: 1;
   transform: translateY(0) scale(1);
   pointer-events: auto;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 /* Background Topographic Contour Vector */
@@ -401,13 +404,23 @@
 
 @media (max-width: 640px) {
   .full-nav-overlay {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    height: 100dvh;
+    min-height: 100dvh;
     padding-top: 76px;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   .full-nav-body {
     display: block;
     position: relative;
-    min-height: calc(100svh - 76px);
+    height: calc(100dvh - 76px);
+    min-height: calc(100dvh - 76px);
     padding: 8px 20px 24px;
     box-sizing: border-box;
   }
@@ -453,13 +466,19 @@
   .full-nav-right-content {
     position: relative;
     z-index: 3;
-    min-height: calc(100svh - 108px);
+    height: 100%;
+    min-height: 0;
     justify-content: space-between;
   }
 
   .full-nav-list {
     flex: 1;
     gap: 6px;
+  }
+
+  .full-nav-overlay.is-visible .full-nav-item-wrapper,
+  .full-nav-overlay.is-visible .full-nav-footer-row {
+    transition-delay: 0s;
   }
 
   .full-nav-item-text {

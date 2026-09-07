@@ -430,7 +430,7 @@ export default function TeamSection() {
                   return (
                     <div
                       key={card.id}
-                      className={`team-showcase-card ${isHovered ? "is-hovered" : ""} ${memberOrder === filteredMembers.length - 1 ? "is-last-member" : ""}`}
+                      className={`team-showcase-card ${isHovered ? "is-hovered" : ""} ${filteredMembers.length % 2 === 1 && memberOrder === filteredMembers.length - 1 ? "is-last-member" : ""}`}
                       style={{ "--team-order": memberOrder }}
                       onMouseEnter={() => setHoveredCardId(card.id)}
                       onMouseLeave={() => setHoveredCardId(null)}

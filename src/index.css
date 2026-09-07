@@ -71,7 +71,7 @@ body {
 
   .hero-zoom-wrapper {
     height: 100svh;
-    min-height: 650px;
+    min-height: 100svh;
     overflow: hidden;
   }
 

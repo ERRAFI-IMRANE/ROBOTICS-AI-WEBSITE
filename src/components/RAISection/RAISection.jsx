@@ -9,7 +9,6 @@ export default function RAISection() {
   const sectionRef = useRef(null);
   const leftImgRef = useRef(null);
   const rightImgRef = useRef(null);
-  const signImgRef = useRef(null);
   const leftTextRef = useRef(null);
   const rightTextRef = useRef(null);
   const swipeWrapperRef = useRef(null);
@@ -25,7 +24,7 @@ export default function RAISection() {
 
     if (!section || !leftImg || !rightImg || !leftText || !rightText) return;
 
-    // Mobile uses a dedicated image-free feature composition.
+    // Mobile uses a compact editorial composition with the original robot artwork.
     if (window.matchMedia("(max-width: 767px)").matches) {
       const mobileFeature = mobileFeatureRef.current;
       if (!mobileFeature) return;
@@ -271,32 +270,26 @@ export default function RAISection() {
       </div>
 
       <div ref={mobileFeatureRef} className="rai-mobile-feature">
-        <div className="rai-mobile-grid" aria-hidden="true" />
         <div className="rai-mobile-heading rai-mobile-reveal">
           <span className="rai-mobile-index">02 / OUR FIELD</span>
-          <span className="rai-mobile-status"><i /> SYSTEMS ONLINE</span>
-        </div>
-
-        <div className="rai-mobile-orbit rai-mobile-reveal" aria-hidden="true">
-          <span className="rai-mobile-orbit-ring rai-mobile-orbit-ring--outer" />
-          <span className="rai-mobile-orbit-ring rai-mobile-orbit-ring--inner" />
-          <span className="rai-mobile-orbit-node rai-mobile-orbit-node--one" />
-          <span className="rai-mobile-orbit-node rai-mobile-orbit-node--two" />
-          <span className="rai-mobile-core">RAI<small>EST SAFI</small></span>
+          <span className="rai-mobile-rule" aria-hidden="true" />
         </div>
 
         <div className="rai-mobile-copy rai-mobile-reveal">
-          <h2><span>ROBOTICS</span><strong>× ARTIFICIAL<br />INTELLIGENCE</strong></h2>
-          <p>Where code meets motion. We design autonomous systems, train intelligent models, and turn ambitious ideas into working technology.</p>
+          <h2>ROBOTICS<br /><span>&amp; INTELLIGENCE</span></h2>
+          <p>We bring code, mechanics, and intelligent systems together—learning by building technology that moves beyond the classroom.</p>
         </div>
 
-        <div className="rai-mobile-pill-row rai-mobile-reveal" aria-label="Club activities">
-          <span>BUILD</span><span>LEARN</span><span>COMPETE</span>
-        </div>
+        <figure className="rai-mobile-robot-stage rai-mobile-reveal">
+          <span className="rai-mobile-stage-label">ONE IDEA · TWO PERSPECTIVES</span>
+          <img src="/RAI/RIA-LS.png" alt="Wireframe RAI robot" className="rai-mobile-robot rai-mobile-robot--wire" />
+          <img src="/RAI/RAI-RS.png" alt="RAI robot" className="rai-mobile-robot rai-mobile-robot--solid" />
+          <figcaption><span>DESIGN</span><i aria-hidden="true" /><span>BUILD</span><i aria-hidden="true" /><span>LEARN</span></figcaption>
+        </figure>
 
         <div className="rai-mobile-actions rai-mobile-reveal">
-          <a href="#join" className="rai-mobile-action rai-mobile-action--primary">Join community <span aria-hidden="true">↗</span></a>
-          <a href="#events" className="rai-mobile-action rai-mobile-action--secondary">Explore events</a>
+          <a href="#why-join" className="rai-mobile-action rai-mobile-action--primary">Join community <span aria-hidden="true">↗</span></a>
+          <a href="#events" className="rai-mobile-action rai-mobile-action--secondary">View events</a>
         </div>
       </div>
 

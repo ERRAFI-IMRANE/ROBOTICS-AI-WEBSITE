@@ -736,18 +736,21 @@
 
 @media (max-width: 767px) {
   .hero {
+    height: 100svh;
     min-height: 100svh;
     align-items: flex-end;
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(5, 10, 22, 0.02) 12%, rgba(5, 10, 22, 0.18) 44%, rgba(5, 10, 22, 0.96) 88%),
-      url('/RAI/RAI-ORI.png') center 34% / auto 72% no-repeat,
       radial-gradient(circle at 50% 30%, #edf6ff 0%, #d7e9fb 42%, #07101f 100%);
   }
 
-  .hero-gl-canvas,
   .hover-portrait {
     display: none;
+  }
+
+  .hero-gl-canvas {
+    display: block;
   }
 
   .hero-side-shadows {

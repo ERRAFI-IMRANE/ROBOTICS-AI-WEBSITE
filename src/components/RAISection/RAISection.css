@@ -322,8 +322,9 @@
 @media (max-width: 768px) {
   .rai-section {
     min-height: 0;
-    padding: 72px 16px;
-    background: #f4f3ee;
+    padding: 68px 20px 58px;
+    background: #ffffff;
+    border-top-color: rgba(15, 23, 42, 0.1);
   }
 
   .rai-container,
@@ -337,31 +338,10 @@
     display: flex;
     width: 100%;
     max-width: 430px;
-    min-height: 650px;
     margin: 0 auto;
-    padding: 22px 20px 20px;
     flex-direction: column;
-    overflow: hidden;
     box-sizing: border-box;
-    border: 1px solid rgba(96, 165, 250, 0.2);
-    border-radius: 26px;
-    color: #f8fafc;
-    background:
-      radial-gradient(circle at 50% 28%, rgba(37, 99, 235, 0.26), transparent 33%),
-      linear-gradient(145deg, #0d1423 0%, #070b13 65%, #0b1220 100%);
-    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.24);
-  }
-
-  .rai-mobile-grid {
-    position: absolute;
-    inset: 0;
-    opacity: 0.16;
-    background-image:
-      linear-gradient(rgba(96, 165, 250, 0.22) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(96, 165, 250, 0.22) 1px, transparent 1px);
-    background-size: 34px 34px;
-    mask-image: linear-gradient(to bottom, #000, transparent 74%);
-    pointer-events: none;
+    color: #111827;
   }
 
   .rai-mobile-heading {
@@ -369,157 +349,121 @@
     z-index: 2;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     font-family: ui-monospace, Consolas, monospace;
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.13em;
-    color: #93c5fd;
+    letter-spacing: 0.16em;
+    color: #1d4ed8;
   }
 
-  .rai-mobile-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: rgba(203, 213, 225, 0.66);
-  }
-
-  .rai-mobile-status i {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 9px #22c55e;
-  }
-
-  .rai-mobile-orbit {
-    position: relative;
-    z-index: 2;
-    width: 214px;
-    height: 214px;
-    margin: 32px auto 26px;
-    display: grid;
-    place-items: center;
-  }
-
-  .rai-mobile-orbit::before {
-    content: "";
-    position: absolute;
-    inset: 42px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.34), rgba(37, 99, 235, 0.08) 58%, transparent 70%);
-    filter: blur(4px);
-  }
-
-  .rai-mobile-orbit-ring {
-    position: absolute;
-    border-radius: 50%;
-    border: 1px solid rgba(147, 197, 253, 0.32);
-  }
-
-  .rai-mobile-orbit-ring--outer {
-    inset: 3px;
-    border-style: dashed;
-    animation: raiOrbitSpin 18s linear infinite;
-  }
-
-  .rai-mobile-orbit-ring--inner {
-    inset: 30px;
-    border-color: rgba(59, 130, 246, 0.58);
-    box-shadow: inset 0 0 24px rgba(37, 99, 235, 0.12), 0 0 22px rgba(37, 99, 235, 0.12);
-    animation: raiOrbitSpin 12s linear infinite reverse;
-  }
-
-  .rai-mobile-orbit-node {
-    position: absolute;
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: #60a5fa;
-    border: 2px solid #dbeafe;
-    box-shadow: 0 0 16px rgba(96, 165, 250, 0.9);
-  }
-
-  .rai-mobile-orbit-node--one { top: 22px; right: 35px; }
-  .rai-mobile-orbit-node--two { bottom: 28px; left: 28px; width: 7px; height: 7px; }
-
-  .rai-mobile-core {
-    position: relative;
-    z-index: 2;
-    width: 112px;
-    height: 112px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-family: var(--heading);
-    font-size: 2.3rem;
-    font-weight: 900;
-    letter-spacing: -0.06em;
-    color: #fff;
-    background: linear-gradient(145deg, rgba(37, 99, 235, 0.82), rgba(15, 23, 42, 0.92));
-    border: 1px solid rgba(191, 219, 254, 0.48);
-    box-shadow: 0 0 38px rgba(37, 99, 235, 0.4), inset 0 0 24px rgba(255, 255, 255, 0.08);
-  }
-
-  .rai-mobile-core small {
-    margin-top: 1px;
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 7px;
-    letter-spacing: 0.14em;
-    color: #bfdbfe;
+  .rai-mobile-rule {
+    height: 1px;
+    flex: 1;
+    background: rgba(29, 78, 216, 0.24);
   }
 
   .rai-mobile-copy {
     position: relative;
     z-index: 2;
+    margin-top: 22px;
   }
 
   .rai-mobile-copy h2 {
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    font-size: clamp(2.3rem, 11vw, 3.05rem);
-    line-height: 0.88;
+    font-size: clamp(2.55rem, 12.8vw, 3.45rem);
+    line-height: 0.9;
     letter-spacing: -0.055em;
-    color: #fff;
+    font-weight: 850;
+    color: #111827;
   }
 
-  .rai-mobile-copy h2 span { font-weight: 900; }
-  .rai-mobile-copy h2 strong {
-    margin-top: 6px;
-    font-size: 0.62em;
-    line-height: 0.98;
-    font-weight: 700;
-    color: #60a5fa;
+  .rai-mobile-copy h2 span {
+    color: #2563eb;
   }
 
   .rai-mobile-copy p {
-    margin: 16px 0 0;
-    font-size: 0.82rem;
-    line-height: 1.55;
-    color: rgba(203, 213, 225, 0.76);
+    max-width: 355px;
+    margin: 18px 0 0;
+    font-size: 0.86rem;
+    line-height: 1.58;
+    color: #5d6675;
   }
 
-  .rai-mobile-pill-row {
+  .rai-mobile-robot-stage {
     position: relative;
     z-index: 2;
-    display: flex;
-    gap: 7px;
-    margin-top: 18px;
+    height: 330px;
+    margin: 28px 0 0;
+    overflow: hidden;
+    border-top: 1px solid rgba(15, 23, 42, 0.12);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+    background:
+      linear-gradient(90deg, transparent 49.85%, rgba(37, 99, 235, 0.13) 50%, transparent 50.15%),
+      radial-gradient(circle at 50% 54%, rgba(37, 99, 235, 0.1), transparent 60%);
   }
 
-  .rai-mobile-pill-row span {
-    padding: 6px 9px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 999px;
+  .rai-mobile-stage-label {
+    position: absolute;
+    top: 13px;
+    left: 50%;
+    z-index: 4;
+    transform: translateX(-50%);
+    white-space: nowrap;
     font-family: ui-monospace, Consolas, monospace;
     font-size: 8px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    color: rgba(226, 232, 240, 0.76);
-    background: rgba(255, 255, 255, 0.035);
+    letter-spacing: 0.14em;
+    color: #667085;
+  }
+
+  .rai-mobile-robot {
+    position: absolute;
+    bottom: -25px;
+    width: 67%;
+    height: 310px;
+    object-fit: contain;
+    object-position: center bottom;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 18px 22px rgba(15, 23, 42, 0.14));
+  }
+
+  .rai-mobile-robot--wire {
+    left: -14%;
+    z-index: 1;
+  }
+
+  .rai-mobile-robot--solid {
+    right: -14%;
+    z-index: 2;
+  }
+
+  .rai-mobile-robot-stage figcaption {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    z-index: 5;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    color: #111827;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(10px);
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 7px;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+  }
+
+  .rai-mobile-robot-stage figcaption i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #2563eb;
   }
 
   .rai-mobile-actions {
@@ -528,8 +472,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 9px;
-    margin-top: auto;
-    padding-top: 20px;
+    margin-top: 20px;
   }
 
   .rai-mobile-action {
@@ -539,7 +482,7 @@
     justify-content: center;
     gap: 7px;
     padding: 0 10px;
-    border-radius: 10px;
+    border-radius: 6px;
     box-sizing: border-box;
     font-size: 0.7rem;
     font-weight: 750;
@@ -553,18 +496,10 @@
   }
 
   .rai-mobile-action--secondary {
-    color: #e2e8f0;
-    border: 1px solid rgba(226, 232, 240, 0.2);
-    background: rgba(255, 255, 255, 0.045);
+    color: #111827;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    background: #ffffff;
   }
-}
-
-@keyframes raiOrbitSpin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rai-mobile-orbit-ring { animation: none !important; }
 }
 
 /* Full-screen Swipe-up Container */

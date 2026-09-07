@@ -423,6 +423,36 @@
 }
 
 @media (max-width: 640px) {
+  .reg-nav-header-bar {
+    padding: max(14px, env(safe-area-inset-top)) 16px 12px;
+  }
+
+  .reg-nav-header-bar .nav-brand-link {
+    position: relative;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .reg-nav-header-bar .nav-brand-link::before {
+    content: "";
+    position: absolute;
+    inset: 18% 8%;
+    z-index: -1;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    filter: blur(16px);
+    transform: scale(1.15);
+    pointer-events: none;
+  }
+
+  .reg-nav-header-bar .nav-brand-logo {
+    width: 72px;
+    height: auto;
+    max-height: 54px;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.78));
+  }
+
   .reg-nav-item-text {
     font-size: clamp(32px, 8vw, 44px);
   }

@@ -13,6 +13,7 @@ export default function RAISection() {
   const leftTextRef = useRef(null);
   const rightTextRef = useRef(null);
   const swipeWrapperRef = useRef(null);
+  const mobileFeatureRef = useRef(null);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -24,21 +25,32 @@ export default function RAISection() {
 
     if (!section || !leftImg || !rightImg || !leftText || !rightText) return;
 
-    // Phones retain the two-robot entrance, tuned for the compact composition
-    // without the full-screen pinned swipe used on desktop.
+    // Mobile uses a dedicated image-free feature composition.
     if (window.matchMedia("(max-width: 767px)").matches) {
+      const mobileFeature = mobileFeatureRef.current;
+      if (!mobileFeature) return;
+
       const mobileTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
           start: "top 92%",
-          end: "top 38%",
+          end: "top 42%",
           scrub: 0.8,
         },
       });
 
-      mobileTl.fromTo(leftImg, { xPercent: -42, opacity: 0.35 }, { xPercent: 0, opacity: 1, ease: "none" }, 0);
-      mobileTl.fromTo(rightImg, { xPercent: 42, opacity: 0.35 }, { xPercent: 0, opacity: 1, ease: "none" }, 0);
-      mobileTl.fromTo([leftText, rightText], { y: 28, opacity: 0 }, { y: 0, opacity: 1, ease: "none" }, 0.15);
+      mobileTl.fromTo(
+        mobileFeature,
+        { y: 46, opacity: 0.45, scale: 0.97 },
+        { y: 0, opacity: 1, scale: 1, ease: "none" },
+        0
+      );
+      mobileTl.fromTo(
+        mobileFeature.querySelectorAll(".rai-mobile-reveal"),
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, stagger: 0.08, ease: "none" },
+        0.12
+      );
 
       return () => {
         mobileTl.scrollTrigger?.kill();
@@ -256,6 +268,36 @@ export default function RAISection() {
           alt="RAI Right Side"
           className="rai-side-img rai-right-img"
         />
+      </div>
+
+      <div ref={mobileFeatureRef} className="rai-mobile-feature">
+        <div className="rai-mobile-grid" aria-hidden="true" />
+        <div className="rai-mobile-heading rai-mobile-reveal">
+          <span className="rai-mobile-index">02 / OUR FIELD</span>
+          <span className="rai-mobile-status"><i /> SYSTEMS ONLINE</span>
+        </div>
+
+        <div className="rai-mobile-orbit rai-mobile-reveal" aria-hidden="true">
+          <span className="rai-mobile-orbit-ring rai-mobile-orbit-ring--outer" />
+          <span className="rai-mobile-orbit-ring rai-mobile-orbit-ring--inner" />
+          <span className="rai-mobile-orbit-node rai-mobile-orbit-node--one" />
+          <span className="rai-mobile-orbit-node rai-mobile-orbit-node--two" />
+          <span className="rai-mobile-core">RAI<small>EST SAFI</small></span>
+        </div>
+
+        <div className="rai-mobile-copy rai-mobile-reveal">
+          <h2><span>ROBOTICS</span><strong>× ARTIFICIAL<br />INTELLIGENCE</strong></h2>
+          <p>Where code meets motion. We design autonomous systems, train intelligent models, and turn ambitious ideas into working technology.</p>
+        </div>
+
+        <div className="rai-mobile-pill-row rai-mobile-reveal" aria-label="Club activities">
+          <span>BUILD</span><span>LEARN</span><span>COMPETE</span>
+        </div>
+
+        <div className="rai-mobile-actions rai-mobile-reveal">
+          <a href="#join" className="rai-mobile-action rai-mobile-action--primary">Join community <span aria-hidden="true">↗</span></a>
+          <a href="#events" className="rai-mobile-action rai-mobile-action--secondary">Explore events</a>
+        </div>
       </div>
 
       {/* Full-screen swipe-up image overlay */}

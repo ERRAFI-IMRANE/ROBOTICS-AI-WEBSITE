@@ -26,6 +26,10 @@
   z-index: 2;
 }
 
+.rai-mobile-feature {
+  display: none;
+}
+
 /* Topographic Contour Line Background Pattern */
 .topographic-bg {
   position: absolute;
@@ -317,106 +321,250 @@
 
 @media (max-width: 768px) {
   .rai-section {
-    min-height: 610px;
-    padding: 36px 12px 28px;
+    min-height: 0;
+    padding: 72px 16px;
+    background: #f4f3ee;
   }
 
-  .rai-container {
-    min-height: 530px;
+  .rai-container,
+  .rai-swipe-wrapper {
+    display: none !important;
+  }
+
+  .rai-mobile-feature {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    width: 100%;
     max-width: 430px;
-  }
-
-  .rai-club-sign-img {
-    max-width: 60%;
-    max-height: 42vh;
-    top: -2vh;
-  }
-
-  .rai-side-img {
-    width: auto;
-    max-width: 80vw;
-    max-height: 430px;
-    top: 1%;
-  }
-
-  .rai-left-img { left: -27%; }
-  .rai-right-img { right: -27%; }
-
-  .rai-word-part {
-    font-size: clamp(2rem, 10vw, 2.8rem);
-    line-height: 0.9;
-  }
-
-  .rai-text-center-wrapper {
-    left: 50%;
-    top: auto;
-    bottom: 8px;
-    width: calc(100% - 20px);
-    padding: 22px 14px 16px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border: 1px solid rgba(29, 78, 216, 0.14);
-    border-radius: 20px;
-    background: rgba(248, 249, 246, 0.82);
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    min-height: 650px;
+    margin: 0 auto;
+    padding: 22px 20px 20px;
+    flex-direction: column;
+    overflow: hidden;
     box-sizing: border-box;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: 26px;
+    color: #f8fafc;
+    background:
+      radial-gradient(circle at 50% 28%, rgba(37, 99, 235, 0.26), transparent 33%),
+      linear-gradient(145deg, #0d1423 0%, #070b13 65%, #0b1220 100%);
+    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.24);
   }
 
-  .rai-text-center-wrapper::after {
-    content: "STUDENT-BUILT  ·  FUTURE-READY";
+  .rai-mobile-grid {
     position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
+    inset: 0;
+    opacity: 0.16;
+    background-image:
+      linear-gradient(rgba(96, 165, 250, 0.22) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96, 165, 250, 0.22) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: linear-gradient(to bottom, #000, transparent 74%);
+    pointer-events: none;
+  }
+
+  .rai-mobile-heading {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-family: ui-monospace, Consolas, monospace;
-    font-size: 7px;
+    font-size: 8px;
     font-weight: 700;
     letter-spacing: 0.13em;
-    white-space: nowrap;
-    color: rgba(29, 78, 216, 0.7);
+    color: #93c5fd;
   }
 
-  .rai-subtext-row {
-    display: none;
+  .rai-mobile-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(203, 213, 225, 0.66);
   }
 
-  .rai-subtext-first {
-    margin-top: 14px;
+  .rai-mobile-status i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 9px #22c55e;
   }
 
-  .rai-subtext-part {
-    font-size: clamp(0.48rem, 2.35vw, 0.76rem);
-    line-height: 1.4;
+  .rai-mobile-orbit {
+    position: relative;
+    z-index: 2;
+    width: 214px;
+    height: 214px;
+    margin: 32px auto 26px;
+    display: grid;
+    place-items: center;
   }
 
-  .rai-btn-row {
+  .rai-mobile-orbit::before {
+    content: "";
+    position: absolute;
+    inset: 42px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.34), rgba(37, 99, 235, 0.08) 58%, transparent 70%);
+    filter: blur(4px);
+  }
+
+  .rai-mobile-orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(147, 197, 253, 0.32);
+  }
+
+  .rai-mobile-orbit-ring--outer {
+    inset: 3px;
+    border-style: dashed;
+    animation: raiOrbitSpin 18s linear infinite;
+  }
+
+  .rai-mobile-orbit-ring--inner {
+    inset: 30px;
+    border-color: rgba(59, 130, 246, 0.58);
+    box-shadow: inset 0 0 24px rgba(37, 99, 235, 0.12), 0 0 22px rgba(37, 99, 235, 0.12);
+    animation: raiOrbitSpin 12s linear infinite reverse;
+  }
+
+  .rai-mobile-orbit-node {
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #60a5fa;
+    border: 2px solid #dbeafe;
+    box-shadow: 0 0 16px rgba(96, 165, 250, 0.9);
+  }
+
+  .rai-mobile-orbit-node--one { top: 22px; right: 35px; }
+  .rai-mobile-orbit-node--two { bottom: 28px; left: 28px; width: 7px; height: 7px; }
+
+  .rai-mobile-core {
+    position: relative;
+    z-index: 2;
+    width: 112px;
+    height: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-family: var(--heading);
+    font-size: 2.3rem;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    color: #fff;
+    background: linear-gradient(145deg, rgba(37, 99, 235, 0.82), rgba(15, 23, 42, 0.92));
+    border: 1px solid rgba(191, 219, 254, 0.48);
+    box-shadow: 0 0 38px rgba(37, 99, 235, 0.4), inset 0 0 24px rgba(255, 255, 255, 0.08);
+  }
+
+  .rai-mobile-core small {
+    margin-top: 1px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 7px;
+    letter-spacing: 0.14em;
+    color: #bfdbfe;
+  }
+
+  .rai-mobile-copy {
+    position: relative;
+    z-index: 2;
+  }
+
+  .rai-mobile-copy h2 {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: clamp(2.3rem, 11vw, 3.05rem);
+    line-height: 0.88;
+    letter-spacing: -0.055em;
+    color: #fff;
+  }
+
+  .rai-mobile-copy h2 span { font-weight: 900; }
+  .rai-mobile-copy h2 strong {
+    margin-top: 6px;
+    font-size: 0.62em;
+    line-height: 0.98;
+    font-weight: 700;
+    color: #60a5fa;
+  }
+
+  .rai-mobile-copy p {
+    margin: 16px 0 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(203, 213, 225, 0.76);
+  }
+
+  .rai-mobile-pill-row {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 7px;
     margin-top: 18px;
-    transform: none;
   }
 
-  .rai-btn-row-left {
-    padding-right: 4px;
+  .rai-mobile-pill-row span {
+    padding: 6px 9px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(226, 232, 240, 0.76);
+    background: rgba(255, 255, 255, 0.035);
   }
 
-  .rai-btn-row-right {
-    padding-left: 4px;
+  .rai-mobile-actions {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: auto;
+    padding-top: 20px;
   }
 
-  .rai-btn {
-    min-height: 42px;
-    padding: 8px 9px;
-    font-size: 0.58rem;
-    gap: 4px;
+  .rai-mobile-action {
+    min-height: 45px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    font-size: 0.7rem;
+    font-weight: 750;
+    text-decoration: none;
   }
 
-  .rai-btn-arrow {
-    width: 10px;
-    height: 10px;
+  .rai-mobile-action--primary {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 10px 26px rgba(37, 99, 235, 0.32);
   }
 
-  .rai-swipe-wrapper { display: none; }
+  .rai-mobile-action--secondary {
+    color: #e2e8f0;
+    border: 1px solid rgba(226, 232, 240, 0.2);
+    background: rgba(255, 255, 255, 0.045);
+  }
+}
+
+@keyframes raiOrbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rai-mobile-orbit-ring { animation: none !important; }
 }
 
 /* Full-screen Swipe-up Container */

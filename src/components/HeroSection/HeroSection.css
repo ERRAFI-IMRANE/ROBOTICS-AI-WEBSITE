@@ -365,10 +365,29 @@
   }
 
   .nav-brand-link {
-    padding: 3px 6px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    position: relative;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nav-brand-link::before {
+    content: "";
+    position: absolute;
+    inset: 18% 8%;
+    z-index: -1;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    filter: blur(16px);
+    transform: scale(1.15);
+    pointer-events: none;
+  }
+
+  .hero-transition-header .nav-brand-logo {
+    width: 72px;
+    height: auto;
+    max-height: 54px;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 18px rgba(255, 255, 255, 0.78));
   }
 }
 

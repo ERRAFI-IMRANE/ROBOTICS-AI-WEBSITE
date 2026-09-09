@@ -3,7 +3,10 @@ import AdminAnalytics from "./AdminAnalytics";
 import AdminEvents from "./AdminEvents";
 import AdminTeam from "./AdminTeam";
 import AdminMembers from "./AdminMembers";
-import { loadAdminWorkspace, warmAdminImageCache } from "../../lib/adminWorkspace";
+import AdminUsers from "./AdminUsers";
+import SiteLoader from "../common/SiteLoader";
+import { loadAdminWorkspace } from "../../lib/adminWorkspace";
+import { getAdminPermissions, hasAdminPermission } from "../../lib/adminPermissions";
 import { publicContent, supabase } from "../../lib/supabaseClient";
 import "./AdminDashboard.css";
 
@@ -29,13 +32,16 @@ class AdminErrorBoundary extends Component {
 }
 
 const NAV_ITEMS = [
-  { id: "overview", label: "Overview", caption: "Live analytics", icon: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></> },
-  { id: "team", label: "Team", caption: "Profiles & roles", icon: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-2a6 6 0 0 1 12 0v2" /><path d="M17 4a4 4 0 0 1 0 8M19 15a5 5 0 0 1 2 4v2" /></> },
-  { id: "events", label: "Events", caption: "Club experiences", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></> },
-  { id: "registrations", label: "Registrations", caption: "Review & intake", icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m17 11 2 2 4-4" /></> },
+  { id: "overview", permission: "overview", label: "Overview", caption: "Live analytics", icon: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></> },
+  { id: "team", permission: "team", label: "Team", caption: "Profiles & roles", icon: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-2a6 6 0 0 1 12 0v2" /><path d="M17 4a4 4 0 0 1 0 8M19 15a5 5 0 0 1 2 4v2" /></> },
+  { id: "events", permission: "events", label: "Events", caption: "Club experiences", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></> },
+  { id: "registrations", permission: "registrations", label: "Registrations", caption: "Review & intake", icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m17 11 2 2 4-4" /></> },
+  { id: "users", permission: "users", label: "Admin users", caption: "Access & permissions", icon: <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 11.5 19 10l3 1.5v3.2c0 2.2-1.3 4.2-3 5.3-1.7-1.1-3-3.1-3-5.3z" /></> },
 ];
 
-function AdminLoadingScreen({ stage, error, onRetry, onClose }) {
+function AdminLoadingScreen({ stage, error, onRetry, onClose, progress = 0, phase = "loading" }) {
+  if (!error) return <SiteLoader phase={phase} progress={progress} stage={stage} />;
+
   return (
     <div className="admin-root-layout admin-loading-screen" role="status" aria-live="polite">
       <div className="admin-loading-ambient" />
@@ -50,7 +56,7 @@ function AdminLoadingScreen({ stage, error, onRetry, onClose }) {
           {error || stage}
         </p>
         {!error && <div className="admin-loading-progress"><i /></div>}
-        {!error && <div className="admin-loading-modules"><span>TEAM</span><span>EVENTS</span><span>APPLICANTS</span><span>ANALYTICS</span></div>}
+        {!error && <div className="admin-loading-modules"><span>Team</span><span>Events</span><span>Applicants</span><span>Analytics</span></div>}
         {error && (
           <div className="admin-loading-actions">
             <button type="button" className="btn-secondary" onClick={onClose}>Return to site</button>
@@ -64,6 +70,7 @@ function AdminLoadingScreen({ stage, error, onRetry, onClose }) {
 
 export default function AdminDashboard({ onClose }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminUser, setAdminUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -74,8 +81,16 @@ export default function AdminDashboard({ onClose }) {
   const [workspace, setWorkspace] = useState(null);
   const [workspaceError, setWorkspaceError] = useState("");
   const [loadStage, setLoadStage] = useState("Verifying your secure session");
+  const [loadProgress, setLoadProgress] = useState(8);
+  const [loadPhase, setLoadPhase] = useState("loading");
+  const [loaderVisible, setLoaderVisible] = useState(true);
   const mainViewportRef = useRef(null);
   const preloadLockRef = useRef(false);
+
+  const reportLoadStage = useCallback((stage) => {
+    setLoadStage(stage);
+    setLoadProgress((current) => Math.max(current, stage === "Connecting to the club database" ? 38 : 24));
+  }, []);
 
   const syncRegistrations = useCallback((registrations, settings) => {
     setWorkspace((current) => current ? {
@@ -85,12 +100,30 @@ export default function AdminDashboard({ onClose }) {
     } : current);
   }, []);
 
+  const syncTeam = useCallback((team) => {
+    setWorkspace((current) => current ? { ...current, team } : current);
+  }, []);
+
+  const syncEvents = useCallback((events) => {
+    setWorkspace((current) => current ? { ...current, events } : current);
+  }, []);
+
   useEffect(() => {
     let active = true;
     const applySession = (session) => {
       if (!active) return;
-      setIsAuthenticated(session?.user?.app_metadata?.club_admin === true);
+      const hasAdminAccess = session?.user?.app_metadata?.club_admin === true;
+      setAdminUser(session?.user || null);
+      setIsAuthenticated(hasAdminAccess);
       setAuthLoading(false);
+      if (hasAdminAccess) {
+        setLoadStage("Opening the officer workspace");
+        setLoadProgress((current) => Math.max(current, 24));
+      } else {
+        setLoadStage("Ready");
+        setLoadProgress(100);
+        setLoadPhase("exiting");
+      }
     };
     supabase.auth.getSession().then(({ data, error }) => {
       if (error && active) setAuthError("Could not restore your session. Please sign in.");
@@ -100,28 +133,39 @@ export default function AdminDashboard({ onClose }) {
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
+  useEffect(() => {
+    if (loadPhase !== "exiting") return undefined;
+    const exitTimer = window.setTimeout(() => setLoaderVisible(false), 840);
+    return () => window.clearTimeout(exitTimer);
+  }, [loadPhase]);
+
   const preloadWorkspace = useCallback(async () => {
     if (preloadLockRef.current) return;
     preloadLockRef.current = true;
     setWorkspace(null);
     setWorkspaceError("");
+    setLoaderVisible(true);
+    setLoadPhase("loading");
+    setLoadStage("Opening the officer workspace");
+    setLoadProgress((current) => Math.max(24, Math.min(current, 38)));
     const startedAt = performance.now();
     try {
-      const dataset = await loadAdminWorkspace(supabase, publicContent, setLoadStage);
-      setLoadStage("Caching club media");
+      const dataset = await loadAdminWorkspace(supabase, publicContent, reportLoadStage, getAdminPermissions(adminUser));
+      setLoadStage("Finalizing the workspace");
+      setLoadProgress(76);
       const minimumEntranceTime = Math.max(0, 850 - (performance.now() - startedAt));
-      await Promise.all([
-        warmAdminImageCache(dataset),
-        new Promise((resolve) => window.setTimeout(resolve, minimumEntranceTime)),
-      ]);
+      await new Promise((resolve) => window.setTimeout(resolve, minimumEntranceTime));
       setLoadStage("Workspace ready");
+      setLoadProgress(100);
       setWorkspace(dataset);
+      setLoadPhase("exiting");
     } catch (error) {
       setWorkspaceError(error.message || "The club data could not be loaded. Check the connection and try again.");
+      setLoaderVisible(false);
     } finally {
       preloadLockRef.current = false;
     }
-  }, []);
+  }, [adminUser, reportLoadStage]);
 
   useEffect(() => {
     if (isAuthenticated && !workspace && !workspaceError) preloadWorkspace();
@@ -140,6 +184,12 @@ export default function AdminDashboard({ onClose }) {
         throw new Error("This account does not have club officer access.");
       }
       setPasscode("");
+      setAdminUser(data.user);
+      setActiveTab("overview");
+      setLoaderVisible(true);
+      setLoadPhase("loading");
+      setLoadProgress(20);
+      setLoadStage("Opening the officer workspace");
       setIsAuthenticated(true);
     } catch (error) {
       setAuthError(error.message);
@@ -153,12 +203,18 @@ export default function AdminDashboard({ onClose }) {
     if (error) return window.alert("Could not sign out. Please try again.");
     setWorkspace(null);
     setWorkspaceError("");
+    setAdminUser(null);
+    setActiveTab("overview");
     setIsAuthenticated(false);
     onClose();
   };
 
+  if (loaderVisible && !workspaceError) {
+    return <AdminLoadingScreen stage={loadStage} progress={loadProgress} phase={loadPhase} onClose={onClose} />;
+  }
+
   if (authLoading) {
-    return <AdminLoadingScreen stage="Verifying your secure session" onClose={onClose} />;
+    return <AdminLoadingScreen stage="Verifying your secure session" progress={loadProgress} onClose={onClose} />;
   }
 
   if (!isAuthenticated) {
@@ -194,28 +250,29 @@ export default function AdminDashboard({ onClose }) {
   }
 
   if (!workspace || workspaceError) {
-    return <AdminLoadingScreen stage={loadStage} error={workspaceError} onRetry={preloadWorkspace} onClose={onClose} />;
+    return <AdminLoadingScreen stage={loadStage} error={workspaceError} progress={loadProgress} onRetry={preloadWorkspace} onClose={onClose} />;
   }
 
-  const current = NAV_ITEMS.find((item) => item.id === activeTab) || NAV_ITEMS[0];
+  const visibleNavItems = NAV_ITEMS.filter((item) => hasAdminPermission(adminUser, item.permission));
+  const current = visibleNavItems.find((item) => item.id === activeTab) || visibleNavItems[0] || NAV_ITEMS[0];
   const navigate = (id) => {
+    if (!visibleNavItems.some((item) => item.id === id)) return;
     setActiveTab(id);
     setMobileNavOpen(false);
     mainViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };
 
   return (
-    <div className="admin-root-layout admin-command-shell">
+    <div className="admin-root-layout admin-command-shell admin-content-ready">
       <aside className={`admin-command-sidebar ${mobileNavOpen ? "is-open" : ""}`}>
         <button className="admin-command-brand" type="button" onClick={() => navigate("overview")}>
           <span className="admin-command-logo-glow"><img src="/RAI/club-icon-light.png" alt="Robotics & AI Club" /></span>
           <span><strong>RAI Club</strong><small>Officer console</small></span>
         </button>
         <nav className="admin-command-nav" aria-label="Admin sections">
-          <span className="admin-command-nav-label">WORKSPACE</span>
-          {NAV_ITEMS.map((item, index) => (
+          <span className="admin-command-nav-label">Manage club</span>
+          {visibleNavItems.map((item) => (
             <button key={item.id} className={activeTab === item.id ? "is-active" : ""} type="button" onClick={() => navigate(item.id)}>
-              <span className="admin-command-nav-index">0{index + 1}</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">{item.icon}</svg>
               <span className="admin-command-nav-copy"><strong>{item.label}</strong><small>{item.caption}</small></span>
             </button>
@@ -228,25 +285,28 @@ export default function AdminDashboard({ onClose }) {
         <header className="admin-topbar admin-command-topbar">
           <div className="admin-topbar-left">
             <button type="button" className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} aria-label="Open admin navigation">☰</button>
-            <span className="admin-command-breadcrumb">RAI / ADMIN / <strong>{current.label.toUpperCase()}</strong></span>
+            <span className="admin-command-breadcrumb">RAI control room <b>/</b> <strong>{current.label}</strong></span>
           </div>
           <div className="admin-topbar-right">
             <button type="button" className="topbar-view-site-btn" onClick={onClose}>Public site ↗</button>
             <button type="button" className="admin-signout-btn" onClick={handleLogout}>Sign out</button>
           </div>
         </header>
-        <section className="admin-section-panel" hidden={activeTab !== "overview"}>
-          <AdminErrorBoundary><AdminAnalytics initialData={workspace} onNavigate={navigate} /></AdminErrorBoundary>
-        </section>
-        <section className="admin-section-panel" hidden={activeTab !== "team"}>
-          <AdminErrorBoundary><AdminTeam initialMembers={workspace.team} /></AdminErrorBoundary>
-        </section>
-        <section className="admin-section-panel" hidden={activeTab !== "events"}>
-          <AdminErrorBoundary><AdminEvents initialEvents={workspace.events} /></AdminErrorBoundary>
-        </section>
-        <section className="admin-section-panel" hidden={activeTab !== "registrations"}>
+        {activeTab === "overview" && <section className="admin-section-panel">
+          <AdminErrorBoundary><AdminAnalytics initialData={workspace} onNavigate={navigate} permissions={getAdminPermissions(adminUser)} /></AdminErrorBoundary>
+        </section>}
+        {activeTab === "team" && hasAdminPermission(adminUser, "team") && <section className="admin-section-panel">
+          <AdminErrorBoundary><AdminTeam initialMembers={workspace.team} onDataChange={syncTeam} /></AdminErrorBoundary>
+        </section>}
+        {activeTab === "events" && hasAdminPermission(adminUser, "events") && <section className="admin-section-panel">
+          <AdminErrorBoundary><AdminEvents initialEvents={workspace.events} onDataChange={syncEvents} /></AdminErrorBoundary>
+        </section>}
+        {activeTab === "registrations" && hasAdminPermission(adminUser, "registrations") && <section className="admin-section-panel">
           <AdminErrorBoundary><AdminMembers initialRegistrations={workspace.registrations} initialSettings={workspace.settings} onDataChange={syncRegistrations} /></AdminErrorBoundary>
-        </section>
+        </section>}
+        {activeTab === "users" && hasAdminPermission(adminUser, "users") && <section className="admin-section-panel">
+          <AdminErrorBoundary><AdminUsers currentUser={adminUser} /></AdminErrorBoundary>
+        </section>}
       </main>
     </div>
   );

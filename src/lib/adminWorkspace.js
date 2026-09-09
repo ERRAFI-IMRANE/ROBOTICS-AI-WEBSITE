@@ -40,12 +40,15 @@ async function readRows(request, label) {
   return result.data || [];
 }
 
-export async function loadAdminWorkspace(client, publicClient, onStage = () => {}) {
+export async function loadAdminWorkspace(client, publicClient, onStage = () => {}, permissions = null) {
   onStage("Connecting to the club database");
+  const canReviewRegistrations = !Array.isArray(permissions) || permissions.includes("registrations");
   const [team, events, registrations, settings] = await Promise.all([
     loadTeam(publicClient),
     readRows(publicClient.from("events").select("*").order("id", { ascending: false }), "Loading events"),
-    readRows(client.from("registrations").select("*").order("created_at", { ascending: false }), "Loading registrations"),
+    canReviewRegistrations
+      ? readRows(client.from("registrations").select("*").order("created_at", { ascending: false }), "Loading registrations")
+      : Promise.resolve([]),
     readRegistrationSettings(client),
   ]);
 

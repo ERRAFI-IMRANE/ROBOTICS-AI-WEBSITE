@@ -7,6 +7,8 @@ import { saveStaff, deleteStaff } from "./adminStaff.js";
 import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
+import { getAdminPermissions, hasAdminPermission } from "./adminPermissions.js";
+import { createAdminUser, updateAdminUser } from "./adminUsers.js";
 
 const form = { title: " Robotics day ", date: "13 June 2026", image_url: "/events/workshop.png", link: "https://example.com/event", status: "Completed", description: "Club event" };
 function rpcMock(result) {
@@ -67,6 +69,46 @@ test("single-table migration updates registration history without copying or del
   assert.doesNotMatch(migration, /DELETE FROM public\.registrations/);
   assert.doesNotMatch(migration, /public\.club_settings/);
 });
+test("team and event migration grants admin CRUD while keeping public users read-only", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_admin_team_events_crud.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE POLICY club_admin_manage[\s\S]*FOR ALL TO authenticated/);
+  assert.match(migration, /REVOKE INSERT, UPDATE, DELETE ON public\.%I FROM anon/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_club_staff/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.delete_club_staff/);
+  assert.match(migration, /bucket_id = 'EVENTS' AND public\.is_club_admin\(\)/);
+  assert.doesNotMatch(migration, /service_role/);
+});
+test("admin permission helpers preserve legacy access and restrict granular accounts", () => {
+  const legacy = { app_metadata: { club_admin: true } };
+  const eventsOfficer = { app_metadata: { club_admin: true, club_permissions: ["events"] } };
+  assert.equal(hasAdminPermission(legacy, "users"), true);
+  assert.deepEqual(getAdminPermissions(eventsOfficer), ["overview", "events"]);
+  assert.equal(hasAdminPermission(eventsOfficer, "team"), false);
+  assert.deepEqual(getAdminPermissions({ app_metadata: {} }), []);
+});
+test("admin user calls go through the protected Edge Function", async () => {
+  const calls = [];
+  const client = { functions: { async invoke(name, options) {
+    calls.push({ name, body: options.body });
+    return { data: { ok: true, user: { id: "admin-id" } }, error: null };
+  } } };
+  await createAdminUser(client, { email: "admin@example.com", password: "password123", permissions: ["events"] });
+  await updateAdminUser(client, "admin-id", { permissions: ["team"] });
+  assert.deepEqual(calls.map((call) => call.name), ["admin-users", "admin-users"]);
+  assert.deepEqual(calls.map((call) => call.body.action), ["create", "update"]);
+});
+test("granular permission migration protects writes and the service key remains server-side", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_admin_user_permissions.sql", import.meta.url), "utf8");
+  const edgeFunction = readFileSync(new URL("../../supabase/functions/admin-users/index.ts", import.meta.url), "utf8");
+  const browserClient = readFileSync(new URL("./adminUsers.js", import.meta.url), "utf8");
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.has_club_permission/);
+  assert.match(migration, /public\.has_club_permission\('registrations'\)/);
+  assert.match(migration, /public\.has_club_permission\('team'\)/);
+  assert.match(edgeFunction, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(edgeFunction, /userClient\.auth\.getUser\(\)/);
+  assert.match(edgeFunction, /adminClient\.auth\.admin\.(?:listUsers|createUser|updateUserById)/);
+  assert.doesNotMatch(browserClient, /SERVICE_ROLE/);
+});
 test("legacy unclassified events are completed", () => {
   assert.equal(eventView({ id: 1, data: '{"title":"Workshop"}' }).status, "Completed");
   assert.equal(eventView({ data: { status: "Upcoming" } }).status, "Upcoming");
@@ -81,6 +123,15 @@ test("event edits preserve unrelated JSON and synchronize public image and link 
   assert.equal(payload.data.links, form.link);
   assert.equal(payload.id, undefined);
   assert.equal(payload.title, undefined);
+});
+test("events use the canonical Supabase img_url column in public and admin views", () => {
+  const optimizedUrl = "https://example.supabase.co/storage/v1/object/public/EVENTS/events/optimized.webp";
+  const row = { id: 3, img_url: optimizedUrl, image_url: "/old-large-image.jpg", data: { image_url: "/older-image.jpg" } };
+  assert.equal(eventView(row).image_url, optimizedUrl);
+
+  const payload = eventPayload(form, { id: 3, img_url: "/old-large-image.jpg", title: "Old", date: "", status: "Completed" });
+  assert.equal(payload.img_url, form.image_url);
+  assert.equal(payload.image_url, undefined);
 });
 test("flat event schema uses only supported columns", () => {
   const payload = eventPayload(form, { id: 2, title: "Old", date: "", link: "", image: "", status: "Completed" });

@@ -6,7 +6,7 @@ import "./EventsSection.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default function EventsSection() {
+export default function EventsSection({ initialEvents = null }) {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
   const refreshTimerRef = useRef(null);
@@ -121,7 +121,7 @@ export default function EventsSection() {
 
       {/* Horizontal Gallery Track */}
       <div ref={trackRef} className="events-horizontal-track">
-        <EventsList onLoaded={refreshScroll} />
+        <EventsList initialEvents={initialEvents} onLoaded={refreshScroll} />
       </div>
     </section>
   );

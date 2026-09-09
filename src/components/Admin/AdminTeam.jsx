@@ -207,7 +207,7 @@ const deriveTeamYears = (rows) => {
     });
 };
 
-export default function AdminTeam({ initialMembers = null }) {
+export default function AdminTeam({ initialMembers = null, onDataChange = () => {} }) {
   const hasInitialMembers = Array.isArray(initialMembers);
   const seededMembers = hasInitialMembers ? initialMembers : [];
   const [members, setMembers] = useState(seededMembers);
@@ -321,6 +321,7 @@ export default function AdminTeam({ initialMembers = null }) {
 
       const rows = data && Array.isArray(data) ? data : [];
       setMembers(rows);
+      onDataChange(rows);
 
       const sortedYears = deriveTeamYears(rows);
       setYearsList(sortedYears);
@@ -332,7 +333,7 @@ export default function AdminTeam({ initialMembers = null }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onDataChange]);
 
   useEffect(() => {
     if (!hasInitialMembers) loadTeamData();
@@ -350,7 +351,7 @@ export default function AdminTeam({ initialMembers = null }) {
     const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, "_");
     const filePath = `${folder}/${Date.now()}_${cleanName}.${fileExt}`;
 
-    const storageBuckets = ["EVENTS", "team", "images", "avatars", "public"];
+    const storageBuckets = ["EVENTS"];
     let publicUrl = null;
 
     for (const bucket of storageBuckets) {
@@ -371,13 +372,7 @@ export default function AdminTeam({ initialMembers = null }) {
       }
     }
 
-    if (!publicUrl) {
-      publicUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-    }
+    if (!publicUrl) throw new Error("Image upload failed. Apply the Team and Events CRUD migration or save without changing the image.");
 
     return publicUrl;
   };
@@ -636,7 +631,7 @@ export default function AdminTeam({ initialMembers = null }) {
         <div>
           <h1 className="admin-page-title">Staff & leadership</h1>
           <p className="admin-page-desc">
-            Executive officers, mentors, and club committee engineers (table: team + team_seasons).
+            Manage public profiles, leadership roles, and season assignments.
           </p>
         </div>
 
@@ -983,10 +978,15 @@ export default function AdminTeam({ initialMembers = null }) {
 
       {/* Add / Edit Member Form Modal */}
       {isModalOpen && (
-        <div className="admin-modal-overlay">
-          <div className="admin-modal-dialog">
+        <div className="admin-modal-overlay" role="presentation">
+          <div
+            className="admin-modal-dialog admin-team-editor-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-editor-title"
+          >
             <div className="admin-modal-header">
-              <h2 className="admin-modal-title">
+              <h2 id="team-editor-title" className="admin-modal-title">
                 {editingMember ? "Edit member profile" : "Add member profile"}
               </h2>
               <button type="button" className="admin-modal-close-btn" onClick={() => setIsModalOpen(false)}>

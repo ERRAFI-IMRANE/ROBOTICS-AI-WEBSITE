@@ -8,6 +8,7 @@ export interface EventRow {
   data?: {
     title?: string;
     date?: string;
+    img_url?: string;
     image?: string;
     image_url?: string;
     link?: string;
@@ -17,6 +18,7 @@ export interface EventRow {
   } | null;
   title?: string;
   date?: string;
+  img_url?: string | null;
   image?: string;
   image_url?: string | null;
   link?: string;
@@ -28,6 +30,7 @@ export interface EventRow {
 
 interface EventsListProps {
   onLoaded?: () => void;
+  initialEvents?: EventRow[] | null;
 }
 
 const DEFAULT_EVENTS: EventRow[] = [
@@ -219,12 +222,41 @@ export function getEventLink(item: EventRow): string {
   return `https://${trimmed}`;
 }
 
-export default function EventsList({ onLoaded }: EventsListProps) {
-  const [events, setEvents] = useState<EventRow[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+function normalizeEvents(rows: EventRow[] | null | undefined): EventRow[] {
+  if (!Array.isArray(rows) || rows.length === 0) return DEFAULT_EVENTS;
+  return rows
+    .map((row) => {
+      const view = eventView(row);
+      return {
+        ...row,
+        id: row.id,
+        title: view.title,
+        date: view.date,
+        image_url: safeEventUrl(view.image_url, true) || "/events/workshop.png",
+        link: view.link,
+        status: view.status,
+        description: view.description,
+        created_at: row.created_at,
+        data: row.data,
+      };
+    })
+    .sort((a, b) => parseEventDate(b) - parseEventDate(a));
+}
+
+export default function EventsList({ onLoaded, initialEvents = null }: EventsListProps) {
+  const hasInitialEvents = Array.isArray(initialEvents);
+  const [events, setEvents] = useState<EventRow[]>(() => hasInitialEvents ? normalizeEvents(initialEvents) : []);
+  const [loading, setLoading] = useState<boolean>(!hasInitialEvents);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (hasInitialEvents) {
+      setEvents(normalizeEvents(initialEvents));
+      setLoading(false);
+      const loadedTimer = window.setTimeout(() => onLoaded?.(), 50);
+      return () => window.clearTimeout(loadedTimer);
+    }
+
     async function fetchEvents() {
       try {
         setLoading(true);
@@ -260,27 +292,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
           }
         }
 
-        if (data && Array.isArray(data) && data.length > 0) {
-          const mapped: EventRow[] = data.map((row) => {
-            const view = eventView(row);
-            return {
-              id: row.id,
-              title: view.title,
-              date: view.date,
-              image_url: safeEventUrl(view.image_url, true) || "/events/workshop.png",
-              link: view.link,
-              status: view.status,
-              description: view.description,
-              created_at: row.created_at,
-              data: row.data,
-            };
-          });
-          const sortedEvents = mapped.sort((a, b) => parseEventDate(b) - parseEventDate(a));
-          setEvents(sortedEvents);
-        } else {
-          // If database returned 0 records or error occurred, provide curated default events
-          setEvents(DEFAULT_EVENTS);
-        }
+        setEvents(normalizeEvents(data));
       } catch (err: any) {
         console.warn("Error fetching events from Supabase, using defaults:", err);
         setEvents(DEFAULT_EVENTS);
@@ -293,7 +305,7 @@ export default function EventsList({ onLoaded }: EventsListProps) {
     }
 
     fetchEvents();
-  }, [onLoaded]);
+  }, [hasInitialEvents, initialEvents, onLoaded]);
 
   if (loading) {
     return (

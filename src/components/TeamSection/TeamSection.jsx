@@ -195,13 +195,64 @@ const mapMemberRecord = (m, year) => ({
   season: year,
 });
 
-export default function TeamSection() {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState("25-26");
+function resolveTeamRecords(rawData, targetSeason = "25-26") {
+  let resolvedSeason = targetSeason;
+  let resolvedMembers = [];
+
+  if (rawData.length > 0) {
+    const equivKeys = getEquivalentSeasonKeys(targetSeason);
+    let matching = rawData.filter((member) => {
+      const memberYears = getMemberYears(member);
+      return equivKeys.some((key) => memberYears.includes(key));
+    });
+
+    if (matching.length === 0) {
+      const candidateSeasons = ["25-26", "24-25", "26-27"];
+      for (const candidate of candidateSeasons) {
+        const candidateKeys = getEquivalentSeasonKeys(candidate);
+        const candidateMembers = rawData.filter((member) => {
+          const memberYears = getMemberYears(member);
+          return candidateKeys.some((key) => memberYears.includes(key));
+        });
+        if (candidateMembers.length > 0) {
+          matching = candidateMembers;
+          resolvedSeason = candidate;
+          break;
+        }
+      }
+    }
+
+    if (matching.length === 0) matching = rawData;
+    resolvedMembers = matching.map((member) => mapMemberRecord(member, resolvedSeason));
+    resolvedMembers.sort((a, b) => {
+      if (a.orderPostVal !== b.orderPostVal) return a.orderPostVal - b.orderPostVal;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  } else {
+    resolvedMembers = DEFAULT_TEAM_MEMBERS;
+    resolvedSeason = "25-26";
+  }
+
+  return { members: resolvedMembers, season: resolvedSeason };
+}
+
+export default function TeamSection({ initialTeam = null, initialSeason = "25-26" }) {
+  const hasInitialTeam = Array.isArray(initialTeam);
+  const initialRoster = hasInitialTeam ? resolveTeamRecords(initialTeam, initialSeason) : null;
+  const [members, setMembers] = useState(() => initialRoster?.members || []);
+  const [loading, setLoading] = useState(!hasInitialTeam);
+  const [selectedYear, setSelectedYear] = useState(() => initialRoster?.season || initialSeason);
   const [hoveredCardId, setHoveredCardId] = useState(null);
 
   useEffect(() => {
+    if (hasInitialTeam) {
+      const resolved = resolveTeamRecords(initialTeam, initialSeason);
+      setSelectedYear(resolved.season);
+      setMembers(resolved.members);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadTeam() {
@@ -282,54 +333,11 @@ export default function TeamSection() {
           }
         }
 
-        let resolvedSeason = targetSeason;
-        let resolvedMembers = [];
-
-        if (rawData.length > 0) {
-          const equivKeys = getEquivalentSeasonKeys(targetSeason);
-          let matching = rawData.filter((m) => {
-            const mYears = getMemberYears(m);
-            return equivKeys.some((k) => mYears.includes(k));
-          });
-
-          // If the configured season has 0 members, check which season DOES have members
-          if (matching.length === 0) {
-            const candidateSeasons = ["25-26", "24-25", "26-27"];
-            for (const cand of candidateSeasons) {
-              const candEquiv = getEquivalentSeasonKeys(cand);
-              const test = rawData.filter((m) => {
-                const mYears = getMemberYears(m);
-                return candEquiv.some((k) => mYears.includes(k));
-              });
-              if (test.length > 0) {
-                matching = test;
-                resolvedSeason = cand;
-                break;
-              }
-            }
-          }
-
-          // If still empty, display all available team members
-          if (matching.length === 0) {
-            matching = rawData;
-          }
-
-          resolvedMembers = matching.map((m) => mapMemberRecord(m, resolvedSeason));
-          resolvedMembers.sort((a, b) => {
-            if (a.orderPostVal !== b.orderPostVal) {
-              return a.orderPostVal - b.orderPostVal;
-            }
-            return (a.name || "").localeCompare(b.name || "");
-          });
-        } else {
-          // Curated default team fallback so the section never appears empty
-          resolvedMembers = DEFAULT_TEAM_MEMBERS;
-          resolvedSeason = "25-26";
-        }
+        const resolved = resolveTeamRecords(rawData, targetSeason);
 
         if (isMounted) {
-          setSelectedYear(resolvedSeason);
-          setMembers(resolvedMembers);
+          setSelectedYear(resolved.season);
+          setMembers(resolved.members);
         }
       } catch (err) {
         console.warn("Unexpected team fetch error, using defaults:", err);
@@ -349,7 +357,7 @@ export default function TeamSection() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [hasInitialTeam, initialSeason, initialTeam]);
 
   const filteredMembers = members;
 

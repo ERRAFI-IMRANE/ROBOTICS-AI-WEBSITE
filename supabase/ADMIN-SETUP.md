@@ -12,6 +12,16 @@ The frontend and SQL were edited locally only. No browser was used, and no SQL, 
 
 Do not rerun the older permissive-policy migrations after this migration: they can restore public write access.
 
+## Admin user management
+
+After the base dashboard migration is active:
+
+1. Review and run `migration_admin_user_permissions.sql` once in the Supabase SQL editor. It replaces the club-table policies with granular `team`, `events`, `registrations`, and `users` permission checks. Existing `club_admin: true` accounts without a `club_permissions` array keep full access for backward compatibility.
+2. Deploy the protected function with `supabase functions deploy admin-users`. Hosted Supabase projects provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions automatically.
+3. Sign out and back in after an account's permissions change so its refreshed JWT contains the new app metadata.
+
+The browser only invokes the `admin-users` function with the signed-in administrator's access token. The service-role key remains inside the Edge Function and must never be added to a `VITE_` environment variable. Administrators cannot edit their own permissions while signed in, preventing accidental self-lockout. New accounts receive a temporary password, confirmed email, `club_admin: true`, and only the permissions selected in the form.
+
 ## Controls
 
 - **Members:** Accept moves a pending application into `members`; refuse requires a reason and moves it into `refused_members`. Both are single transactions with a row lock. A failed insert never removes the application. Repeated decisions on a processed ID fail clearly instead of duplicating it.

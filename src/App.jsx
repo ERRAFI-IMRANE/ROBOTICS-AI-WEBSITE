@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -13,8 +13,11 @@ import PartnersSection from "./components/PartnersSection/PartnersSection";
 import SocialsAlbumSection from "./components/SocialsAlbumSection/SocialsAlbumSection";
 import Footer from "./components/Footer/Footer";
 import { AmbientTicker } from "./components/common/TextAnimations";
+import SiteLoader from "./components/common/SiteLoader";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 import RegistrationPage from "./components/RegistrationPage/RegistrationPage";
+import { publicContent, supabase } from "./lib/supabaseClient";
+import { loadPublicWebsite } from "./lib/publicWorkspace";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -28,11 +31,69 @@ export default function App() {
     if (hash === "#register" || hash === "#join" || hash === "#join-us" || search.includes("view=register")) return "register";
     return "home";
   });
+  const [websiteData, setWebsiteData] = useState(null);
+  const [heroReady, setHeroReady] = useState(false);
+  const [siteLoad, setSiteLoad] = useState(() => ({
+    phase: currentView === "home" ? "loading" : "idle",
+    progress: 0,
+    stage: "Starting club systems",
+  }));
 
   const heroWrapperRef = useRef(null);
   const heroInnerRef = useRef(null);
   const heroHeaderRef = useRef(null);
   const darkOverlayRef = useRef(null);
+
+  useEffect(() => {
+    if (currentView !== "home" || websiteData) return;
+    let active = true;
+
+    setSiteLoad({ phase: "loading", progress: 2, stage: "Starting club systems" });
+    setHeroReady(false);
+    loadPublicWebsite(publicContent, supabase, (next) => {
+      if (active) setSiteLoad((current) => ({ ...current, ...next, phase: "loading" }));
+    })
+      .catch((error) => {
+        console.warn("The public preload completed with fallback data:", error);
+        return { team: [], events: [], settings: null, season: "25-26" };
+      })
+      .then((dataset) => {
+        if (!active) return;
+        setWebsiteData(dataset);
+        setSiteLoad({ phase: "rendering", progress: 99, stage: "Preparing hero" });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [currentView, websiteData]);
+
+  const handleHeroReady = useCallback(() => {
+    setHeroReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (currentView !== "home" || !websiteData || !heroReady || siteLoad.phase !== "rendering") return;
+    setSiteLoad({ phase: "exiting", progress: 100, stage: "Ready" });
+  }, [currentView, heroReady, siteLoad.phase, websiteData]);
+
+  useEffect(() => {
+    if (siteLoad.phase !== "exiting") return;
+    const exitTimer = window.setTimeout(() => {
+      setSiteLoad({ phase: "done", progress: 100, stage: "Ready" });
+    }, 840);
+    return () => window.clearTimeout(exitTimer);
+  }, [siteLoad.phase]);
+
+  useEffect(() => {
+    const loaderVisible = currentView === "home" && siteLoad.phase !== "done";
+    if (!loaderVisible) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [currentView, siteLoad.phase]);
 
   const navigateTo = (view) => {
     // A query route must not override the next hash route or the return-home action.
@@ -207,7 +268,13 @@ export default function App() {
       tl?.scrollTrigger?.kill();
       tl?.kill();
     };
-  }, [currentView]);
+  }, [currentView, websiteData]);
+
+  useEffect(() => {
+    if (currentView !== "home" || siteLoad.phase !== "done") return;
+    const refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
+    return () => cancelAnimationFrame(refreshFrame);
+  }, [currentView, siteLoad.phase]);
 
   return (
     <>
@@ -233,8 +300,8 @@ export default function App() {
       )}
 
       {/* Main Club Website View */}
-      {currentView === "home" && (
-        <div className="app-scroll-container">
+      {currentView === "home" && websiteData && (
+        <div className={`app-scroll-container ${["exiting", "done"].includes(siteLoad.phase) ? "site-content-ready" : ""}`}>
           {/* Hero Wrapper — pinned during scroll zoom-out */}
           <div ref={heroWrapperRef} className="hero-zoom-wrapper">
             {/* Subtle topographic contour lines background */}
@@ -275,7 +342,7 @@ export default function App() {
             </div>
 
             <div ref={heroInnerRef} className="hero-zoom-inner">
-              <HeroSection />
+              <HeroSection onReady={handleHeroReady} />
               <div ref={darkOverlayRef} className="hero-dark-overlay" aria-hidden="true" />
             </div>
           </div>
@@ -292,13 +359,13 @@ export default function App() {
           <AboutSection />
 
           {/* Events Section */}
-          <EventsSection />
+          <EventsSection initialEvents={websiteData.events} />
 
           {/* RAI Section */}
           <RAISection />
 
           {/* Team Section */}
-          <TeamSection />
+          <TeamSection initialTeam={websiteData.team} initialSeason={websiteData.season} />
 
           {/* Why Join Us Section */}
           <WhyJoinSection onNavigateRegister={() => navigateTo("register")} />
@@ -315,6 +382,10 @@ export default function App() {
             onNavigateRegister={() => navigateTo("register")}
           />
         </div>
+      )}
+
+      {currentView === "home" && siteLoad.phase !== "done" && (
+        <SiteLoader phase={siteLoad.phase} progress={siteLoad.progress} stage={siteLoad.stage} />
       )}
 
       {/* Vercel Speed Insights for real-time performance monitoring */}

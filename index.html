@@ -4,13 +4,36 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07101f" />
     <title>Robotics & AI Club</title>
+    <style>
+      html, body, #root { min-height: 100%; }
+      body { margin: 0; }
+      .site-loader-boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #f5faff;
+        background: #07101f;
+        font: 850 clamp(48px, 12vw, 180px)/1 Arial, sans-serif;
+        letter-spacing: -0.075em;
+      }
+      .site-loader-boot small {
+        position: absolute;
+        left: 50%;
+        bottom: 28px;
+        transform: translateX(-50%);
+        font: 650 12px/1 Arial, sans-serif;
+        letter-spacing: 0.14em;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800;900&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="site-loader-boot" aria-hidden="true">LOADING<small>00%</small></div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

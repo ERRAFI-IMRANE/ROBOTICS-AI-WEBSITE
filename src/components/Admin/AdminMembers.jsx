@@ -116,7 +116,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
     <div className="admin-tab-content admin-registration-view" aria-busy={busy}>
       {notice && <div className="admin-toast-bar" role="status">{notice}</div>}
       <div className="admin-view-header">
-        <div><p className="admin-eyebrow">MEMBERSHIP INTAKE</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
+        <div><p className="admin-eyebrow">Membership intake</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
         <div className="admin-header-actions">
           <button className="btn-secondary" onClick={load} disabled={loading || busy}>Refresh</button>
           <button className={`admin-portal-control ${settings?.is_open ? "is-open" : "is-closed"}`} onClick={togglePortal} disabled={!settings?.id || busy}>
@@ -185,7 +185,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
       {refusing && (
         <div className="admin-modal-overlay admin-refusal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRefusing(null); }}>
           <form className="admin-modal-dialog" onSubmit={refuse} role="dialog" aria-modal="true" aria-labelledby="refuse-title">
-            <div className="admin-modal-header"><div><p className="admin-eyebrow">APPLICATION DECISION</p><h2 id="refuse-title" className="admin-modal-title">Refuse {refusing.full_name || "applicant"}</h2></div><button type="button" className="admin-modal-close-btn" onClick={() => setRefusing(null)}>×</button></div>
+            <div className="admin-modal-header"><div><p className="admin-eyebrow">Application decision</p><h2 id="refuse-title" className="admin-modal-title">Refuse {refusing.full_name || "applicant"}</h2></div><button type="button" className="admin-modal-close-btn" onClick={() => setRefusing(null)}>×</button></div>
             <div className="admin-modal-body"><label className="form-field-label" htmlFor="refusal-reason">Reason for refusal</label><textarea id="refusal-reason" className="form-textarea" required minLength="3" maxLength="2000" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Add a clear reason for this decision…" /><small className="admin-reason-count">{reason.length} / 2000</small></div>
             <div className="admin-modal-footer"><button type="button" className="btn-secondary" onClick={() => setRefusing(null)}>Cancel</button><button type="submit" className="btn-primary btn-danger" disabled={busy}>{busy ? "Saving…" : "Confirm refusal"}</button></div>
           </form>

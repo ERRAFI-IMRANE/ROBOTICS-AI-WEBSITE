@@ -18,7 +18,9 @@ export function eventView(row) {
   return {
     title: String(data.title ?? row.title ?? data.name ?? row.name ?? ""),
     date: String(data.date ?? row.date ?? row.event_date ?? ""),
-    image_url: row.image_url ?? data.image_url ?? data.image ?? row.image ?? "/events/workshop.png",
+    // `img_url` is the canonical Supabase column for event covers. Keep the
+    // legacy fields as read-only fallbacks for older rows.
+    image_url: row.img_url ?? data.img_url ?? row.image_url ?? data.image_url ?? data.image ?? row.image ?? "/events/workshop.png",
     link: linkValue(row.links ?? data.links ?? data.link ?? row.link ?? data.url ?? row.url),
     description: String(data.description ?? row.description ?? ""),
     // Existing unclassified records are completed, as confirmed by the club.
@@ -32,7 +34,8 @@ export function eventPayload(values, existing, template) {
   if (values.link.trim() && !safeEventUrl(values.link)) throw new Error("The event link must be a valid http or https URL.");
   if (!safeEventUrl(values.image_url, true)) throw new Error("Choose an image or enter a valid image URL.");
   if (!["Completed", "Upcoming"].includes(values.status)) throw new Error("Choose an event status.");
-  const fields = { title, date: values.date.trim(), image_url: values.image_url.trim(), image: values.image_url.trim(), link: values.link.trim(), status: values.status, description: values.description.trim() };
+  const imageUrl = values.image_url.trim();
+  const fields = { title, date: values.date.trim(), img_url: imageUrl, image_url: imageUrl, image: imageUrl, link: values.link.trim(), status: values.status, description: values.description.trim() };
   const shape = existing || template || { data: {} };
   const payload = {};
   if (Object.hasOwn(shape, "data")) {

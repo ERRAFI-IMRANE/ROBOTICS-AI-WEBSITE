@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "./HeroSection.css";
 
 const VERT = `
@@ -327,9 +327,26 @@ function hexToRgb(hex) {
   ];
 }
 
-export default function HeroSection() {
+export default function HeroSection({ onReady }) {
   const heroRef = useRef(null);
   const canvasRef = useRef(null);
+  const readyReportedRef = useRef(false);
+
+  const reportHeroReady = useCallback((image) => {
+    if (readyReportedRef.current) return;
+    const finish = () => {
+      if (readyReportedRef.current) return;
+      readyReportedRef.current = true;
+      requestAnimationFrame(() => onReady?.());
+    };
+    if (image?.decode) image.decode().catch(() => {}).finally(finish);
+    else finish();
+  }, [onReady]);
+
+  useEffect(() => {
+    const safetyTimer = window.setTimeout(() => reportHeroReady(), 3000);
+    return () => window.clearTimeout(safetyTimer);
+  }, [reportHeroReady]);
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -592,9 +609,7 @@ export default function HeroSection() {
 
     function loadImage(src, tex) {
       return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.onload = () => {
+        const upload = (img) => {
           if (!running) { resolve(img); return; }
           try {
             gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -606,6 +621,15 @@ export default function HeroSection() {
             reject(e);
           }
         };
+        const cached = window.__raiImageCache?.get(src);
+        if (cached?.complete && cached.naturalWidth > 0) {
+          upload(cached);
+          return;
+        }
+
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = () => upload(img);
         img.onerror = () => reject(new Error("Image load failed: " + src));
         img.src = src;
       });
@@ -813,6 +837,7 @@ export default function HeroSection() {
       stepSim(now, dt);
       stepNoise(now);
       stepComposite(now);
+      hero.classList.add("has-live-canvas");
     }
 
     // Stop GPU work outside the viewport; resume without simulating the entire pause.
@@ -846,11 +871,6 @@ export default function HeroSection() {
       syncRendering();
     }).catch((err) => {
       console.error("Liquid reveal image load error:", err);
-      if (!running) return;
-      resize();
-      t0 = prevT = performance.now();
-      imagesReady = true;
-      syncRendering();
     });
 
     return () => {
@@ -877,6 +897,17 @@ export default function HeroSection() {
 
   return (
     <section className="hero" ref={heroRef}>
+      <picture className="hero-artwork-fallback" aria-hidden="true">
+        <source media="(max-width: 759px)" srcSet="/RAI/RAI MOBILE X-RAY 1080.jpg" />
+        <img
+          src="/RAI/RAI-XRAY.png"
+          alt=""
+          decoding="async"
+          fetchPriority="high"
+          onLoad={(event) => reportHeroReady(event.currentTarget)}
+          onError={() => reportHeroReady()}
+        />
+      </picture>
       <canvas ref={canvasRef} className="hero-gl-canvas" />
       {/* Invisible hover-portrait element maintained for App.jsx scroll pin reference */}
       <div className="hover-portrait" />

@@ -1,5 +1,6 @@
 import { eventView, safeEventUrl } from "./adminEvents";
-import { readClubSettings, shortSeason } from "./clubSettings";
+import { ALBUM_PHOTOS } from "../data/albumPhotos";
+import { readClubSettings, normalizeSeason } from "./clubSettings";
 import { withRequestTimeout } from "./requestTimeout";
 
 const STATIC_SITE_IMAGES = [
@@ -30,13 +31,7 @@ const STATIC_SITE_IMAGES = [
   "/why-join/why_join_main.jpg",
   "/why-join/why_join_tee_black.jpg",
   "/why-join/why_join_tee_white.jpg",
-  "/album/1.jpg",
-  "/album/2.JPG",
-  "/album/3.jpg",
-  "/album/4.jpg",
-  "/album/5.jpg",
-  "/album/6.jpg",
-  "/album/7.jpg",
+  ...ALBUM_PHOTOS.map((photo) => photo.src),
 ];
 
 function loadImage(url, timeoutMs = 12000) {
@@ -75,14 +70,14 @@ function loadImage(url, timeoutMs = 12000) {
 
 async function loadEvents(client, fallbackClient) {
   let result = await withRequestTimeout(
-    client.from("events").select("*").order("id", { ascending: false }),
+    client.from("events").select("id,title,date,image_url,link,created_at").order("id", { ascending: false }),
     "Public events",
     7000,
   ).catch((error) => ({ data: null, error }));
 
   if ((result.error || !result.data) && fallbackClient && fallbackClient !== client) {
     result = await withRequestTimeout(
-      fallbackClient.from("events").select("*").order("id", { ascending: false }),
+      fallbackClient.from("events").select("id,title,date,image_url,link,created_at").order("id", { ascending: false }),
       "Public events fallback",
       7000,
     ).catch((error) => ({ data: null, error }));
@@ -100,6 +95,7 @@ async function loadTeam(client, fallbackClient) {
     birthday,
     department,
     social_media_links,
+    sex,
     team_seasons (
       id,
       team_id,
@@ -190,7 +186,7 @@ export async function loadPublicWebsite(client, fallbackClient, onProgress = () 
     team,
     events,
     settings,
-    season: shortSeason(settings?.public_staff_season) || "25-26",
+    season: normalizeSeason(settings?.public_staff_season) || "2025-2026",
   };
 
   onProgress({ progress: 55, stage: "Preparing images" });

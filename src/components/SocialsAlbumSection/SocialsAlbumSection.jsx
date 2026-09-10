@@ -1,58 +1,7 @@
 import { useState } from "react";
 import { RevealHeadingLine } from "../common/TextAnimations";
+import { pickRandomAlbumPhotos } from "../../data/albumPhotos";
 import "./SocialsAlbumSection.css";
-
-const ALBUM_PHOTOS = [
-  {
-    id: 1,
-    title: "Club Milestone 1",
-    src: "/album/1.jpg",
-    alt: "Robotics & AI Club Photo 1",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 2,
-    title: "Club Milestone 2",
-    src: "/album/2.JPG",
-    alt: "Robotics & AI Club Photo 2",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 3,
-    title: "Club Milestone 3",
-    src: "/album/3.jpg",
-    alt: "Robotics & AI Club Photo 3",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 4,
-    title: "Club Milestone 4",
-    src: "/album/4.jpg",
-    alt: "Robotics & AI Club Photo 4",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 5,
-    title: "Club Milestone 5",
-    src: "/album/5.jpg",
-    alt: "Robotics & AI Club Photo 5",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 6,
-    title: "Club Milestone 6",
-    src: "/album/6.jpg",
-    alt: "Robotics & AI Club Photo 6",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-  {
-    id: 7,
-    title: "Club Milestone 7",
-    src: "/album/7.jpg",
-    alt: "Robotics & AI Club Photo 7",
-    link: "https://www.instagram.com/robotics_aiclub.ests/",
-  },
-];
 
 const SOCIAL_LINKS = [
   { name: "INSTAGRAM", url: "https://www.instagram.com/robotics_aiclub.ests/" },
@@ -63,6 +12,7 @@ const SOCIAL_LINKS = [
 
 export default function SocialsAlbumSection() {
   const [hoveredIdx, setHoveredIdx] = useState(null);
+  const [albumPhotos] = useState(() => pickRandomAlbumPhotos(7));
 
   return (
     <section id="socials" className="socials-album-section">
@@ -89,7 +39,7 @@ export default function SocialsAlbumSection() {
 
         {/* 7-Card Fanned Picture Deck */}
         <div className="socials-album-deck" aria-label="Social media photo album">
-          {ALBUM_PHOTOS.map((photo, idx) => {
+          {albumPhotos.map((photo, idx) => {
             const isHovered = hoveredIdx === idx;
             return (
               <a

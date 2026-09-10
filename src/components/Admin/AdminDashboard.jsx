@@ -5,9 +5,11 @@ import AdminTeam from "./AdminTeam";
 import AdminMembers from "./AdminMembers";
 import AdminUsers from "./AdminUsers";
 import SiteLoader from "../common/SiteLoader";
+import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "../FullNavMenu/navigationGallery";
 import { loadAdminWorkspace } from "../../lib/adminWorkspace";
 import { getAdminPermissions, hasAdminPermission } from "../../lib/adminPermissions";
 import { publicContent, supabase } from "../../lib/supabaseClient";
+import "../FullNavMenu/FullNavMenu.css";
 import "./AdminDashboard.css";
 
 class AdminErrorBoundary extends Component {
@@ -63,6 +65,105 @@ function AdminLoadingScreen({ stage, error, onRetry, onClose, progress = 0, phas
             <button type="button" className="btn-primary" onClick={onRetry}>Try again</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AdminLoginGalleryColumn({ images, direction }) {
+  return (
+    <div className={`infinite-col ${direction}`} aria-hidden="true">
+      <div className="infinite-col-track">
+        {[...images, ...images].map((item, index) => (
+          <div className="full-nav-img-card" key={`${item.src}-${index}`}>
+            <div className="full-nav-img-wrapper">
+              <img src={item.src} alt="" loading="lazy" decoding="async" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminLoginScreen({
+  email,
+  passcode,
+  authBusy,
+  authLoading,
+  authError,
+  onEmailChange,
+  onPasscodeChange,
+  onSubmit,
+  onClose,
+}) {
+  return (
+    <div className="admin-root-layout admin-auth-screen-layout admin-menu-auth">
+      <div className="full-nav-topography" aria-hidden="true">
+        <svg viewBox="0 0 1440 900" fill="none" preserveAspectRatio="xMidYMid slice">
+          <path d="M-100 200 C 200 150, 400 350, 700 250 C 1000 150, 1200 400, 1600 300" stroke="rgba(59, 130, 246, 0.14)" strokeWidth="1.5" />
+          <path d="M-80 320 C 250 260, 450 480, 800 360 C 1100 240, 1300 520, 1650 420" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1.5" />
+          <path d="M-50 450 C 300 380, 500 600, 850 480 C 1150 360, 1350 640, 1700 550" stroke="rgba(56, 189, 248, 0.12)" strokeWidth="1.5" />
+          <path d="M-120 600 C 180 520, 420 750, 780 620 C 1080 500, 1280 780, 1620 700" stroke="rgba(255, 255, 255, 0.04)" strokeWidth="1.5" />
+          <path d="M200 50 C 500 120, 750 -40, 1100 80 C 1350 170, 1500 50, 1750 140" stroke="rgba(37, 99, 235, 0.12)" strokeWidth="1.5" />
+        </svg>
+      </div>
+
+      <button type="button" className="admin-menu-auth-close" onClick={onClose} aria-label="Return to the public website">
+        <span />
+        <span />
+      </button>
+
+      <div className="full-nav-body admin-menu-auth-body">
+        <div className="full-nav-left-gallery admin-menu-auth-gallery">
+          <div className="full-nav-infinite-columns">
+            <AdminLoginGalleryColumn images={NAV_GALLERY_COLUMN_ONE} direction="col-up" />
+            <AdminLoginGalleryColumn images={NAV_GALLERY_COLUMN_TWO} direction="col-down" />
+          </div>
+        </div>
+
+        <section className="full-nav-right-content admin-menu-auth-content" aria-labelledby="admin-login-title">
+          <div className="admin-menu-auth-panel">
+            <div className="admin-menu-auth-brand">
+              <span className="admin-menu-auth-logo-glow">
+                <img className="admin-login-logo" src="/RAI/club-icon-light.png" alt="Robotics & AI Club logo" />
+              </span>
+              <div><strong>Robotics &amp; AI Club</strong><span>EST Safi officer workspace</span></div>
+            </div>
+
+            <p className="admin-menu-auth-kicker">Secure administration</p>
+            <h1 id="admin-login-title" className="admin-auth-title">Officer sign in</h1>
+            <p className="admin-auth-subtitle">Enter your authorized club account to manage the team, events and registrations.</p>
+
+            <form onSubmit={onSubmit} className="admin-auth-standalone-form">
+              <label className="admin-auth-input-wrapper" htmlFor="admin-email">
+                <span className="admin-auth-label">Officer email</span>
+                <input id="admin-email" type="email" required autoComplete="username" autoFocus className="admin-standalone-input" placeholder="officer@estsafi.ac.ma" value={email} onChange={onEmailChange} />
+              </label>
+              <label className="admin-auth-input-wrapper" htmlFor="admin-password">
+                <span className="admin-auth-label">Password</span>
+                <input id="admin-password" type="password" required autoComplete="current-password" className={`admin-standalone-input ${authError ? "has-error" : ""}`} placeholder="Enter your password" value={passcode} onChange={onPasscodeChange} />
+              </label>
+
+              {authError && <span className="admin-standalone-error" role="alert">{authError}</span>}
+
+              <div className="admin-auth-btn-row">
+                <button type="submit" className="admin-menu-auth-submit" disabled={authBusy || authLoading}>
+                  {authLoading ? "Checking…" : authBusy ? "Signing in…" : "Sign in"}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="full-nav-footer-row admin-menu-auth-footer">
+            <div className="full-nav-enquiries">
+              <span className="enquiries-title">Club &amp; lab enquiries</span>
+              <a href="mailto:roboticsai.club.ests@gmail.com" className="enquiries-link">roboticsai.club.ests@gmail.com</a>
+            </div>
+            <button type="button" className="admin-menu-auth-return" onClick={onClose}>Return to site</button>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -218,35 +319,17 @@ export default function AdminDashboard({ onClose }) {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="admin-root-layout admin-auth-screen-layout">
-        <div className="admin-auth-card-standalone admin-auth-card-branded">
-          <div className="admin-auth-mark">
-            <img className="admin-login-logo" src="/RAI/club-icon-light.png" alt="Robotics & AI Club logo" />
-            <div><strong>Robotics &amp; AI Club</strong><span>EST Safi · Officer workspace</span></div>
-          </div>
-          <p className="admin-eyebrow">SECURE ADMINISTRATION</p>
-          <h1 className="admin-auth-title">Officer sign in</h1>
-          <p className="admin-auth-subtitle">Use your authorized club account to manage the public team, events, and member intake.</p>
-          <form onSubmit={handleLoginSubmit} className="admin-auth-standalone-form">
-            <label className="admin-auth-input-wrapper" htmlFor="admin-email">
-              <span className="admin-auth-label">Officer email</span>
-              <input id="admin-email" type="email" required autoComplete="username" className="admin-standalone-input" placeholder="officer@estsafi.ac.ma" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </label>
-            <label className="admin-auth-input-wrapper" htmlFor="admin-password">
-              <span className="admin-auth-label">Password</span>
-              <input id="admin-password" type="password" required autoComplete="current-password" className={`admin-standalone-input ${authError ? "has-error" : ""}`} placeholder="••••••••••••" value={passcode} onChange={(e) => { setPasscode(e.target.value); setAuthError(""); }} />
-              {authError && <span className="admin-standalone-error" role="alert">{authError}</span>}
-            </label>
-            <div className="admin-auth-btn-row">
-              <button type="button" className="btn-secondary" onClick={onClose}>Return to site</button>
-              <button type="submit" className="btn-primary" disabled={authBusy || authLoading}>{authLoading ? "Checking…" : authBusy ? "Signing in…" : "Sign in ↗"}</button>
-            </div>
-          </form>
-          <div className="admin-auth-footer-hint"><span>Protected club workspace</span><span>RAI / ESTS</span></div>
-        </div>
-      </div>
-    );
+    return <AdminLoginScreen
+      email={email}
+      passcode={passcode}
+      authBusy={authBusy}
+      authLoading={authLoading}
+      authError={authError}
+      onEmailChange={(event) => setEmail(event.target.value)}
+      onPasscodeChange={(event) => { setPasscode(event.target.value); setAuthError(""); }}
+      onSubmit={handleLoginSubmit}
+      onClose={onClose}
+    />;
   }
 
   if (!workspace || workspaceError) {

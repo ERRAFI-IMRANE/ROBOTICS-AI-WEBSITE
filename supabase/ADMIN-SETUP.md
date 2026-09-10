@@ -12,6 +12,12 @@ The frontend and SQL were edited locally only. No browser was used, and no SQL, 
 
 Do not rerun the older permissive-policy migrations after this migration: they can restore public write access.
 
+## Controlled team fields update
+
+For an existing deployment, review and run `migration_team_controlled_fields.sql` once in the Supabase SQL editor. It updates the atomic staff save function so `sex` is stored as `M` or `F`, seasons are stored only as full `YYYY-YYYY` values, and each selected role is saved with its generated abbreviation and display order. It also creates the missing `club_settings` row. It does not delete staff profiles or their season history. Its older Supabase Storage policy block is superseded by the R2 migration below.
+
+The approved post list and the four available seasons live in `src/constants/teamPosts.js`. The Add/Edit forms and the public roster both use this shared configuration. Legacy spellings are normalized when an existing member is edited; all new writes use the canonical values.
+
 ## Admin user management
 
 After the base dashboard migration is active:
@@ -24,15 +30,15 @@ The browser only invokes the `admin-users` function with the signed-in administr
 
 ## Controls
 
-- **Members:** Accept moves a pending application into `members`; refuse requires a reason and moves it into `refused_members`. Both are single transactions with a row lock. A failed insert never removes the application. Repeated decisions on a processed ID fail clearly instead of duplicating it.
+- **Registrations:** Accept/refuse updates `public.registrations.status` in place; refusal requires a reason. Processed applications remain in the same table as history.
 - **Staff:** The existing add/edit/delete forms remain. Profile and season edits are saved atomically. Removing a season preserves other assignments; permanent deletion remains a separate explicit action.
-- **Events:** Existing unclassified events display as Completed. Add/edit supports title, date/range, status, link, description, and image. Saving preserves unrelated JSON metadata and updates existing image/link columns too. Errors never masquerade as local-only success.
+- **Events:** The dashboard uses the flat `title`, `date`, `image_url`, `link`, and `created_at` columns. New dates are saved as `DD/MM/YYYY`; legacy ranges still display until an admin chooses a normalized date while editing.
 - **Parameters:** Current season controls the Join page. Public staff season independently controls the single published Team roster. Selecting a different intake closes other campaigns without deleting applications.
 - **Overview:** Counts and recent events come from Supabase. The preserved Projects, Inventory, and Budget sections are explicitly labeled preview/demo content.
 
-## Image uploads
+## Cloudflare R2 image uploads
 
-The event editor uploads to the existing `EVENTS` bucket (JPG/PNG/WebP, max 5 MB) or accepts an image URL/local asset path. Staff keeps the existing upload UI. Review Storage policies separately: only authenticated officers should upload or modify club assets. RLS changes in `admin_rebuild.sql` apply to database tables, not `storage.objects`. No bucket configuration was changed by this task.
+Run `migration_cloudflare_r2_events.sql`, configure the server-only variables documented in the repository's `R2-SETUP.md`, and deploy the Vercel API routes. New event covers go to `EVENTS/`, avatars to `AVATARS/`, and full staff photos to `PHOTOS/`. JPG, PNG, and WebP files up to 5 MB are accepted. Existing Supabase Storage or external URLs continue to display, but only URLs owned by the configured R2 public base are eligible for automatic deletion.
 
 ## Verification
 

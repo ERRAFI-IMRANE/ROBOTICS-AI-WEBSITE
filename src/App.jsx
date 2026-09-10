@@ -55,7 +55,7 @@ export default function App() {
     })
       .catch((error) => {
         console.warn("The public preload completed with fallback data:", error);
-        return { team: [], events: [], settings: null, season: "25-26" };
+        return { team: [], events: [], settings: null, season: "2025-2026" };
       })
       .then((dataset) => {
         if (!active) return;

@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { publicContent, supabase } from "../../lib/supabaseClient";
-import { readClubSettings, shortSeason } from "../../lib/clubSettings";
+import { readClubSettings } from "../../lib/clubSettings";
+import {
+  DEFAULT_TEAM_SEASON,
+  TEAM_SEASONS,
+  getEquivalentTeamSeasonKeys,
+  normalizeTeamSeason,
+} from "../../constants/teamPosts";
 import { RevealHeadingLine } from "../common/TextAnimations";
 import { withRequestTimeout } from "../../lib/requestTimeout";
 import "./TeamSection.css";
@@ -10,7 +16,7 @@ const DEFAULT_TEAM_MEMBERS = [
     id: "def-team-1",
     name: "Imrane Errafi",
     department: "Génie Informatique",
-    role: "President",
+    role: "Club President",
     image: "/imrane-anime.png",
     hoverImage: null,
     birthday: null,
@@ -20,14 +26,14 @@ const DEFAULT_TEAM_MEMBERS = [
       linkedin: "https://linkedin.com",
       github: "https://github.com",
     },
-    season: "25-26",
+    season: "2025-2026",
   },
   {
     id: "def-team-2",
     name: "Aya Mansouri",
     department: "Génie Électrique (GIME)",
-    role: "Vice President",
-    image: "/Imrane_anime.png",
+    role: "Club Vice President",
+    image: "/imrane-anime.png",
     hoverImage: null,
     birthday: null,
     orderPostVal: 2,
@@ -36,14 +42,14 @@ const DEFAULT_TEAM_MEMBERS = [
       linkedin: "https://linkedin.com",
       github: "https://github.com",
     },
-    season: "25-26",
+    season: "2025-2026",
   },
   {
     id: "def-team-3",
     name: "Mehdi Alami",
     department: "Génie Informatique",
-    role: "AI Lead",
-    image: "/Imrane_anime.png",
+    role: "Main Mentor",
+    image: "/imrane-anime.png",
     hoverImage: null,
     birthday: null,
     orderPostVal: 3,
@@ -52,14 +58,14 @@ const DEFAULT_TEAM_MEMBERS = [
       linkedin: "https://linkedin.com",
       github: "https://github.com",
     },
-    season: "25-26",
+    season: "2025-2026",
   },
   {
     id: "def-team-4",
     name: "Yassine Berrada",
     department: "Génie Industriel & Maintenance",
-    role: "Robotics Lead",
-    image: "/Imrane_anime.png",
+    role: "Active Member",
+    image: "/imrane-anime.png",
     hoverImage: null,
     birthday: null,
     orderPostVal: 4,
@@ -68,83 +74,35 @@ const DEFAULT_TEAM_MEMBERS = [
       linkedin: "https://linkedin.com",
       github: "https://github.com",
     },
-    season: "25-26",
+    season: "2025-2026",
   },
 ];
 
-// Normalizes any raw season key (e.g. "2024-2025", "2024", "24/25", "24-25") to canonical short season ("24-25")
-const normalizeSeasonKey = (raw = "") => {
-  if (!raw) return "";
-  const str = String(raw).trim().toLowerCase().replace(/[\s_]+/g, "-");
-  if (
-    str === "24-25" ||
-    str === "2024-2025" ||
-    str === "24/25" ||
-    str === "2024/2025" ||
-    str === "2024-25" ||
-    str === "2024" ||
-    str === "24"
-  ) {
-    return "24-25";
-  }
-  if (
-    str === "25-26" ||
-    str === "2025-2026" ||
-    str === "25/26" ||
-    str === "2025/2026" ||
-    str === "2025-26" ||
-    str === "2025" ||
-    str === "25"
-  ) {
-    return "25-26";
-  }
-  if (
-    str === "26-27" ||
-    str === "2026-2027" ||
-    str === "26/27" ||
-    str === "2026/2027" ||
-    str === "2026-27" ||
-    str === "2026" ||
-    str === "26"
-  ) {
-    return "26-27";
-  }
-  const match = str.match(/(?:20)?(\d{2})[-/](?:20)?(\d{2})/);
-  if (match) {
-    return `${match[1]}-${match[2]}`;
-  }
-  return str;
-};
-
-// Returns alternate equivalent keys to query from Supabase or match in data structures
-const getEquivalentSeasonKeys = (season = "") => {
-  const norm = normalizeSeasonKey(season);
-  if (norm === "24-25") return ["24-25", "2024-2025", "24/25", "2024", "24"];
-  if (norm === "25-26") return ["25-26", "2025-2026", "25/26", "2025", "25"];
-  if (norm === "26-27") return ["26-27", "2026-2027", "26/27", "2026", "26"];
-  const match = norm.match(/^(\d{2})-(\d{2})$/);
-  return match ? [norm, `20${match[1]}-20${match[2]}`, `${match[1]}/${match[2]}`] : [season, norm];
-};
+// Short legacy values are accepted only while reading older rows. All state
+// and displayed values use the shared YYYY-YYYY format.
+const getEquivalentSeasonKeys = getEquivalentTeamSeasonKeys;
 
 // Helper to extract years array from member record
 const getMemberYears = (m) => {
+  let years = [];
   if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    return m.team_seasons.map((ts) => ts.season).filter(Boolean);
+    years = m.team_seasons.map((ts) => ts.season);
+  } else if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
+    years = Object.keys(m.season_roles);
+  } else {
+    const rawYears = m?.years || m?.data?.years;
+    if (Array.isArray(rawYears)) years = rawYears;
+    else if (typeof rawYears === "string") years = rawYears.split(",");
   }
-  if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
-    return Object.keys(m.season_roles);
-  }
-  const rawYears = m?.years || m?.data?.years;
-  if (Array.isArray(rawYears) && rawYears.length > 0) return rawYears.map(String);
-  if (typeof rawYears === "string" && rawYears) return rawYears.split(",").map((s) => s.trim());
-  return ["25-26"];
+  const normalized = years.map(normalizeTeamSeason).filter(Boolean);
+  return normalized.length ? [...new Set(normalized)] : [DEFAULT_TEAM_SEASON];
 };
 
 // Helper to extract role for a season
 const getMemberRoleForYear = (m, year) => {
   const equivKeys = getEquivalentSeasonKeys(year);
   if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const found = m.team_seasons.find((ts) => ts.season && equivKeys.includes(ts.season));
+    const found = m.team_seasons.find((ts) => ts.season && equivKeys.includes(String(ts.season)));
     if (found?.role) return found.role;
     if (m.team_seasons[0]?.role) return m.team_seasons[0].role;
   }
@@ -153,7 +111,7 @@ const getMemberRoleForYear = (m, year) => {
       if (m.season_roles[k]) return m.season_roles[k];
     }
   }
-  return m?.post || m?.role || m?.data?.role || "Team Member";
+  return m?.post || m?.role || m?.data?.role || "Active Member";
 };
 
 // Helper to extract post order
@@ -182,9 +140,8 @@ const mapMemberRecord = (m, year) => ({
   name: m.full_name || m.name || "Club Member",
   department: m.department || m.filiere || "",
   role: getMemberRoleForYear(m, year),
-  postAbbr: (Array.isArray(m.team_seasons) ? m.team_seasons.find((ts) => getEquivalentSeasonKeys(year).includes(ts.season))?.post_abbr : "") || "",
   orderPostVal: getMemberPostOrder(m, year),
-  image: m.avatar_img || m.image || m.image_url || "/Imrane_anime.png",
+  image: m.avatar_img || m.image || m.image_url || "/imrane-anime.png",
   hoverImage: m.normal_img || m.normal_image || null,
   birthday: m.birthday || null,
   socials: {
@@ -192,11 +149,11 @@ const mapMemberRecord = (m, year) => ({
     linkedin: m.social_media_links?.linkedin || m.linkedin || "",
     github: m.social_media_links?.github || m.github || "",
   },
-  season: year,
+  season: normalizeTeamSeason(year) || DEFAULT_TEAM_SEASON,
 });
 
-function resolveTeamRecords(rawData, targetSeason = "25-26") {
-  let resolvedSeason = targetSeason;
+function resolveTeamRecords(rawData, targetSeason = DEFAULT_TEAM_SEASON) {
+  let resolvedSeason = normalizeTeamSeason(targetSeason) || DEFAULT_TEAM_SEASON;
   let resolvedMembers = [];
 
   if (rawData.length > 0) {
@@ -207,7 +164,7 @@ function resolveTeamRecords(rawData, targetSeason = "25-26") {
     });
 
     if (matching.length === 0) {
-      const candidateSeasons = ["25-26", "24-25", "26-27"];
+      const candidateSeasons = TEAM_SEASONS;
       for (const candidate of candidateSeasons) {
         const candidateKeys = getEquivalentSeasonKeys(candidate);
         const candidateMembers = rawData.filter((member) => {
@@ -230,13 +187,13 @@ function resolveTeamRecords(rawData, targetSeason = "25-26") {
     });
   } else {
     resolvedMembers = DEFAULT_TEAM_MEMBERS;
-    resolvedSeason = "25-26";
+    resolvedSeason = DEFAULT_TEAM_SEASON;
   }
 
   return { members: resolvedMembers, season: resolvedSeason };
 }
 
-export default function TeamSection({ initialTeam = null, initialSeason = "25-26" }) {
+export default function TeamSection({ initialTeam = null, initialSeason = DEFAULT_TEAM_SEASON }) {
   const hasInitialTeam = Array.isArray(initialTeam);
   const initialRoster = hasInitialTeam ? resolveTeamRecords(initialTeam, initialSeason) : null;
   const [members, setMembers] = useState(() => initialRoster?.members || []);
@@ -260,17 +217,16 @@ export default function TeamSection({ initialTeam = null, initialSeason = "25-26
         setLoading(true);
 
         // 1. Determine published season from club_settings
-        let targetSeason = "25-26";
+        let targetSeason = DEFAULT_TEAM_SEASON;
         try {
           const client = publicContent || supabase;
           const settings = await withRequestTimeout(readClubSettings(client), "Club settings", 4000);
           if (settings && settings.public_staff_season) {
-            const parsed = shortSeason(settings.public_staff_season);
+            const parsed = normalizeTeamSeason(settings.public_staff_season);
             if (parsed) targetSeason = parsed;
           }
         } catch {
-          // Default to "25-26" if settings table is not configured
-          targetSeason = "25-26";
+          targetSeason = DEFAULT_TEAM_SEASON;
         }
 
         // 2. Fetch all staff members using session-independent publicContent client
@@ -289,6 +245,7 @@ export default function TeamSection({ initialTeam = null, initialSeason = "25-26
                 birthday,
                 department,
                 social_media_links,
+                sex,
                 team_seasons (
                   id,
                   team_id,
@@ -342,7 +299,7 @@ export default function TeamSection({ initialTeam = null, initialSeason = "25-26
       } catch (err) {
         console.warn("Unexpected team fetch error, using defaults:", err);
         if (isMounted) {
-          setSelectedYear("25-26");
+          setSelectedYear(DEFAULT_TEAM_SEASON);
           setMembers(DEFAULT_TEAM_MEMBERS);
         }
       } finally {

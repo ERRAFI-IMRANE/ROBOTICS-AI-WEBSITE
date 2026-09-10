@@ -20,6 +20,7 @@ ALTER TABLE public.team ADD COLUMN IF NOT EXISTS department TEXT;
 ALTER TABLE public.team ADD COLUMN IF NOT EXISTS avatar_img TEXT;
 ALTER TABLE public.team ADD COLUMN IF NOT EXISTS normal_img TEXT;
 ALTER TABLE public.team ADD COLUMN IF NOT EXISTS social_media_links JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.team ADD COLUMN IF NOT EXISTS sex TEXT;
 
 -- 2. Create public.team_seasons table
 CREATE TABLE IF NOT EXISTS public.team_seasons (

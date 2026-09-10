@@ -14,6 +14,7 @@ async function loadTeam(publicClient) {
         birthday,
         department,
         social_media_links,
+        sex,
         team_seasons (
           id,
           team_id,
@@ -45,7 +46,7 @@ export async function loadAdminWorkspace(client, publicClient, onStage = () => {
   const canReviewRegistrations = !Array.isArray(permissions) || permissions.includes("registrations");
   const [team, events, registrations, settings] = await Promise.all([
     loadTeam(publicClient),
-    readRows(publicClient.from("events").select("*").order("id", { ascending: false }), "Loading events"),
+    readRows(publicClient.from("events").select("id,title,date,image_url,link,created_at").order("id", { ascending: false }), "Loading events"),
     canReviewRegistrations
       ? readRows(client.from("registrations").select("*").order("created_at", { ascending: false }), "Loading registrations")
       : Promise.resolve([]),

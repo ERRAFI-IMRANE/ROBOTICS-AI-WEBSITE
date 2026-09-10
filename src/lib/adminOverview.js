@@ -7,7 +7,7 @@ export async function loadAdminOverview(client, contentClient = client) {
     contentClient.from("team").select("id", { count: "exact", head: true }),
     client.from("registrations").select("id", { count: "exact", head: true }).eq("status", "accepted"),
     client.from("registrations").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    contentClient.from("events").select("*").order("id", { ascending: false }),
+    contentClient.from("events").select("id,title,date,image_url,link,created_at").order("id", { ascending: false }),
     readClubSettings(contentClient),
   ].map((request, index) => withRequestTimeout(request, ["Staff", "Members", "Applications", "Events", "Season settings"][index])));
   const labels = ["Staff", "Applications", "Applications", "Events"];

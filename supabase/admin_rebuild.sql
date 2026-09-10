@@ -119,18 +119,22 @@ BEGIN
   IF (SELECT count(*) FROM jsonb_array_elements(p_seasons)) <> (SELECT count(DISTINCT value->>'season') FROM jsonb_array_elements(p_seasons)) THEN RAISE EXCEPTION 'Duplicate staff seasons'; END IF;
   profile := jsonb_populate_record(NULL::public.team, p_profile);
   IF coalesce(length(trim(profile.full_name)),0) = 0 THEN RAISE EXCEPTION 'Staff name is required'; END IF;
+  IF profile.sex IS NULL OR profile.sex NOT IN ('M', 'F') THEN RAISE EXCEPTION 'Staff sex must be M or F'; END IF;
   IF p_team_id IS NULL THEN
-    INSERT INTO public.team(full_name,department,avatar_img,normal_img,birthday,social_media_links)
-    VALUES (profile.full_name,profile.department,profile.avatar_img,profile.normal_img,profile.birthday,profile.social_media_links) RETURNING id INTO staff_id;
+    INSERT INTO public.team(full_name,department,avatar_img,normal_img,birthday,social_media_links,sex)
+    VALUES (profile.full_name,profile.department,profile.avatar_img,profile.normal_img,profile.birthday,profile.social_media_links,profile.sex) RETURNING id INTO staff_id;
   ELSE
     PERFORM id FROM public.team WHERE id = p_team_id FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'Staff record no longer exists'; END IF;
     UPDATE public.team SET full_name = profile.full_name, department = profile.department, avatar_img = profile.avatar_img,
-      normal_img = profile.normal_img, birthday = profile.birthday, social_media_links = profile.social_media_links
+      normal_img = profile.normal_img, birthday = profile.birthday, social_media_links = profile.social_media_links, sex = profile.sex
       WHERE id = p_team_id RETURNING id INTO staff_id;
   END IF;
   FOR assignment IN SELECT value FROM jsonb_array_elements(p_seasons) LOOP
-    IF coalesce(assignment->>'season','') !~ '^(20)?[0-9]{2}[-/](20)?[0-9]{2}$' THEN RAISE EXCEPTION 'Invalid staff season'; END IF;
+    IF coalesce(assignment->>'season','') !~ '^20[0-9]{2}-20[0-9]{2}$'
+       OR right(assignment->>'season',4)::integer <> left(assignment->>'season',4)::integer + 1 THEN
+      RAISE EXCEPTION 'Staff season must use consecutive YYYY-YYYY years';
+    END IF;
     IF (assignment->>'post_order')::integer < 0 THEN RAISE EXCEPTION 'Staff order must be non-negative'; END IF;
     INSERT INTO public.team_seasons(team_id,season,role,post_abbr,post_order)
     VALUES (staff_id,assignment->>'season',coalesce(nullif(assignment->>'role',''),'Team Member'),assignment->>'post_abbr',(assignment->>'post_order')::integer)

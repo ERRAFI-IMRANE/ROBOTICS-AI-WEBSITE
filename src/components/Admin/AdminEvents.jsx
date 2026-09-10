@@ -1,39 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase, publicContent } from "../../lib/supabaseClient";
 import { withRequestTimeout } from "../../lib/requestTimeout";
-import { deleteEvent, eventView, safeEventUrl, saveEvent } from "../../lib/adminEvents";
+import { deleteEvent, eventPayload, eventView, formatDateForInput, safeEventUrl, saveEvent } from "../../lib/adminEvents";
+import { deleteMediaUrl, uploadMedia, validateImageFile } from "../../lib/mediaStorage";
 import "./AdminDashboard.css";
 
 const PAGE_SIZE = 12;
+const EVENT_COLUMNS = "id,title,date,image_url,link,created_at";
 const FALLBACK_IMAGE = "/events/workshop.png";
-const EMPTY = {
-  title: "",
-  date: "",
-  image_url: FALLBACK_IMAGE,
-  link: "",
-  description: "",
-  status: "Upcoming",
-};
+const EMPTY = { title: "", date: "", image_url: "", link: "" };
 
 const EventRow = React.memo(function EventRow({ record, busy, onEdit, onDelete }) {
   const { row, event, imageUrl, linkUrl } = record;
-  const isCompleted = event.status === "Completed";
-
   return (
     <article className="admin-event-row">
       <div className="admin-event-row-image">
         <img src={imageUrl} alt="" loading="lazy" decoding="async" fetchPriority="low" draggable="false" width="176" height="108" />
       </div>
       <div className="admin-event-row-copy">
-        <div className="admin-event-row-meta">
-          <span className={`status-chip status-chip-${isCompleted ? "positive" : "warning"}`}>
-            <span className="status-chip-dot" />
-            <span>{event.status}</span>
-          </span>
-          <time>{event.date || "Date not set"}</time>
-        </div>
+        <div className="admin-event-row-meta"><time>{event.date || "Date not set"}</time></div>
         <h2>{event.title || "Untitled event"}</h2>
-        <p>{event.description || "A Robotics & AI Club experience."}</p>
+        <p>{linkUrl ? "Published with an event link" : "Published club event"}</p>
       </div>
       <div className="admin-event-row-actions">
         <button type="button" className="btn-primary" onClick={() => onEdit(row)} disabled={busy}>Edit</button>
@@ -51,9 +38,9 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState(null);
+  const [legacyDate, setLegacyDate] = useState("");
   const [modal, setModal] = useState(false);
   const [values, setValues] = useState(EMPTY);
   const [file, setFile] = useState(null);
@@ -69,7 +56,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     setError("");
     try {
       const result = await withRequestTimeout(
-        publicContent.from("events").select("*").order("id", { ascending: false }),
+        publicContent.from("events").select(EVENT_COLUMNS).order("id", { ascending: false }),
         "Loading events",
       );
       if (result.error) throw result.error;
@@ -83,9 +70,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     }
   }, [onDataChange]);
 
-  useEffect(() => {
-    if (!hasInitialEvents) load();
-  }, [hasInitialEvents, load]);
+  useEffect(() => { if (!hasInitialEvents) load(); }, [hasInitialEvents, load]);
 
   useEffect(() => {
     if (!file) {
@@ -102,34 +87,23 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     if (!modal && dialogRef.current?.open) dialogRef.current.close();
   }, [modal]);
 
-  useEffect(() => setVisibleCount(PAGE_SIZE), [filter, query]);
+  useEffect(() => setVisibleCount(PAGE_SIZE), [query]);
 
   const records = useMemo(() => events.map((row) => {
     const event = eventView(row);
     return {
       row,
       event,
-      searchText: `${event.title} ${event.description} ${event.date}`.toLowerCase(),
+      searchText: `${event.title} ${event.date}`.toLowerCase(),
       imageUrl: safeEventUrl(event.image_url, true) || FALLBACK_IMAGE,
       linkUrl: safeEventUrl(event.link),
     };
   }), [events]);
 
-  const counts = useMemo(() => records.reduce((result, record) => {
-    result.all += 1;
-    if (record.event.status === "Completed") result.Completed += 1;
-    if (record.event.status === "Upcoming") result.Upcoming += 1;
-    return result;
-  }, { all: 0, Completed: 0, Upcoming: 0 }), [records]);
-
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return records.filter((record) => (
-      (filter === "all" || record.event.status === filter)
-      && (!needle || record.searchText.includes(needle))
-    ));
-  }, [filter, query, records]);
-
+    return needle ? records.filter((record) => record.searchText.includes(needle)) : records;
+  }, [query, records]);
   const visibleEvents = filtered.slice(0, visibleCount);
 
   useEffect(() => {
@@ -141,16 +115,18 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     }
     const scrollRoot = sentinel.closest(".admin-main-viewport");
     const observer = new IntersectionObserver((entries) => {
-      if (!entries[0]?.isIntersecting) return;
-      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
+      if (entries[0]?.isIntersecting) setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
     }, { root: scrollRoot, rootMargin: "280px 0px", threshold: 0 });
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [filtered.length, visibleCount]);
 
   const open = useCallback((row = null) => {
+    const view = row ? eventView(row) : { ...EMPTY };
+    const inputDate = formatDateForInput(view.date);
     setEditing(row);
-    setValues(row ? eventView(row) : { ...EMPTY });
+    setLegacyDate(row && view.date && !inputDate ? view.date : "");
+    setValues({ title: view.title, date: inputDate, image_url: view.image_url, link: view.link });
     setFile(null);
     setFormError("");
     setNotice("");
@@ -161,32 +137,53 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     if (!busy) setModal(false);
   }
 
-  async function save(event) {
-    event.preventDefault();
+  async function save(submitEvent) {
+    submitEvent.preventDefault();
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setFormError("");
+    setError("");
+    let uploadedUrl = "";
+    let databaseSaved = false;
     try {
+      if (!editing && !file) throw new Error("Choose an event cover image.");
+      eventPayload({ ...values, image_url: file ? "/pending-r2-upload" : values.image_url });
       let imageUrl = values.image_url;
       if (file) {
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-          throw new Error("Choose a JPG, PNG or WebP image under 5 MB.");
-        }
-        const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type];
-        const path = `events/${crypto.randomUUID()}.${ext}`;
-        const bucket = supabase.storage.from("EVENTS");
-        const result = await bucket.upload(path, file, { upsert: false });
-        if (result.error) throw new Error("Image upload failed. Check the EVENTS bucket permissions or use an image URL.");
-        imageUrl = bucket.getPublicUrl(path).data.publicUrl;
+        validateImageFile(file);
+        const uploaded = await uploadMedia(supabase, file, "EVENTS");
+        uploadedUrl = uploaded.url;
+        imageUrl = uploaded.url;
       }
-      await saveEvent(supabase, { ...values, image_url: imageUrl }, editing, events[0]);
+
+      await saveEvent(supabase, { ...values, image_url: imageUrl }, editing);
+      databaseSaved = true;
+      const oldImageUrl = eventView(editing || {}).image_url;
+      if (uploadedUrl && oldImageUrl && oldImageUrl !== uploadedUrl) {
+        await deleteMediaUrl(supabase, oldImageUrl);
+      }
+
       setModal(false);
       setFile(null);
-      setNotice(editing ? "Event updated in Supabase." : "Event added to Supabase.");
+      setNotice(editing ? "Event updated. Its image is synchronized with R2." : "Event added with its R2 image.");
       await load();
     } catch (saveError) {
-      setFormError(saveError.message || "The event could not be saved.");
+      if (uploadedUrl && !databaseSaved) {
+        try {
+          await deleteMediaUrl(supabase, uploadedUrl);
+        } catch (cleanupError) {
+          setFormError(`${saveError.message || "The event could not be saved."} The new R2 upload also needs manual cleanup: ${cleanupError.message}`);
+          return;
+        }
+      }
+      if (databaseSaved) {
+        setModal(false);
+        await load();
+        setError(`The event was saved, but its old R2 image could not be cleaned up: ${saveError.message}`);
+      } else {
+        setFormError(saveError.message || "The event could not be saved.");
+      }
     } finally {
       lock.current = false;
       setBusy(false);
@@ -194,16 +191,25 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   }
 
   const remove = useCallback(async (row) => {
-    const title = eventView(row).title || "this event";
-    if (lock.current || !window.confirm(`Delete “${title}”? This cannot be undone.`)) return;
+    const view = eventView(row);
+    if (lock.current || !window.confirm(`Delete “${view.title || "this event"}”? This cannot be undone.`)) return;
     lock.current = true;
     setBusy(true);
     setError("");
     setNotice("");
     try {
       await deleteEvent(supabase, row.id);
-      setNotice("Event deleted.");
+      let cleanupMessage = "";
+      let imageDeleted = false;
+      try {
+        const cleanup = await deleteMediaUrl(supabase, view.image_url);
+        imageDeleted = cleanup.deleted === true;
+      } catch (cleanupError) {
+        cleanupMessage = cleanupError.message;
+      }
       await load();
+      if (cleanupMessage) setError(`The event row was deleted, but its R2 image could not be removed: ${cleanupMessage}`);
+      else setNotice(imageDeleted ? "Event and its managed R2 image were deleted." : "Event deleted. External or legacy media was left untouched.");
     } catch (deleteError) {
       setError(deleteError.message || "The event could not be deleted.");
     } finally {
@@ -238,12 +244,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
 
       <div className="member-filters-bar admin-event-toolbar">
         <div className="filter-pills-row">
-          {["all", "Completed", "Upcoming"].map((status) => (
-            <button key={status} type="button" className={`filter-pill-btn ${filter === status ? "is-active" : ""}`} onClick={() => setFilter(status)} aria-pressed={filter === status}>
-              <span>{status === "all" ? "All events" : status}</span>
-              <span className="admin-filter-count">{counts[status]}</span>
-            </button>
-          ))}
+          <span className="filter-pill-btn is-active"><span>All events</span><span className="admin-filter-count">{records.length}</span></span>
         </div>
         <input className="form-text-input admin-event-search" type="search" aria-label="Search events" placeholder="Search events or dates" value={query} onChange={(event) => setQuery(event.target.value)} />
       </div>
@@ -255,15 +256,11 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
             <span><i className="skeleton-shimmer" /><i className="skeleton-shimmer" /><i className="skeleton-shimmer" /></span>
           </div>
         ))}
-
         {!loading && visibleEvents.map((record) => (
           <EventRow key={record.row.id} record={record} busy={busy} onEdit={open} onDelete={remove} />
         ))}
-
         {!loading && !error && !filtered.length && (
-          <div className="admin-empty-state">
-            {query || filter !== "all" ? "No events match these filters." : "No events yet. Add your first club event."}
-          </div>
+          <div className="admin-empty-state">{query ? "No events match your search." : "No events yet. Add your first club event."}</div>
         )}
       </div>
 
@@ -292,21 +289,20 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
                 <section className="admin-event-editor-section">
                   <div className="admin-event-editor-section-head"><strong>Event details</strong><span>Information shown on the public website.</span></div>
                   <label className="form-field-group" htmlFor="event-title"><span className="form-field-label">Event title</span><input {...field("title")} className="form-text-input" required maxLength={180} placeholder="Robotics workshop" /></label>
-                  <div className="admin-event-editor-pair">
-                    <label className="form-field-group" htmlFor="event-date"><span className="form-field-label">Date or date range</span><input {...field("date")} className="form-text-input" required placeholder="13–14 June 2026" maxLength={100} /></label>
-                    <label className="form-field-group" htmlFor="event-status"><span className="form-field-label">Status</span><select {...field("status")} className="form-select-input"><option>Upcoming</option><option>Completed</option></select></label>
-                  </div>
+                  <label className="form-field-group" htmlFor="event-date">
+                    <span className="form-field-label">Event date</span>
+                    <input {...field("date")} className="form-text-input" type="date" required />
+                    {legacyDate && <small>Previously stored date: {legacyDate}. Choose one date to normalize this event.</small>}
+                  </label>
                   <label className="form-field-group" htmlFor="event-link"><span className="form-field-label">Event link <em>Optional</em></span><input {...field("link")} className="form-text-input" type="url" placeholder="https://example.com/event" /></label>
-                  <label className="form-field-group" htmlFor="event-description"><span className="form-field-label">Description</span><textarea {...field("description")} className="form-textarea-input" rows={6} maxLength={4000} placeholder="Describe the event, audience, and main activities." /></label>
                 </section>
 
                 <aside className="admin-event-editor-section admin-event-media-editor">
                   <div className="admin-event-editor-section-head"><strong>Cover image</strong><span>JPG, PNG, or WebP. Maximum 5 MB.</span></div>
                   <div className="admin-event-preview-frame"><img className="admin-editor-preview" src={preview || safeEventUrl(values.image_url, true) || FALLBACK_IMAGE} alt="Event cover preview" /></div>
-                  <label className="admin-event-upload-control" htmlFor="event-upload"><strong>{file ? file.name : "Choose an image"}</strong><span>{file ? "Select another file" : "Upload from this computer"}</span></label>
-                  <input className="admin-event-file-input" id="event-upload" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-                  <div className="admin-event-media-divider"><span>or use a URL</span></div>
-                  <label className="form-field-group" htmlFor="event-image_url"><span className="form-field-label">Image URL or asset path</span><input {...field("image_url")} className="form-text-input" placeholder="/events/workshop.png" /></label>
+                  <label className="admin-event-upload-control" htmlFor="event-upload"><strong>{file ? file.name : editing ? "Replace image" : "Choose an image"}</strong><span>{file ? "Select another file" : "Upload securely to Cloudflare R2"}</span></label>
+                  <input className="admin-event-file-input" id="event-upload" type="file" accept="image/jpeg,image/png,image/webp" required={!editing} onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                  {editing && !file && <p className="admin-event-media-note">The current image remains unchanged until you select a replacement.</p>}
                 </aside>
               </fieldset>
             </div>

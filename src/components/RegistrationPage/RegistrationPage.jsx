@@ -1,23 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Footer from "../Footer/Footer";
+import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "../FullNavMenu/navigationGallery";
 import RegistrationForm from "./RegistrationForm";
 import "./RegistrationPage.css";
-
-const GALLERY_COL_1 = [
-  { src: "/why-join/why_join_main.jpg", alt: "Autonomous Rover & AI Lab" },
-  { src: "/album/2.JPG", alt: "Club Team Victory & Award" },
-  { src: "/album/5.jpg", alt: "Engineering Workshop & Coding" },
-  { src: "/why-join/why_join_gold.jpg", alt: "Competition Arena & Bot Chassis" },
-  { src: "/album/1.jpg", alt: "Robotics Electronics & Sensors" },
-];
-
-const GALLERY_COL_2 = [
-  { src: "/album/3.jpg", alt: "Team Assembly & Prototyping" },
-  { src: "/album/4.jpg", alt: "Field Testing & Autonomous Flight" },
-  { src: "/album/6.jpg", alt: "Hackathon Sprint & Neural AI" },
-  { src: "/why-join/why_join_tee_black.jpg", alt: "Official Club Engineering Gear" },
-  { src: "/album/7.jpg", alt: "Research Presentations & Community" },
-];
 
 export default function RegistrationPage({ onBack, onOpenAdmin }) {
   const [animateIn, setAnimateIn] = useState(false);
@@ -121,7 +106,7 @@ export default function RegistrationPage({ onBack, onOpenAdmin }) {
             {/* Column 1: Infinite Loop Track Up */}
             <div className="infinite-col col-up">
               <div className="infinite-col-track">
-                {[...GALLERY_COL_1, ...GALLERY_COL_1].map((img, idx) => (
+                {[...NAV_GALLERY_COLUMN_ONE, ...NAV_GALLERY_COLUMN_ONE].map((img, idx) => (
                   <div key={idx} className="reg-nav-img-card">
                     <div className="reg-nav-img-wrapper">
                       <img src={img.src} alt={img.alt} loading="lazy" />
@@ -134,7 +119,7 @@ export default function RegistrationPage({ onBack, onOpenAdmin }) {
             {/* Column 2: Infinite Loop Track Down */}
             <div className="infinite-col col-down">
               <div className="infinite-col-track">
-                {[...GALLERY_COL_2, ...GALLERY_COL_2].map((img, idx) => (
+                {[...NAV_GALLERY_COLUMN_TWO, ...NAV_GALLERY_COLUMN_TWO].map((img, idx) => (
                   <div key={idx} className="reg-nav-img-card">
                     <div className="reg-nav-img-wrapper">
                       <img src={img.src} alt={img.alt} loading="lazy" />

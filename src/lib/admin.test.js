@@ -1,16 +1,35 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { normalizeSeason, shortSeason, saveClubSettings, decideRegistration } from "./clubSettings.js";
-import { eventPayload, eventView, safeEventUrl, saveEvent, deleteEvent } from "./adminEvents.js";
+import { deleteEvent, eventPayload, eventView, formatDateForDatabase, formatDateForInput, parseEventDate, safeEventUrl, saveEvent } from "./adminEvents.js";
 import { saveStaff, deleteStaff } from "./adminStaff.js";
 import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { getAdminPermissions, hasAdminPermission } from "./adminPermissions.js";
 import { createAdminUser, updateAdminUser } from "./adminUsers.js";
+import {
+  TEAM_POSTS,
+  TEAM_SEASONS,
+  createTeamAssignment,
+  normalizeTeamRole,
+} from "../constants/teamPosts.js";
+import { ALBUM_PHOTOS, pickRandomAlbumPhotos } from "../data/albumPhotos.js";
 
-const form = { title: " Robotics day ", date: "13 June 2026", image_url: "/events/workshop.png", link: "https://example.com/event", status: "Completed", description: "Club event" };
+const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
+
+test("album manifest includes every folder image and selects seven unique cards", () => {
+  const files = readdirSync(new URL("../../public/album/", import.meta.url))
+    .filter((name) => /\.(?:jpe?g|png|webp)$/i.test(name))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const manifestFiles = ALBUM_PHOTOS.map((photo) => photo.src.split("/").pop())
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const selection = pickRandomAlbumPhotos(7);
+  assert.deepEqual(manifestFiles, files);
+  assert.equal(selection.length, 7);
+  assert.equal(new Set(selection.map((photo) => photo.src)).size, 7);
+});
 function rpcMock(result) {
   const calls = [];
   return { calls, async rpc(name, args) { calls.push({ name, args }); return result; } };
@@ -31,6 +50,21 @@ test("season keys normalize and require consecutive years", () => {
   assert.equal(normalizeSeason("2027/2028"), "2027-2028");
   assert.equal(normalizeSeason("2026-2028"), "");
   assert.equal(shortSeason("2027-2028"), "27-28");
+});
+test("controlled team posts generate internal metadata and full season keys", () => {
+  assert.equal(TEAM_POSTS.length, 24);
+  assert.deepEqual(TEAM_SEASONS, ["2023-2024", "2024-2025", "2025-2026", "2026-2027"]);
+  assert.deepEqual(createTeamAssignment("2025-2026", "Photographer"), {
+    season: "2025-2026",
+    role: "Photographer",
+    post_abbr: "PHOTO",
+    post_order: 13,
+  });
+  assert.equal(normalizeTeamRole("Media Vice President"), "Vice President of the Media Cell");
+  assert.equal(normalizeTeamRole("President of the Oraganization Cell"), "President of the Organization Cell");
+  assert.equal(normalizeTeamRole("club co-supervisor"), "Club Co-Supervisor");
+  assert.throws(() => createTeamAssignment("25-26", "Photographer"), /YYYY-YYYY/);
+  assert.throws(() => createTeamAssignment("2025-2026", "Unknown role"), /post/);
 });
 test("settings use one atomic RPC with independent current and published seasons", async () => {
   const data = { current_season: "2026-2027", public_staff_season: "2025-2026" };
@@ -75,7 +109,6 @@ test("team and event migration grants admin CRUD while keeping public users read
   assert.match(migration, /REVOKE INSERT, UPDATE, DELETE ON public\.%I FROM anon/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_club_staff/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.delete_club_staff/);
-  assert.match(migration, /bucket_id = 'EVENTS' AND public\.is_club_admin\(\)/);
   assert.doesNotMatch(migration, /service_role/);
 });
 test("admin permission helpers preserve legacy access and restrict granular accounts", () => {
@@ -109,35 +142,31 @@ test("granular permission migration protects writes and the service key remains 
   assert.match(edgeFunction, /adminClient\.auth\.admin\.(?:listUsers|createUser|updateUserById)/);
   assert.doesNotMatch(browserClient, /SERVICE_ROLE/);
 });
-test("legacy unclassified events are completed", () => {
-  assert.equal(eventView({ id: 1, data: '{"title":"Workshop"}' }).status, "Completed");
-  assert.equal(eventView({ data: { status: "Upcoming" } }).status, "Upcoming");
+test("flat event views ignore removed legacy fields", () => {
+  const row = { id: 3, title: "Workshop", date: "09/04/2026", image_url: "https://media.example.com/EVENTS/a.webp", link: "https://example.com", created_at: "2026-01-01T00:00:00Z", data: { title: "Wrong" }, status: "Completed" };
+  assert.deepEqual(eventView(row), {
+    id: 3,
+    title: "Workshop",
+    date: "09/04/2026",
+    image_url: "https://media.example.com/EVENTS/a.webp",
+    link: "https://example.com",
+    created_at: "2026-01-01T00:00:00Z",
+  });
 });
-test("event edits preserve unrelated JSON and synchronize public image and link columns", () => {
-  const row = { id: 1, data: { title: "Old", venue: "EST Safi", links: "old" }, image_url: "/old.png", links: "old" };
-  const payload = eventPayload(form, row);
-  assert.equal(payload.data.venue, "EST Safi");
-  assert.equal(payload.data.title, "Robotics day");
-  assert.equal(payload.image_url, form.image_url);
-  assert.equal(payload.links, form.link);
-  assert.equal(payload.data.links, form.link);
-  assert.equal(payload.id, undefined);
-  assert.equal(payload.title, undefined);
+test("event payload contains only current database columns", () => {
+  assert.deepEqual(eventPayload(form), {
+    title: "Robotics day",
+    date: "13/06/2026",
+    image_url: form.image_url,
+    link: form.link,
+  });
 });
-test("events use the canonical Supabase img_url column in public and admin views", () => {
-  const optimizedUrl = "https://example.supabase.co/storage/v1/object/public/EVENTS/events/optimized.webp";
-  const row = { id: 3, img_url: optimizedUrl, image_url: "/old-large-image.jpg", data: { image_url: "/older-image.jpg" } };
-  assert.equal(eventView(row).image_url, optimizedUrl);
-
-  const payload = eventPayload(form, { id: 3, img_url: "/old-large-image.jpg", title: "Old", date: "", status: "Completed" });
-  assert.equal(payload.img_url, form.image_url);
-  assert.equal(payload.image_url, undefined);
-});
-test("flat event schema uses only supported columns", () => {
-  const payload = eventPayload(form, { id: 2, title: "Old", date: "", link: "", image: "", status: "Completed" });
-  assert.equal(payload.title, "Robotics day");
-  assert.equal(payload.data, undefined);
-  assert.equal(payload.image_url, undefined);
+test("event date helpers round-trip and parse legacy ranges", () => {
+  assert.equal(formatDateForDatabase("2026-04-09"), "09/04/2026");
+  assert.equal(formatDateForInput("09/04/2026"), "2026-04-09");
+  assert.equal(formatDateForInput("13-14 Oct 2024"), "");
+  assert.equal(parseEventDate("13-14 Oct 2024")?.toISOString(), "2024-10-13T00:00:00.000Z");
+  assert.throws(() => formatDateForDatabase("2026-02-30"), /valid/);
 });
 test("unsafe links and transient image blobs are rejected", () => {
   assert.equal(safeEventUrl("javascript:alert(1)"), "");
@@ -147,7 +176,7 @@ test("unsafe links and transient image blobs are rejected", () => {
 });
 test("event save verifies the database response, with no pretend local fallback", async () => {
   const good = tableMock({ data: { id: 1 }, error: null });
-  await saveEvent(good, form, { id: 1, data: {} });
+  await saveEvent(good, form, { id: 1 });
   assert.ok(good.calls.some((call) => call[0] === "eq" && call[2] === 1));
   await assert.rejects(saveEvent(tableMock({ error: { message: "denied" } }), form, null), /denied/);
 });
@@ -157,11 +186,68 @@ test("event delete cannot report success for zero affected rows", async () => {
 });
 test("staff save and season-only delete preserve the existing workflow through atomic RPCs", async () => {
   const client = rpcMock({ data: { id: 8 }, error: null });
-  await saveStaff(client, 8, { full_name: "Test Staff" }, [{ season: "26-27", role: "Lead", post_order: 1 }]);
-  await deleteStaff(client, 8, "26-27");
+  await saveStaff(client, 8, { full_name: "Test Staff", sex: "F" }, [{ season: "2026-2027", role: "Photographer", post_abbr: "WRONG", post_order: 99 }]);
+  await deleteStaff(client, 8, "2026-2027");
   assert.equal(client.calls[0].name, "save_club_staff");
-  assert.deepEqual(client.calls[1], { name: "delete_club_staff", args: { p_team_id: 8, p_season: "26-27" } });
-  await assert.rejects(saveStaff(client, null, { full_name: "Test" }, [{ post_order: 1.5 }]), /whole number/);
+  assert.deepEqual(client.calls[0].args.p_seasons, [{ season: "2026-2027", role: "Photographer", post_abbr: "PHOTO", post_order: 13 }]);
+  assert.deepEqual(client.calls[1], { name: "delete_club_staff", args: { p_team_id: 8, p_season: "2026-2027" } });
+  await assert.rejects(
+    saveStaff(client, null, { full_name: "Test", sex: "M" }, [{ season: "2026-2027", role: "Unknown role" }]),
+    /valid.*post/,
+  );
+  await assert.rejects(
+    saveStaff(client, null, { full_name: "Test", sex: "X" }, [{ season: "2026-2027", role: "Active Member" }]),
+    /Male or Female/,
+  );
+});
+test("missing staff RPC falls back to confirmed writes in team and team_seasons", async () => {
+  const calls = [];
+  let storedAssignments = [];
+  const client = {
+    async rpc() { return { data: null, error: { code: "PGRST202", message: "Function was not found" } }; },
+    from(table) {
+      if (table === "team") return {
+        insert(payload) {
+          calls.push(["team.insert", payload]);
+          return { select() { return { async single() { return { data: { id: 42 }, error: null }; } }; } };
+        },
+        update(payload) {
+          calls.push(["team.update", payload]);
+          return { eq() { return { select() { return { async single() { return { data: { id: 42 }, error: null }; } }; } }; } };
+        },
+        delete() { return { async eq() { calls.push(["team.cleanup"]); return { error: null }; } }; },
+      };
+      return {
+        upsert(rows, options) {
+          calls.push(["team_seasons.upsert", rows, options]);
+          storedAssignments = rows.map((row, index) => ({ id: index + 1, ...row }));
+          return { async select() { return { data: storedAssignments, error: null }; } };
+        },
+        select() {
+          return { async eq() { return { data: storedAssignments.map(({ id, season }) => ({ id, season })), error: null }; } };
+        },
+        delete() { return { async in() { return { error: null }; } }; },
+      };
+    },
+  };
+  const result = await saveStaff(client, null, { full_name: "New Staff", sex: "M" }, [{ season: "2026-2027", role: "Photographer" }]);
+  assert.equal(result.id, 42);
+  assert.equal(result.fallback, true);
+  assert.equal(calls[0][0], "team.insert");
+  assert.equal(calls[1][0], "team_seasons.upsert");
+  assert.equal(calls[1][1][0].team_id, 42);
+  assert.equal(calls[1][1][0].post_abbr, "PHOTO");
+});
+test("controlled Team migration atomically writes and confirms both Team tables", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_team_controlled_fields.sql", import.meta.url), "utf8");
+  assert.match(migration, /SECURITY DEFINER/);
+  assert.match(migration, /INSERT INTO public\.team\(/);
+  assert.match(migration, /INSERT INTO public\.team_seasons\(/);
+  assert.match(migration, /ON CONFLICT \(team_id, season\) DO UPDATE/);
+  assert.match(migration, /season_count/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.club_settings/);
+  assert.match(migration, /club_public_event_media_read/);
+  assert.match(migration, /NOTIFY pgrst, 'reload schema'/);
 });
 test("Join follows selected current season rather than latest chronological season", async () => {
   const filters = [];
@@ -177,7 +263,7 @@ test("Join follows selected current season rather than latest chronological seas
 function overviewMock(failedTable) {
   return { from(table) {
     const result = table === failedTable ? { error: { code: "PGRST205", message: "Table is not available" }, data: null, count: null }
-      : { error: null, count: 12, data: table === "events" ? [{ id: 1, data: { title: "Existing event" } }] : { current_season: "2026-2027", public_staff_season: "2025-2026" } };
+      : { error: null, count: 12, data: table === "events" ? [{ id: 1, title: "Existing event", date: "09/04/2026", image_url: "/events/workshop.png", link: "", created_at: null }] : { current_season: "2026-2027", public_staff_season: "2025-2026" } };
     const chain = { select() { return chain; }, eq() { return chain; }, order() { return chain; }, single() { return Promise.resolve(result); }, then(resolve, reject) { return Promise.resolve(result).then(resolve, reject); } };
     return chain;
   } };

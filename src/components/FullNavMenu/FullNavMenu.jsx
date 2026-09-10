@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "./navigationGallery";
 import "./FullNavMenu.css";
 
 const NAV_ITEMS = [
@@ -8,23 +9,7 @@ const NAV_ITEMS = [
   { id: "why-join", label: "WHY JOIN US", target: "#why-join" },
 ];
 
-const GALLERY_COL_1 = [
-  { src: "/why-join/why_join_main.jpg", alt: "Autonomous Rover & AI Lab", tag: "TECH // LAB" },
-  { src: "/album/2.JPG", alt: "Club Team Victory & Award", tag: "HONOR // TROPHY" },
-  { src: "/album/5.jpg", alt: "Engineering Workshop & Coding", tag: "CREW // WORKSHOP" },
-  { src: "/why-join/why_join_gold.jpg", alt: "Competition Arena & Bot Chassis", tag: "ARENA // BUILD" },
-  { src: "/album/1.jpg", alt: "Robotics Electronics & Sensors", tag: "HARDWARE // DEV" },
-];
-
-const GALLERY_COL_2 = [
-  { src: "/album/3.jpg", alt: "Team Assembly & Prototyping", tag: "INNOVATION // LAB" },
-  { src: "/album/4.jpg", alt: "Field Testing & Autonomous Flight", tag: "FIELD // TEST" },
-  { src: "/album/6.jpg", alt: "Hackathon Sprint & Neural AI", tag: "SUMMIT // SPRINT" },
-  { src: "/why-join/why_join_tee_black.jpg", alt: "Official Club Engineering Gear", tag: "IDENTITY // GEAR" },
-  { src: "/album/7.jpg", alt: "Research Presentations & Community", tag: "COMMUNITY // RAI" },
-];
-
-export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
+export default function FullNavMenu({ isOpen, onClose }) {
   const [activeItem, setActiveItem] = useState("events");
 
   // Close on Escape key and lock background scroll
@@ -64,18 +49,6 @@ export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
         }
       }
     }, 280);
-  };
-
-  const handleJoinClick = (e) => {
-    e.preventDefault();
-    onClose();
-    setTimeout(() => {
-      if (onNavigateRegister) {
-        onNavigateRegister();
-      } else {
-        window.location.hash = "register";
-      }
-    }, 200);
   };
 
   return (
@@ -124,7 +97,7 @@ export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
             {/* Column 1: Infinite Loop Track Up */}
             <div className="infinite-col col-up">
               <div className="infinite-col-track">
-                {[...GALLERY_COL_1, ...GALLERY_COL_1].map((img, idx) => (
+                {[...NAV_GALLERY_COLUMN_ONE, ...NAV_GALLERY_COLUMN_ONE].map((img, idx) => (
                   <div key={idx} className="full-nav-img-card">
                     <div className="full-nav-img-wrapper">
                       <img src={img.src} alt={img.alt} loading="lazy" />
@@ -137,7 +110,7 @@ export default function FullNavMenu({ isOpen, onClose, onNavigateRegister }) {
             {/* Column 2: Infinite Loop Track Down */}
             <div className="infinite-col col-down">
               <div className="infinite-col-track">
-                {[...GALLERY_COL_2, ...GALLERY_COL_2].map((img, idx) => (
+                {[...NAV_GALLERY_COLUMN_TWO, ...NAV_GALLERY_COLUMN_TWO].map((img, idx) => (
                   <div key={idx} className="full-nav-img-card">
                     <div className="full-nav-img-wrapper">
                       <img src={img.src} alt={img.alt} loading="lazy" />

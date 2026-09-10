@@ -343,12 +343,12 @@
   }
 }
 
-.col-up .infinite-col-track {
-  animation: regScrollUp 34s linear infinite;
+.reg-nav-infinite-columns .col-up .infinite-col-track {
+  animation: regScrollUp 95s linear infinite;
 }
 
-.col-down .infinite-col-track {
-  animation: regScrollDown 36s linear infinite;
+.reg-nav-infinite-columns .col-down .infinite-col-track {
+  animation: regScrollDown 101s linear infinite;
 }
 
 /* Pause scroll when hovering over the images */

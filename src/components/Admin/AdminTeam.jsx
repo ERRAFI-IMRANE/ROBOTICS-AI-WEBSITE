@@ -2,9 +2,19 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { supabase, publicContent } from "../../lib/supabaseClient";
 import { withRequestTimeout } from "../../lib/requestTimeout";
 import { saveStaff, deleteStaff } from "../../lib/adminStaff";
+import { deleteMediaUrls, uploadMedia } from "../../lib/mediaStorage";
+import {
+  DEFAULT_TEAM_SEASON,
+  TEAM_POSTS,
+  TEAM_SEASONS,
+  createTeamAssignment,
+  getEquivalentTeamSeasonKeys,
+  getTeamPost,
+  normalizeTeamRole,
+  normalizeTeamSeason,
+} from "../../constants/teamPosts";
 import "./AdminDashboard.css";
 
-const PRESET_YEARS = ["24-25", "25-26", "26-27"];
 const FILIERES = [
   "Génie Informatique",
   "Génie Électrique (GIME)",
@@ -14,20 +24,18 @@ const FILIERES = [
 
 // Helper to extract years array from member record
 const getMemberYears = (m) => {
+  let years = [];
   if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    return m.team_seasons.map((ts) => ts.season).filter(Boolean);
+    years = m.team_seasons.map((ts) => ts.season);
+  } else if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
+    years = Object.keys(m.season_roles);
+  } else {
+    const rawYears = m?.years || m?.data?.years;
+    if (Array.isArray(rawYears)) years = rawYears;
+    else if (typeof rawYears === "string") years = rawYears.split(",");
   }
-  if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
-    return Object.keys(m.season_roles);
-  }
-  const rawYears = m?.years || m?.data?.years;
-  if (Array.isArray(rawYears) && rawYears.length > 0) {
-    return rawYears.map(String);
-  }
-  if (typeof rawYears === "string" && rawYears) {
-    return rawYears.split(",").map((s) => s.trim());
-  }
-  return ["25-26"];
+  const normalized = years.map(normalizeTeamSeason).filter(Boolean);
+  return normalized.length ? [...new Set(normalized)] : [DEFAULT_TEAM_SEASON];
 };
 
 // Helper to get season roles mapping { [year]: role }
@@ -35,15 +43,19 @@ const getMemberSeasonRoles = (m) => {
   if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
     const map = {};
     m.team_seasons.forEach((ts) => {
-      if (ts.season) map[ts.season] = ts.role || "Team Member";
+      const season = normalizeTeamSeason(ts.season);
+      if (season) map[season] = normalizeTeamRole(ts.role) || ts.role || "Active Member";
     });
     return map;
   }
   if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
-    return { ...m.season_roles };
+    return Object.fromEntries(Object.entries(m.season_roles)
+      .map(([season, role]) => [normalizeTeamSeason(season), normalizeTeamRole(role) || role])
+      .filter(([season]) => season));
   }
   const years = getMemberYears(m);
-  const fallbackRole = m?.post || m?.role || m?.data?.role || "Team Member";
+  const rawRole = m?.post || m?.role || m?.data?.role;
+  const fallbackRole = normalizeTeamRole(rawRole) || rawRole || "Active Member";
   const map = {};
   years.forEach((yr) => {
     map[yr] = fallbackRole;
@@ -53,107 +65,34 @@ const getMemberSeasonRoles = (m) => {
 
 // Helper to get role for a specific year
 const getMemberRoleForYear = (m, year) => {
-  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const found = m.team_seasons.find((ts) => ts.season === year);
-    if (found?.role) return found.role;
-    if (year === "25-26") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
-      if (alt?.role) return alt.role;
-    }
-    if (year === "24-25") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
-      if (alt?.role) return alt.role;
-    }
-    if (year === "26-27") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
-      if (alt?.role) return alt.role;
-    }
-    if (m.team_seasons[0]?.role) return m.team_seasons[0].role;
-  }
   const seasonRoles = getMemberSeasonRoles(m);
-  if (year && seasonRoles[year]) return seasonRoles[year];
-  if (year === "25-26" && (seasonRoles["2025-2026"] || seasonRoles["2025"])) {
-    return seasonRoles["2025-2026"] || seasonRoles["2025"];
-  }
-  if (year === "24-25" && (seasonRoles["2024-2025"] || seasonRoles["2024"])) {
-    return seasonRoles["2024-2025"] || seasonRoles["2024"];
-  }
-  if (year === "26-27" && (seasonRoles["2026-2027"] || seasonRoles["2026"])) {
-    return seasonRoles["2026-2027"] || seasonRoles["2026"];
-  }
-  return m?.post || m?.role || m?.data?.role || "Team Member";
-};
-
-// Helper to get post abbreviation for a year
-const getMemberPostAbbr = (m, year) => {
-  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const found = m.team_seasons.find((ts) => ts.season === year);
-    if (found?.post_abbr) return found.post_abbr;
-    if (year === "25-26") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
-      if (alt?.post_abbr) return alt.post_abbr;
-    }
-    if (year === "24-25") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
-      if (alt?.post_abbr) return alt.post_abbr;
-    }
-    if (year === "26-27") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
-      if (alt?.post_abbr) return alt.post_abbr;
-    }
-  }
-  if (m?.post_abbr && typeof m.post_abbr === "object" && m.post_abbr[year]) {
-    return m.post_abbr[year];
-  }
-  return "";
+  const season = normalizeTeamSeason(year);
+  if (seasonRoles[season]) return seasonRoles[season];
+  const rawRole = m?.post || m?.role || m?.data?.role;
+  return normalizeTeamRole(rawRole) || rawRole || "Active Member";
 };
 
 // Priority rank helper for hierarchy
 const getRolePriority = (roleStr = "") => {
-  const role = String(roleStr || "").toLowerCase().trim();
-  if (!role) return 999;
-
-  if (role.includes("co-sup") || role.includes("co-supervisor")) return 2;
-  if (role.includes("sup") || role.includes("supervisor")) return 1;
-  if (role.includes("adv") || role.includes("advisor")) return 3;
-  if (role.includes("vp") || role.includes("vice")) return 5;
-  if (role.includes("pres") || role.includes("president")) return 4;
-  if (role.includes("mentor")) return 6;
-  if (role.includes("lead") || role.includes("head") || role.includes("chef")) return 10;
-  return 100;
+  return getTeamPost(roleStr)?.post_order ?? 999;
 };
 
 const getMemberName = (m) => m?.full_name || m?.name || m?.data?.name || "Member";
 const getMemberFiliere = (m) => m?.department || m?.filiere || m?.data?.filiere || "";
-const getMemberAvatar = (m) => m?.avatar_img || m?.image || m?.image_url || m?.data?.image || "/Imrane_anime.png";
+const getMemberAvatar = (m) => m?.avatar_img || m?.image || m?.image_url || m?.data?.image || "/imrane-anime.png";
+const getMemberAvatarSource = (m) => m?.avatar_img || m?.image || m?.image_url || m?.data?.image || "";
 const getMemberNormal = (m) => m?.normal_img || m?.normal_image || m?.normalImage || m?.hover_image || m?.hoverImage || m?.data?.normalImage || "";
 const getMemberSocials = (m) => m?.social_media_links || m?.links || m?.socials || m?.data?.socials || {};
+const getMemberSex = (m) => ["M", "F"].includes(m?.sex) ? m.sex : "M";
 
 // Helper to extract post order attribute for a specific season from team_seasons
 const getMemberPostOrder = (m, season) => {
   if (!m) return Infinity;
   if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const found = m.team_seasons.find((ts) => ts.season === season);
+    const keys = getEquivalentTeamSeasonKeys(season);
+    const found = m.team_seasons.find((ts) => keys.includes(String(ts.season)));
     if (found && found.post_order !== null && found.post_order !== undefined && !isNaN(Number(found.post_order))) {
       return Number(found.post_order);
-    }
-    if (season === "25-26") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2025-2026" || ts.season === "2025");
-      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
-        return Number(alt.post_order);
-      }
-    }
-    if (season === "24-25") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2024-2025" || ts.season === "2024");
-      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
-        return Number(alt.post_order);
-      }
-    }
-    if (season === "26-27") {
-      const alt = m.team_seasons.find((ts) => ts.season === "2026-2027" || ts.season === "2026");
-      if (alt && alt.post_order !== null && alt.post_order !== undefined && !isNaN(Number(alt.post_order))) {
-        return Number(alt.post_order);
-      }
     }
   }
 
@@ -185,25 +124,21 @@ const getMemberPostOrder = (m, season) => {
   return Infinity;
 };
 
-const deriveTeamYears = (rows) => {
-  const combinedYearsSet = new Set(PRESET_YEARS);
-  rows.forEach((member) => {
-    getMemberYears(member).forEach((year) => {
-      if (!year) return;
-      const normalized = String(year).trim();
-      if (!["23-24", "2023-2024", "2023", "23/24"].includes(normalized)) combinedYearsSet.add(normalized);
-    });
-  });
-  const preferredOrder = ["24-25", "25-26", "26-27"];
-  return [...combinedYearsSet]
-    .filter((year) => !["23-24", "2023-2024", "2023", "23/24"].includes(year))
+const getMemberSeasonAssignments = (member) => {
+  const rows = Array.isArray(member?.team_seasons) && member.team_seasons.length
+    ? member.team_seasons
+    : Object.entries(getMemberSeasonRoles(member)).map(([season, role]) => ({ season, role }));
+  return rows
+    .map((row) => ({
+      ...row,
+      season: normalizeTeamSeason(row.season),
+      role: normalizeTeamRole(row.role) || row.role || "Active Member",
+    }))
+    .filter((row) => row.season)
     .sort((a, b) => {
-      const indexA = preferredOrder.indexOf(a);
-      const indexB = preferredOrder.indexOf(b);
-      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-      if (indexA !== -1) return -1;
-      if (indexB !== -1) return 1;
-      return a.localeCompare(b);
+      const orderA = Number.isFinite(Number(a.post_order)) ? Number(a.post_order) : getRolePriority(a.role);
+      const orderB = Number.isFinite(Number(b.post_order)) ? Number(b.post_order) : getRolePriority(b.role);
+      return orderA - orderB || a.season.localeCompare(b.season);
     });
 };
 
@@ -211,8 +146,8 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const hasInitialMembers = Array.isArray(initialMembers);
   const seededMembers = hasInitialMembers ? initialMembers : [];
   const [members, setMembers] = useState(seededMembers);
-  const [yearsList, setYearsList] = useState(() => deriveTeamYears(seededMembers));
-  const [selectedYear, setSelectedYear] = useState("25-26");
+  const yearsList = TEAM_SEASONS;
+  const [selectedYear, setSelectedYear] = useState(DEFAULT_TEAM_SEASON);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(!hasInitialMembers);
   const [loadError, setLoadError] = useState("");
@@ -228,11 +163,8 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const [formName, setFormName] = useState("");
   const [formFiliere, setFormFiliere] = useState(FILIERES[0]);
   const [formBirthday, setFormBirthday] = useState("");
-  const [formSeasonRoles, setFormSeasonRoles] = useState({ "25-26": "" });
-  const [formPostAbbrs, setFormPostAbbrs] = useState({});
-  const [formPostOrders, setFormPostOrders] = useState({});
-  const [showCustomYearInput, setShowCustomYearInput] = useState(false);
-  const [customYearValue, setCustomYearValue] = useState("");
+  const [formSex, setFormSex] = useState("M");
+  const [formSeasonRoles, setFormSeasonRoles] = useState({ [DEFAULT_TEAM_SEASON]: "" });
 
   // Image Uploads State & Refs
   const avatarInputRef = useRef(null);
@@ -262,7 +194,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
   const handleClearAvatar = () => {
     setAvatarFile(null);
-    setAvatarPreview("/Imrane_anime.png");
+    setAvatarPreview("");
     if (avatarInputRef.current) avatarInputRef.current.value = "";
   };
 
@@ -295,6 +227,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
           birthday,
           department,
           social_media_links,
+          sex,
           team_seasons (
             id,
             team_id,
@@ -323,10 +256,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       setMembers(rows);
       onDataChange(rows);
 
-      const sortedYears = deriveTeamYears(rows);
-      setYearsList(sortedYears);
-
-      setSelectedYear((current) => sortedYears.length && !sortedYears.includes(current) ? sortedYears[0] : current);
+      setSelectedYear((current) => TEAM_SEASONS.includes(current) ? current : DEFAULT_TEAM_SEASON);
     } catch (err) {
       console.warn("Could not fetch team from database:", err);
       setLoadError("Could not load staff from Supabase: " + (err.message || "Check your connection and access permissions."));
@@ -344,53 +274,17 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const uploadImageToSupabase = async (file, folder = "team") => {
-    if (!file) return null;
-
-    const fileExt = file.name.split(".").pop() || "jpg";
-    const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, "_");
-    const filePath = `${folder}/${Date.now()}_${cleanName}.${fileExt}`;
-
-    const storageBuckets = ["EVENTS"];
-    let publicUrl = null;
-
-    for (const bucket of storageBuckets) {
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file, { cacheControl: "3600", upsert: true });
-
-        if (!uploadError) {
-          const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-          if (data?.publicUrl) {
-            publicUrl = data.publicUrl;
-            break;
-          }
-        }
-      } catch {
-        // Try next
-      }
-    }
-
-    if (!publicUrl) throw new Error("Image upload failed. Apply the Team and Events CRUD migration or save without changing the image.");
-
-    return publicUrl;
-  };
-
   const handleOpenAdd = () => {
     setEditingMember(null);
     setFormName("");
     setFormFiliere(FILIERES[0]);
     setFormBirthday("");
-    const initialYear = selectedYear || "25-26";
+    setFormSex("M");
+    const initialYear = TEAM_SEASONS.includes(selectedYear) ? selectedYear : DEFAULT_TEAM_SEASON;
     setFormSeasonRoles({ [initialYear]: "" });
-    setFormPostAbbrs({ [initialYear]: "" });
-    setFormPostOrders({ [initialYear]: "" });
-    setShowCustomYearInput(false);
-    setCustomYearValue("");
 
     setAvatarFile(null);
-    setAvatarPreview("/Imrane_anime.png");
+    setAvatarPreview("");
     setNormalImageFile(null);
     setNormalImagePreview("");
     if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -407,33 +301,19 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     setFormName(getMemberName(m));
     setFormFiliere(getMemberFiliere(m) || FILIERES[0]);
     setFormBirthday(m.birthday || "");
+    setFormSex(getMemberSex(m));
 
     const sRoles = getMemberSeasonRoles(m);
-    const activeRoles = Object.keys(sRoles).length > 0 ? sRoles : { [selectedYear || "25-26"]: "" };
+    const activeRoles = Object.fromEntries(Object.entries(sRoles)
+      .filter(([season]) => TEAM_SEASONS.includes(season))
+      .map(([season, role]) => [season, normalizeTeamRole(role)]));
+    if (Object.keys(activeRoles).length === 0) {
+      activeRoles[TEAM_SEASONS.includes(selectedYear) ? selectedYear : DEFAULT_TEAM_SEASON] = "";
+    }
     setFormSeasonRoles(activeRoles);
 
-    const abbrs = {};
-    const orders = {};
-    if (Array.isArray(m.team_seasons) && m.team_seasons.length > 0) {
-      m.team_seasons.forEach((ts) => {
-        abbrs[ts.season] = ts.post_abbr || "";
-        orders[ts.season] = ts.post_order !== null && ts.post_order !== undefined ? String(ts.post_order) : "";
-      });
-    } else {
-      Object.keys(activeRoles).forEach((yr) => {
-        abbrs[yr] = getMemberPostAbbr(m, yr) || "";
-        const ord = getMemberPostOrder(m, yr);
-        orders[yr] = ord !== Infinity ? String(ord) : "";
-      });
-    }
-    setFormPostAbbrs(abbrs);
-    setFormPostOrders(orders);
-
-    setShowCustomYearInput(false);
-    setCustomYearValue("");
-
     setAvatarFile(null);
-    setAvatarPreview(getMemberAvatar(m));
+    setAvatarPreview(getMemberAvatarSource(m));
     setNormalImageFile(null);
     setNormalImagePreview(getMemberNormal(m));
 
@@ -457,8 +337,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
         delete copy[yr];
         return copy;
       } else {
-        const existingRole = Object.values(copy)[0] || "";
-        return { ...copy, [yr]: existingRole };
+        return { ...copy, [yr]: "" };
       }
     });
   };
@@ -468,22 +347,6 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       ...prev,
       [yr]: value,
     }));
-  };
-
-  const handleAddCustomYear = () => {
-    const trimmed = customYearValue.trim();
-    if (!trimmed) return;
-    if (!yearsList.includes(trimmed)) {
-      setYearsList((prev) => Array.from(new Set([trimmed, ...prev])).sort().reverse());
-    }
-    setFormSeasonRoles((prev) => ({
-      ...prev,
-      [trimmed]: Object.values(prev)[0] || "",
-    }));
-    setFormPostAbbrs((prev) => ({ ...prev, [trimmed]: "" }));
-    setFormPostOrders((prev) => ({ ...prev, [trimmed]: "" }));
-    setCustomYearValue("");
-    setShowCustomYearInput(false);
   };
 
   const handleSaveMember = async (e) => {
@@ -499,20 +362,38 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       showToast("Please select at least one season.");
       return;
     }
+    if (!["M", "F"].includes(formSex)) {
+      showToast("Choose Male or Female.");
+      return;
+    }
+
+    let assignments;
+    try {
+      assignments = seasons.map((season) => createTeamAssignment(season, formSeasonRoles[season]));
+    } catch (validationError) {
+      showToast(validationError.message || "Check the selected seasons and roles.");
+      return;
+    }
 
     setSaving(true);
 
+    const uploadedUrls = [];
+    let databaseSaved = false;
     try {
       showToast("Saving record to database...");
 
       let finalAvatarUrl = avatarPreview;
       if (avatarFile) {
-        finalAvatarUrl = await uploadImageToSupabase(avatarFile, "avatars");
+        const uploaded = await uploadMedia(supabase, avatarFile, "AVATARS");
+        finalAvatarUrl = uploaded.url;
+        uploadedUrls.push(uploaded.url);
       }
 
       let finalNormalImageUrl = normalImagePreview;
       if (normalImageFile) {
-        finalNormalImageUrl = await uploadImageToSupabase(normalImageFile, "photos");
+        const uploaded = await uploadMedia(supabase, normalImageFile, "PHOTOS");
+        finalNormalImageUrl = uploaded.url;
+        uploadedUrls.push(uploaded.url);
       }
 
       const socialLinks = {
@@ -525,24 +406,44 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       const teamPayload = {
         full_name: formName.trim(),
         department: formFiliere || "Génie Informatique",
-        avatar_img: finalAvatarUrl || "/Imrane_anime.png",
+        avatar_img: finalAvatarUrl || "",
         normal_img: finalNormalImageUrl || "",
         birthday: formBirthday ? formBirthday : null,
         social_media_links: socialLinks,
+        sex: formSex,
       };
 
-      const assignments = seasons.map((season) => ({
-        season,
-        role: formSeasonRoles[season]?.trim() || "Team Member",
-        post_abbr: formPostAbbrs[season]?.trim() || "",
-        post_order: formPostOrders[season] !== "" && formPostOrders[season] !== undefined ? Number(formPostOrders[season]) : null,
-      }));
       await saveStaff(supabase, editingMember?.id, teamPayload, assignments);
+      databaseSaved = true;
+
+      if (editingMember) {
+        const previousUrls = [];
+        const oldAvatar = getMemberAvatarSource(editingMember);
+        const oldPhoto = getMemberNormal(editingMember);
+        if (oldAvatar && oldAvatar !== finalAvatarUrl) previousUrls.push(oldAvatar);
+        if (oldPhoto && oldPhoto !== finalNormalImageUrl) previousUrls.push(oldPhoto);
+        await deleteMediaUrls(supabase, previousUrls);
+      }
+
       await loadTeamData();
-      showToast(editingMember ? "Staff profile and seasons updated." : "Staff profile added.");
+      showToast(editingMember ? "Staff profile, seasons, and R2 media updated." : "Staff profile added with its R2 media.");
       setIsModalOpen(false);
     } catch (err) {
-      showToast("Error saving profile: " + (err?.message || ""));
+      if (!databaseSaved && uploadedUrls.length) {
+        try {
+          await deleteMediaUrls(supabase, uploadedUrls);
+        } catch (cleanupError) {
+          showToast(`Error saving profile: ${err?.message || "Unknown error"}. New R2 media also needs manual cleanup: ${cleanupError.message}`);
+          return;
+        }
+      }
+      if (databaseSaved) {
+        await loadTeamData();
+        setIsModalOpen(false);
+        showToast(`Profile saved, but old R2 media cleanup failed: ${err?.message || "Unknown error"}`);
+      } else {
+        showToast("Error saving profile: " + (err?.message || ""));
+      }
     } finally {
       setSaving(false);
     }
@@ -569,7 +470,18 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
     try {
       await deleteStaff(supabase, member.id, deleteSeasonOnly ? selectedYear : null);
-      showToast(deleteSeasonOnly ? "Staff member removed from this season." : "Staff profile deleted.");
+      if (!deleteSeasonOnly) {
+        try {
+          const cleanup = await deleteMediaUrls(supabase, [getMemberAvatarSource(member), getMemberNormal(member)]);
+          showToast(cleanup.some((result) => result.deleted)
+            ? "Staff profile and managed R2 media deleted."
+            : "Staff profile deleted. External or legacy media was left untouched.");
+        } catch (cleanupError) {
+          showToast(`Staff profile deleted, but its R2 media cleanup failed: ${cleanupError.message}`);
+        }
+      } else {
+        showToast("Staff member removed from this season.");
+      }
       await loadTeamData();
     } catch (err) {
       console.warn("Delete error:", err);
@@ -581,10 +493,23 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     if (!window.confirm("Are you sure you want to permanently delete this member from all seasons? This action cannot be undone.")) return;
 
     try {
+      const member = members.find((item) => String(item.id) === String(memberId));
       await deleteStaff(supabase, memberId);
+      let cleanupWarning = "";
+      let managedMediaDeleted = false;
+      try {
+        const cleanup = await deleteMediaUrls(supabase, [getMemberAvatarSource(member), getMemberNormal(member)]);
+        managedMediaDeleted = cleanup.some((result) => result.deleted);
+      } catch (cleanupError) {
+        cleanupWarning = cleanupError.message;
+      }
       setIsProfileModalOpen(false);
       await loadTeamData();
-      showToast("Member permanently deleted from database.");
+      showToast(cleanupWarning
+        ? `Member deleted, but their R2 media cleanup failed: ${cleanupWarning}`
+        : managedMediaDeleted
+          ? "Member permanently deleted with their managed R2 media."
+          : "Member permanently deleted. External or legacy media was left untouched.");
     } catch (err) {
       showToast("Delete error: " + err.message);
     }
@@ -594,11 +519,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const filteredList = members
     .filter((m) => {
       const mYears = getMemberYears(m);
-      const isYear =
-        mYears.includes(selectedYear) ||
-        (selectedYear === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
-        (selectedYear === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
-        (selectedYear === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")));
+      const isYear = mYears.includes(selectedYear);
 
       const name = getMemberName(m).toLowerCase();
       const role = (getMemberRoleForYear(m, selectedYear) || "").toLowerCase();
@@ -649,12 +570,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
           {yearsList.map((yr) => {
             const count = members.filter((m) => {
               const mYears = getMemberYears(m);
-              return (
-                mYears.includes(yr) ||
-                (yr === "25-26" && (mYears.includes("2025-2026") || mYears.includes("2025"))) ||
-                (yr === "24-25" && (mYears.includes("2024-2025") || mYears.includes("2024"))) ||
-                (yr === "26-27" && (mYears.includes("2026-2027") || mYears.includes("2026")))
-              );
+              return mYears.includes(yr);
             }).length;
 
             return (
@@ -720,7 +636,6 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
             const currentSeasonRole = getMemberRoleForYear(m, selectedYear);
             const filiere = getMemberFiliere(m);
             const seasonRoles = getMemberSeasonRoles(m);
-            const orderValue = getMemberPostOrder(m, selectedYear);
 
             return (
               <div
@@ -741,28 +656,6 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                     <img src={avatar} alt={name} className="member-avatar-img" loading="lazy" />
                   </div>
 
-                  <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-                    {getMemberPostAbbr(m, selectedYear) && (
-                      <span
-                        className="member-card-order-tag"
-                        style={{
-                          background: "rgba(59, 130, 246, 0.12)",
-                          color: "#60a5fa",
-                          borderColor: "rgba(59, 130, 246, 0.3)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                        title="Post Abbreviation"
-                      >
-                        {getMemberPostAbbr(m, selectedYear)}
-                      </span>
-                    )}
-                    {orderValue !== Infinity && (
-                      <span className="member-card-order-tag" title="Website Display Order">
-                        #{orderValue}
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 <h3 className="member-card-title">{name}</h3>
@@ -838,6 +731,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                     {getMemberRoleForYear(selectedProfileMember, selectedYear)} ({selectedYear})
                   </div>
                   <div className="profile-dept-info">{getMemberFiliere(selectedProfileMember) || "EST Safi"}</div>
+                  <div className="profile-dept-info">{getMemberSex(selectedProfileMember) === "F" ? "Female" : "Male"}</div>
                   {selectedProfileMember.birthday && (
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
                       🎂 Birthday: {selectedProfileMember.birthday}
@@ -856,39 +750,17 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                     <tr>
                       <th>Season</th>
                       <th>Assigned role</th>
-                      <th>Post Abbr</th>
-                      <th style={{ textAlign: "right" }}>Post order</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(Array.isArray(selectedProfileMember.team_seasons) && selectedProfileMember.team_seasons.length > 0
-                      ? selectedProfileMember.team_seasons
-                      : Object.entries(getMemberSeasonRoles(selectedProfileMember)).map(([yr, role]) => ({
-                          season: yr,
-                          role,
-                          post_abbr: getMemberPostAbbr(selectedProfileMember, yr),
-                          post_order: getMemberPostOrder(selectedProfileMember, yr),
-                        }))
-                    ).map((ts) => {
-                      const order =
-                        ts.post_order !== null && ts.post_order !== undefined && ts.post_order !== Infinity
-                          ? `#${ts.post_order}`
-                          : "Default";
-                      return (
+                    {getMemberSeasonAssignments(selectedProfileMember).map((ts) => (
                         <tr key={ts.season}>
                           <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text)" }}>
                             {ts.season}
                           </td>
                           <td>{ts.role}</td>
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>
-                            {ts.post_abbr || "—"}
-                          </td>
-                          <td style={{ textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>
-                            {order}
-                          </td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -996,8 +868,8 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
             <form onSubmit={handleSaveMember} style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <div className="admin-modal-body">
-                {/* Full name, department & birthday */}
-                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1fr", gap: "12px" }}>
+                {/* Controlled profile fields */}
+                <div className="admin-team-profile-fields">
                   <div className="form-field-group">
                     <label className="form-field-label">Full name *</label>
                     <input
@@ -1032,6 +904,19 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                       className="form-text-input"
                     />
                   </div>
+
+                  <div className="form-field-group">
+                    <label className="form-field-label">Sex *</label>
+                    <select
+                      required
+                      value={formSex}
+                      onChange={(e) => setFormSex(e.target.value)}
+                      className="form-select-input"
+                    >
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Member Portraits Import */}
@@ -1052,8 +937,9 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                           ) : (
                             <div className="image-import-placeholder">
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <circle cx="12" cy="8" r="4" />
-                                <path d="M20 21a8 8 0 1 0-16 0" />
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
                               </svg>
                             </div>
                           )}
@@ -1077,12 +963,12 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                               <polyline points="17 8 12 3 7 8" />
                               <line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
-                            <span>{avatarPreview && avatarPreview !== "/Imrane_anime.png" ? "Replace avatar" : "Import avatar"}</span>
+                            <span>{avatarPreview ? "Replace avatar" : "Import avatar"}</span>
                           </button>
 
-                          {avatarPreview && avatarPreview !== "/Imrane_anime.png" && (
+                          {avatarPreview && (
                             <button type="button" className="image-import-clear-btn" onClick={handleClearAvatar}>
-                              Reset to default
+                              Remove avatar
                             </button>
                           )}
                         </div>
@@ -1146,7 +1032,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                 {/* Seasons & Assigned Roles */}
                 <div className="form-field-group">
                   <label className="form-field-label">
-                    Active seasons & roles (select seasons to assign role, abbreviation, and website order)
+                    Active seasons & posts
                   </label>
 
                   <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
@@ -1164,78 +1050,30 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                         </button>
                       );
                     })}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setShowCustomYearInput((v) => !v)}
-                      style={{ padding: "5px 10px", fontSize: "12px" }}
-                    >
-                      + Custom season
-                    </button>
                   </div>
 
-                  {showCustomYearInput && (
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
-                      <input
-                        type="text"
-                        placeholder="e.g. 26-27 or 27-28"
-                        value={customYearValue}
-                        onChange={(e) => setCustomYearValue(e.target.value)}
-                        className="form-text-input"
-                        style={{ flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={handleAddCustomYear}
-                        disabled={!customYearValue.trim()}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Input table header for active seasons */}
-                  <div style={{ display: "grid", gridTemplateColumns: "70px 1.4fr 1fr 90px", gap: "8px", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600, paddingBottom: "4px" }}>
+                  <div className="admin-team-season-header">
                     <span>Season</span>
-                    <span>Assigned role *</span>
-                    <span>Abbreviation</span>
-                    <span style={{ textAlign: "right" }}>Order #</span>
+                    <span>Assigned post *</span>
                   </div>
 
-                  {/* Input for each active season's role, abbr, and order */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {Object.keys(formSeasonRoles).map((yr) => (
-                      <div key={yr} style={{ display: "grid", gridTemplateColumns: "70px 1.4fr 1fr 90px", gap: "8px", alignItems: "center" }}>
+                  <div className="admin-team-season-fields">
+                    {Object.keys(formSeasonRoles).sort((a, b) => TEAM_SEASONS.indexOf(a) - TEAM_SEASONS.indexOf(b)).map((yr) => (
+                      <div key={yr} className="admin-team-season-row">
                         <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>
-                          {yr}:
+                          {yr}
                         </span>
-                        <input
-                          type="text"
+                        <select
                           required
-                          placeholder={`Role in ${yr} (e.g. President)`}
                           value={formSeasonRoles[yr] || ""}
                           onChange={(e) => handleRoleChangeForSeason(yr, e.target.value)}
-                          className="form-text-input"
-                        />
-                        <input
-                          type="text"
-                          placeholder="e.g. PRES"
-                          value={formPostAbbrs[yr] || ""}
-                          onChange={(e) => setFormPostAbbrs((prev) => ({ ...prev, [yr]: e.target.value }))}
-                          className="form-text-input"
-                          title="Post Abbreviation (e.g. PRES, AI-LEAD)"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Order #"
-                          value={formPostOrders[yr] ?? ""}
-                          onChange={(e) => setFormPostOrders((prev) => ({ ...prev, [yr]: e.target.value }))}
-                          className="form-text-input"
-                          min="1"
-                          title="Website display order (1 appears first)"
-                          style={{ textAlign: "right" }}
-                        />
+                          className="form-select-input"
+                        >
+                          <option value="">Choose a post</option>
+                          {TEAM_POSTS.map((post) => (
+                            <option key={post.role} value={post.role}>{post.role}</option>
+                          ))}
+                        </select>
                       </div>
                     ))}
                   </div>

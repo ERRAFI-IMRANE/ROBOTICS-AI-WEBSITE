@@ -130,12 +130,12 @@
   }
 }
 
-.col-up .infinite-col-track {
-  animation: scrollUp 28s linear infinite;
+.full-nav-infinite-columns .col-up .infinite-col-track {
+  animation: scrollUp 78s linear infinite;
 }
 
-.col-down .infinite-col-track {
-  animation: scrollDown 32s linear infinite;
+.full-nav-infinite-columns .col-down .infinite-col-track {
+  animation: scrollDown 88s linear infinite;
 }
 
 /* Pause scroll when hovering over column to view pictures */

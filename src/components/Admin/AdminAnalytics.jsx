@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { eventView } from "../../lib/adminEvents";
+import { eventView, parseEventDate } from "../../lib/adminEvents";
 import { loadAdminWorkspace } from "../../lib/adminWorkspace";
 import { publicContent, supabase } from "../../lib/supabaseClient";
 import ChartPanel from "./overview/ChartPanel";
@@ -10,24 +10,6 @@ import RegistrationLineChart from "./overview/RegistrationLineChart";
 import StatusDoughnutChart from "./overview/StatusDoughnutChart";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MONTH_LOOKUP = {
-  jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
-  may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7,
-  sep: 8, sept: 8, september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
-  janvier: 0, fevrier: 1, "février": 1, mars: 2, avril: 3, mai: 4, juin: 5,
-  juillet: 6, aout: 7, "août": 7, septembre: 8, octobre: 9, novembre: 10,
-  decembre: 11, "décembre": 11,
-};
-
-function parseEventDate(row) {
-  const event = eventView(row);
-  const raw = String(event.date || row.created_at || "").trim();
-  const parsed = raw ? new Date(raw) : null;
-  if (parsed && !Number.isNaN(parsed.getTime())) return { date: parsed, month: parsed.getMonth() };
-  const monthMatch = raw.toLowerCase().match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec|janvier|fevrier|février|mars|avril|mai|juin|juillet|aout|août|septembre|octobre|novembre|decembre|décembre)\b/);
-  return { date: null, month: monthMatch ? MONTH_LOOKUP[monthMatch[1]] : null };
-}
-
 function monthCounts(rows, getMonth) {
   const counts = Array(12).fill(0);
   rows.forEach((row) => {
@@ -82,7 +64,7 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
       const date = row.created_at ? new Date(row.created_at) : null;
       return date && !Number.isNaN(date.getTime()) ? date.getMonth() : null;
     });
-    const eventMonths = monthCounts(events, (row) => parseEventDate(row).month);
+    const eventMonths = monthCounts(events, (row) => parseEventDate(row)?.getUTCMonth());
 
     const activities = [
       ...registrations.map((row) => ({
@@ -100,13 +82,13 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
         const parsed = parseEventDate(row);
         return {
           id: `event-${row.id}`,
-          timestamp: parsed.date?.getTime() || (row.created_at ? new Date(row.created_at).getTime() : 0),
+          timestamp: parsed?.getTime() || (row.created_at ? new Date(row.created_at).getTime() : 0),
           title: event.title || "Untitled event",
-          detail: event.description || "Club event",
+          detail: event.link ? "Published with an event link" : "Published club event",
           category: "Event",
-          status: event.status,
-          tone: statusTone(event.status),
-          date: parsed.date ? formatActivityDate(parsed.date) : event.date || "Date not set",
+          status: "Published",
+          tone: "positive",
+          date: parsed ? formatActivityDate(parsed) : event.date || "Date not set",
         };
       }),
     ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 8);

@@ -127,6 +127,31 @@ export function registrationDecisionStats(registrations) {
   };
 }
 
+export function completedInterviewRegistrations(registrations = []) {
+  return registrations.filter((row) => row?.interview_completed === true);
+}
+
+export function interviewAnswerDistribution(registrations, field, options, { multiple = false } = {}) {
+  const canonicalOptions = new Map(options.map((option) => [normalizedKey(option), option]));
+  const counts = new Map(options.map((option) => [option, 0]));
+
+  completedInterviewRegistrations(registrations).forEach((registration) => {
+    const rawAnswers = multiple
+      ? Array.isArray(registration?.[field]) ? registration[field] : []
+      : [registration?.[field]];
+    const selectedOptions = new Set(rawAnswers
+      .map((answer) => canonicalOptions.get(normalizedKey(answer)))
+      .filter(Boolean));
+    selectedOptions.forEach((option) => counts.set(option, counts.get(option) + 1));
+  });
+
+  return options.map((label) => ({ label, value: counts.get(label) || 0 }));
+}
+
+export function interestingCandidateCount(registrations = []) {
+  return registrations.reduce((count, row) => count + (row?.interesting === true ? 1 : 0), 0);
+}
+
 function utcDay(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return null;

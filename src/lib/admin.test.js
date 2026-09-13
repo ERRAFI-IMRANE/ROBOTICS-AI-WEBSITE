@@ -20,13 +20,17 @@ import {
   completeRegistrationReview,
   interviewAnswersFromRegistration,
   saveRegistrationInterview,
+  setRegistrationInteresting,
   validateInterviewAnswers,
 } from "./registrationInterview.js";
 import {
   applicationsTimeline,
+  completedInterviewRegistrations,
   countLabels,
   eventsByYear,
   genderDistribution,
+  interestingCandidateCount,
+  interviewAnswerDistribution,
   registrationDecisionStats,
   teamCellForPost,
   teamStructure,
@@ -89,6 +93,36 @@ test("registration analytics exclude pending decisions and normalize academic la
   assert.equal(registrationDecisionStats([{ status: "pending" }]).acceptanceRate, null);
 });
 
+test("interview analytics use completed interviews and count multi-select answers once per candidate", () => {
+  const options = ["Design", "Coding / Robotics / AI", "Photography / Filming"];
+  const rows = [
+    { interview_completed: true, interest_type: ["Design", "Coding / Robotics / AI", "Design"], interesting: true },
+    { interview_completed: true, interest_type: null, interesting: false },
+    { interview_completed: false, interest_type: ["Photography / Filming"], interesting: true },
+    { interview_completed: true, interest_type: ["Unknown option"], interesting: null },
+  ];
+  assert.equal(completedInterviewRegistrations(rows).length, 3);
+  assert.deepEqual(interviewAnswerDistribution(rows, "interest_type", options, { multiple: true }), [
+    { label: "Design", value: 1 },
+    { label: "Coding / Robotics / AI", value: 1 },
+    { label: "Photography / Filming", value: 0 },
+  ]);
+  assert.equal(interestingCandidateCount(rows), 2);
+});
+
+test("single-select interview analytics preserve the configured answer order", () => {
+  const options = ["Leads the group", "Supports wherever needed"];
+  const rows = [
+    { interview_completed: true, team_role_style: "Supports wherever needed" },
+    { interview_completed: true, team_role_style: "leads the group" },
+    { interview_completed: false, team_role_style: "Leads the group" },
+  ];
+  assert.deepEqual(interviewAnswerDistribution(rows, "team_role_style", options), [
+    { label: "Leads the group", value: 1 },
+    { label: "Supports wherever needed", value: 1 },
+  ]);
+});
+
 test("application timelines include quiet UTC days and ignore invalid timestamps", () => {
   const timeline = applicationsTimeline([
     { created_at: "2026-09-01T23:30:00-02:00" },
@@ -143,6 +177,21 @@ test("completed review saves interview and decision through one atomic RPC", asy
   }, { name: "complete_registration_review", decision: "refused", reason: "Limited places" });
   await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "refused", " "), /refusal reason/);
   assert.equal(client.calls.length, 1);
+});
+test("Interesting candidate flag uses its independent permission-checked RPC", async () => {
+  const client = rpcMock({ data: { id: 18, interesting: true }, error: null });
+  assert.deepEqual(await setRegistrationInteresting(client, 18, true), { id: 18, interesting: true });
+  assert.deepEqual(client.calls, [{ name: "set_registration_interesting", args: { p_registration_id: 18, p_interesting: true } }]);
+  await assert.rejects(setRegistrationInteresting(rpcMock({ data: { id: 18, interesting: true }, error: null }), 18, false), /not confirmed/);
+});
+test("Interesting candidate migration keeps the public flag false and restricts the toggle", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_registration_interesting.sql", import.meta.url), "utf8");
+  assert.match(migration, /interesting IS FALSE/);
+  assert.match(migration, /public\.has_club_permission\('registrations'\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.set_registration_interesting/);
+  assert.match(migration, /REVOKE EXECUTE[\s\S]*FROM PUBLIC, anon/);
+  assert.match(migration, /GRANT EXECUTE[\s\S]*TO authenticated/);
+  assert.doesNotMatch(migration, /GRANT UPDATE\s*\(interesting\)/);
 });
 test("interview migration blocks public answers and preserves the first interview timestamp", () => {
   const migration = readFileSync(new URL("../../supabase/migration_registration_interviews.sql", import.meta.url), "utf8");

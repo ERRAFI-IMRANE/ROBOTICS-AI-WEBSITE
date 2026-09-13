@@ -36,9 +36,11 @@ The browser only invokes the `admin-users` function with the signed-in administr
 
 After the existing interview columns are present, review and run `migration_registration_interviews.sql`. It does not add or alter columns. It prevents public applications from supplying interview answers and creates the protected RPCs used by the five-step admin wizard. The final pending-applicant review saves the interview and Accept/Refuse decision atomically; refusing requires a reason. Only authenticated officers with the `registrations` permission can execute these operations. The first interview timestamp is preserved when an existing interview is edited. Rerun this idempotent migration if it was applied before the combined review workflow was added.
 
+After the existing `interesting boolean` column is present, review and run `migration_registration_interesting.sql`. It locks the public insert value to `false` and adds the permission-checked toggle used by the review wizard. It does not alter application decisions or remove registration history.
+
 ## Controls
 
-- **Registrations:** The interview wizard updates the existing application through a permission-checked RPC. Accept/refuse remains independent, updates `public.registrations.status` in place, and requires a reason for refusals. Processed applications remain in the same table as history.
+- **Registrations:** The interview wizard updates the existing application through permission-checked RPCs. The gold Interesting flag remains independent from Accept/Refuse, which updates `public.registrations.status` in place and requires a reason for refusals. Processed applications remain in the same table as history.
 - **Staff:** The existing add/edit/delete forms remain. Profile and season edits are saved atomically. Removing a season preserves other assignments; permanent deletion remains a separate explicit action.
 - **Events:** The dashboard uses the flat `title`, `date`, `image_url`, `link`, and `created_at` columns. New dates are saved as `DD/MM/YYYY`; legacy ranges still display until an admin chooses a normalized date while editing.
 - **Parameters:** Current season controls the Join page. Public staff seasons independently control one or several Team rosters. Selecting a different intake closes other campaigns without deleting applications.

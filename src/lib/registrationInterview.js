@@ -145,3 +145,20 @@ export async function completeRegistrationReview(client, registrationId, answers
   }
   return data;
 }
+
+export async function setRegistrationInteresting(client, registrationId, interesting) {
+  if (!registrationId) throw new Error("Choose a valid applicant before changing the flag.");
+  const nextValue = interesting === true;
+  const { data, error } = await client.rpc("set_registration_interesting", {
+    p_registration_id: registrationId,
+    p_interesting: nextValue,
+  });
+  if (error) {
+    if (error.code === "PGRST202") throw new Error("Run supabase/migration_registration_interesting.sql to enable the Interesting flag.");
+    throw new Error(error.message || "The Interesting flag could not be updated.");
+  }
+  if (!data || String(data.id) !== String(registrationId) || data.interesting !== nextValue) {
+    throw new Error("The Interesting flag update was not confirmed. Refresh and try again.");
+  }
+  return data;
+}

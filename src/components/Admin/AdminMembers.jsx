@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
-import { completeRegistrationReview, saveRegistrationInterview } from "../../lib/registrationInterview";
+import { completeRegistrationReview, saveRegistrationInterview, setRegistrationInteresting } from "../../lib/registrationInterview";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminToast } from "./AdminActionFeedback";
 import AdminInterviewWizard from "./AdminInterviewWizard";
@@ -17,9 +17,12 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+  const [interviewStatus, setInterviewStatus] = useState("all");
+  const [interestingOnly, setInterestingOnly] = useState(false);
   const [season, setSeason] = useState("all");
   const [interviewing, setInterviewing] = useState(null);
   const [interviewBusy, setInterviewBusy] = useState(false);
+  const [interestingBusy, setInterestingBusy] = useState(false);
   const { toast, showToast, clearToast } = useAdminToast();
 
   const load = useCallback(async () => {
@@ -98,6 +101,26 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
     }
   };
 
+  const toggleInteresting = async () => {
+    if (!interviewing || interestingBusy) return;
+    const nextValue = interviewing.interesting !== true;
+    setInterestingBusy(true);
+    try {
+      const updated = await setRegistrationInteresting(supabase, interviewing.id, nextValue);
+      const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
+      setRegistrations(nextRegistrations);
+      setInterviewing((current) => current && String(current.id) === String(updated.id) ? { ...current, ...updated } : current);
+      onDataChange(nextRegistrations, settings);
+      showToast(`${interviewing.full_name || "Applicant"} ${nextValue ? "marked as Interesting" : "removed from Interesting candidates"}.`);
+      return updated;
+    } catch (flagError) {
+      showToast(flagError.message || "The Interesting flag could not be updated.", "error");
+      throw flagError;
+    } finally {
+      setInterestingBusy(false);
+    }
+  };
+
   const counts = useMemo(() => registrations.reduce((acc, row) => {
     const key = String(row.status || "pending").toLowerCase();
     acc[key] = (acc[key] || 0) + 1;
@@ -108,12 +131,17 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
 
   const filtered = registrations.filter((app) => {
     const appStatus = String(app.status || "pending").toLowerCase();
+    const appInterviewStatus = app.interview_completed === true ? "interviewed" : "not-interviewed";
     const haystack = [app.full_name, app.email, app.department, app.filiere, app.phone, app.message, app.refusal_reason, app.registration_season].join(" ").toLowerCase();
-    return (status === "all" || appStatus === status) && (season === "all" || app.registration_season === season) && haystack.includes(query.toLowerCase());
+    return (status === "all" || appStatus === status)
+      && (interviewStatus === "all" || appInterviewStatus === interviewStatus)
+      && (!interestingOnly || app.interesting === true)
+      && (season === "all" || app.registration_season === season)
+      && haystack.includes(query.toLowerCase());
   });
 
   return (
-    <div className="admin-tab-content admin-registration-view" aria-busy={busy || interviewBusy}>
+    <div className="admin-tab-content admin-registration-view" aria-busy={busy || interviewBusy || interestingBusy}>
       <AdminToast toast={toast} onClose={clearToast} />
       <div className="admin-view-header">
         <div><p className="admin-eyebrow">Membership intake</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
@@ -140,11 +168,17 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
           {["all", "pending", "accepted", "refused"].map((item) => (
             <button key={item} type="button" className={`filter-pill-btn ${status === item ? "is-active" : ""}`} onClick={() => setStatus(item)}>{item === "all" ? "All" : item}</button>
           ))}
+          <button type="button" className={`filter-pill-btn admin-interesting-filter ${interestingOnly ? "is-active" : ""}`} onClick={() => setInterestingOnly((current) => !current)} aria-pressed={interestingOnly}>★ Interesting Candidates</button>
         </div>
         <div className="admin-registration-filter-fields">
           <select className="form-select-input" value={season} onChange={(event) => setSeason(event.target.value)} aria-label="Filter by registration season">
             <option value="all">All seasons</option>
             {seasons.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+          <select className="form-select-input" value={interviewStatus} onChange={(event) => setInterviewStatus(event.target.value)} aria-label="Filter by interview status">
+            <option value="all">All interview statuses</option>
+            <option value="interviewed">Interviewed</option>
+            <option value="not-interviewed">Not interviewed</option>
           </select>
           <input className="form-text-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search applicants…" aria-label="Search registrations" />
         </div>
@@ -161,7 +195,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                 return (
                   <article className="admin-registration-card" key={app.id}>
                     <header className="admin-registration-card-head">
-                      <div><small>APPLICANT</small><h3>{app.full_name || "Unnamed applicant"}</h3><span>{app.email || "No email"} · {app.phone || "No phone"}</span></div>
+                      <div><small>APPLICANT</small><div className="admin-registration-name-row"><h3>{app.full_name || "Unnamed applicant"}</h3>{app.interesting === true && <span className="admin-interesting-badge" title="Interesting candidate">★ Interesting</span>}</div><span>{app.email || "No email"} · {app.phone || "No phone"}</span></div>
                       <div className="admin-registration-card-controls">
                         <div className="admin-registration-status-stack">
                           <span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span>
@@ -191,9 +225,11 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
         key={`${interviewing.id}-${interviewing.interviewed_at || "new"}`}
         applicant={interviewing}
         saving={interviewBusy}
-        onCancel={() => { if (!interviewBusy) setInterviewing(null); }}
+        interestingSaving={interestingBusy}
+        onCancel={() => { if (!interviewBusy && !interestingBusy) setInterviewing(null); }}
         onSave={saveInterview}
         onDecision={completeReview}
+        onToggleInteresting={toggleInteresting}
       />}
     </div>
   );

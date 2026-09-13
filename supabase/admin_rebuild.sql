@@ -81,7 +81,7 @@ WITH CHECK (
   status = 'pending' AND refusal_reason IS NULL
   AND interest_type IS NULL AND team_role_style IS NULL AND problem_solving_style IS NULL
   AND work_environment IS NULL AND preferred_activity IS NULL
-  AND interview_completed IS FALSE AND interviewed_at IS NULL
+  AND interview_completed IS FALSE AND interviewed_at IS NULL AND interesting IS FALSE
   AND length(trim(full_name)) BETWEEN 1 AND 120
   AND email IS NOT NULL AND length(email) BETWEEN 3 AND 254
   AND phone IS NOT NULL AND department IS NOT NULL AND filiere IS NOT NULL

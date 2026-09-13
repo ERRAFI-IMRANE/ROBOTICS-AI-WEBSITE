@@ -14,7 +14,7 @@ function AnswerList({ question, answer, onEdit }) {
   );
 }
 
-export default function AdminInterviewWizard({ applicant, saving, onCancel, onSave, onDecision }) {
+export default function AdminInterviewWizard({ applicant, saving, interestingSaving = false, onCancel, onSave, onDecision, onToggleInteresting }) {
   const dialogRef = useRef(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState(() => interviewAnswersFromRegistration(applicant));
@@ -25,6 +25,8 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
   const progress = step === REVIEW_STEP ? 100 : ((step + 1) / INTERVIEW_QUESTIONS.length) * 100;
   const appStatus = String(applicant.status || "pending").toLowerCase();
   const pendingDecision = appStatus === "pending";
+  const isInteresting = applicant.interesting === true;
+  const interactionBusy = saving || interestingSaving;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -67,7 +69,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
   };
 
   const submit = async () => {
-    if (saving) return;
+    if (interactionBusy) return;
     setError("");
     try {
       await onSave(answers);
@@ -77,7 +79,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
   };
 
   const decide = async (decision) => {
-    if (saving || !onDecision) return;
+    if (interactionBusy || !onDecision) return;
     if (decision === "refused" && !refusalOpen) {
       setRefusalOpen(true);
       setError("");
@@ -95,18 +97,33 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
     }
   };
 
+  const toggleInteresting = async () => {
+    if (interactionBusy || !onToggleInteresting) return;
+    setError("");
+    try {
+      await onToggleInteresting();
+    } catch (flagError) {
+      setError(flagError.message || "The Interesting flag could not be updated.");
+    }
+  };
+
   return (
     <dialog
       ref={dialogRef}
       className="admin-interview-dialog"
       aria-labelledby="admin-interview-title"
-      onCancel={(event) => { event.preventDefault(); if (!saving) onCancel(); }}
+      onCancel={(event) => { event.preventDefault(); if (!interactionBusy) onCancel(); }}
     >
-      <div className="admin-interview-shell" aria-busy={saving}>
+      <div className="admin-interview-shell" aria-busy={interactionBusy}>
         <header className="admin-interview-header">
           <div className="admin-interview-heading-row">
             <div><p className="admin-eyebrow">Applicant interview</p><h2 id="admin-interview-title">{applicant.full_name || "Unnamed applicant"}</h2></div>
-            <button type="button" className="admin-modal-close-btn" onClick={onCancel} disabled={saving} aria-label="Close interview">×</button>
+            <div className="admin-interview-heading-actions">
+              <button type="button" className={`admin-interesting-toggle ${isInteresting ? "is-active" : ""}`} onClick={toggleInteresting} disabled={interactionBusy} aria-pressed={isInteresting}>
+                {interestingSaving ? "Saving…" : isInteresting ? "★ Interesting" : "☆ Mark as Interesting"}
+              </button>
+              <button type="button" className="admin-modal-close-btn" onClick={onCancel} disabled={interactionBusy} aria-label="Close interview">×</button>
+            </div>
           </div>
           <div className="admin-interview-applicant">
             <span><small>Department</small><strong>{applicant.department || "Not specified"}</strong></span>
@@ -130,7 +147,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
                     const selected = question.multiple ? value.includes(option) : value === option;
                     return (
                       <label key={option} className={selected ? "is-selected" : ""}>
-                        <input type={question.multiple ? "checkbox" : "radio"} name={question.field} checked={selected} onChange={() => choose(question, option)} disabled={saving} />
+                        <input type={question.multiple ? "checkbox" : "radio"} name={question.field} checked={selected} onChange={() => choose(question, option)} disabled={interactionBusy} />
                         <i aria-hidden="true">{selected ? "✓" : ""}</i>
                         <span>{option}</span>
                       </label>
@@ -149,7 +166,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
                 <div><small>Final decision</small><h4>Accept or refuse this application</h4><p>The interview and decision will be saved together.</p></div>
                 {refusalOpen && <label htmlFor="interview-refusal-reason">
                   <span>Reason for refusal</span>
-                  <textarea id="interview-refusal-reason" required minLength="3" maxLength="2000" value={refusalReason} onChange={(event) => { setRefusalReason(event.target.value); setError(""); }} placeholder="Add a clear reason for refusing this application…" autoFocus />
+                  <textarea id="interview-refusal-reason" required minLength="3" maxLength="2000" value={refusalReason} onChange={(event) => { setRefusalReason(event.target.value); setError(""); }} placeholder="Add a clear reason for refusing this application…" autoFocus disabled={interactionBusy} />
                   <small>{refusalReason.length} / 2000</small>
                 </label>}
               </div>}
@@ -160,15 +177,15 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onSa
         <footer className="admin-interview-footer">
           <div className="admin-interview-error" role="alert" aria-live="assertive">{error}</div>
           <div className="admin-interview-actions">
-            <button type="button" className="btn-secondary" onClick={back} disabled={saving || step === 0}>Back</button>
+            <button type="button" className="btn-secondary" onClick={back} disabled={interactionBusy || step === 0}>Back</button>
             {step < REVIEW_STEP
-              ? <button type="button" className="btn-primary" onClick={next} disabled={saving}>Next</button>
+              ? <button type="button" className="btn-primary" onClick={next} disabled={interactionBusy}>Next</button>
               : pendingDecision
                 ? <>
-                    <button type="button" className="btn-secondary btn-danger" onClick={() => decide("refused")} disabled={saving}>{saving ? "Saving…" : refusalOpen ? "Confirm refusal" : "Refuse"}</button>
-                    <button type="button" className="btn-primary" onClick={() => decide("accepted")} disabled={saving}>{saving ? "Saving…" : "Accept"}</button>
+                    <button type="button" className="btn-secondary btn-danger" onClick={() => decide("refused")} disabled={interactionBusy}>{saving ? "Saving…" : refusalOpen ? "Confirm refusal" : "Refuse"}</button>
+                    <button type="button" className="btn-primary" onClick={() => decide("accepted")} disabled={interactionBusy}>{saving ? "Saving…" : "Accept"}</button>
                   </>
-                : <button type="button" className="btn-primary" onClick={submit} disabled={saving}>{saving ? "Saving interview…" : "Save Interview"}</button>}
+                : <button type="button" className="btn-primary" onClick={submit} disabled={interactionBusy}>{saving ? "Saving interview…" : "Save Interview"}</button>}
           </div>
         </footer>
       </div>

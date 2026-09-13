@@ -3,15 +3,19 @@ import {
   applicationsTimeline,
   availableTeamSeasons,
   countLabels,
+  completedInterviewRegistrations,
   eventsByYear,
   filterRegistrationsBySeason,
   genderDistribution,
+  interestingCandidateCount,
+  interviewAnswerDistribution,
   registrationDecisionStats,
   resolveRelevantSeason,
   teamStructure,
 } from "../../lib/adminAnalytics";
 import { eventView, parseEventDate } from "../../lib/adminEvents";
 import { loadAdminWorkspace } from "../../lib/adminWorkspace";
+import { INTERVIEW_QUESTIONS } from "../../lib/registrationInterview";
 import { publicContent, supabase } from "../../lib/supabaseClient";
 import AnalyticsBarChart from "./overview/AnalyticsBarChart";
 import AnalyticsDoughnutChart from "./overview/AnalyticsDoughnutChart";
@@ -44,12 +48,18 @@ function dynamicChartHeight(items, minimum = 270) {
 }
 
 const FILIERE_COLORS = ["#1d4ed8", "#0f766e", "#d97706", "#6d5bd0", "#0e7490", "#be185d", "#475467", "#65a30d", "#c2410c", "#0369a1"];
+const INTERVIEW_OPTIONS = Object.freeze(Object.fromEntries(INTERVIEW_QUESTIONS.map((question) => [question.field, question.options])));
+
+function seriesTotal(series) {
+  return series.reduce((total, item) => total + item.value, 0);
+}
 
 export default function AdminAnalytics({ onNavigate, initialData, permissions = [] }) {
   const [dataset, setDataset] = useState(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedTeamSeason, setSelectedTeamSeason] = useState("");
+  const [selectedRegistrationSeason, setSelectedRegistrationSeason] = useState("");
   const canReviewRegistrations = permissions.includes("registrations");
 
   useEffect(() => { setDataset(initialData); }, [initialData]);
@@ -70,9 +80,17 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
     const team = dataset?.team || [];
     const allRegistrations = dataset?.registrations || [];
     const events = dataset?.events || [];
-    const registrationSeasons = [...new Set(allRegistrations.map((row) => String(row.registration_season || "").trim()).filter(Boolean))]
+    const configuredRegistrationSeason = String(dataset?.settings?.season || "").trim();
+    const registrationSeasons = [...new Set([
+      configuredRegistrationSeason,
+      ...allRegistrations.map((row) => String(row.registration_season || "").trim()),
+    ].filter(Boolean))]
       .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-    const registrationSeason = dataset?.settings?.season || registrationSeasons[0] || "";
+    const defaultRegistrationSeason = configuredRegistrationSeason || registrationSeasons[0] || "";
+    const registrationSeason = selectedRegistrationSeason === "all"
+      ? ""
+      : registrationSeasons.includes(selectedRegistrationSeason) ? selectedRegistrationSeason : defaultRegistrationSeason;
+    const registrationSeasonValue = selectedRegistrationSeason === "all" ? "all" : registrationSeason || "all";
     const registrations = filterRegistrationsBySeason(allRegistrations, registrationSeason);
     const teamSeasons = availableTeamSeasons(team);
     const teamSeason = resolveRelevantSeason(selectedTeamSeason || registrationSeason, teamSeasons);
@@ -83,6 +101,13 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
     const filieres = countLabels(registrations, "filiere");
     const timeline = applicationsTimeline(registrations);
     const eventYears = eventsByYear(events);
+    const completedInterviews = completedInterviewRegistrations(registrations);
+    const interestingCandidates = interestingCandidateCount(registrations);
+    const interests = interviewAnswerDistribution(registrations, "interest_type", INTERVIEW_OPTIONS.interest_type, { multiple: true });
+    const personalities = interviewAnswerDistribution(registrations, "team_role_style", INTERVIEW_OPTIONS.team_role_style);
+    const problemSolving = interviewAnswerDistribution(registrations, "problem_solving_style", INTERVIEW_OPTIONS.problem_solving_style);
+    const workEnvironments = interviewAnswerDistribution(registrations, "work_environment", INTERVIEW_OPTIONS.work_environment);
+    const preferredActivities = interviewAnswerDistribution(registrations, "preferred_activity", INTERVIEW_OPTIONS.preferred_activity, { multiple: true });
 
     const activities = [
       ...allRegistrations.map((row) => ({
@@ -111,8 +136,13 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
       }),
     ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 8);
 
-    return { team, registrations, events, registrationSeason, teamSeason, teamSeasons, genders, cells, decisions, departments, filieres, timeline, eventYears, activities };
-  }, [dataset, selectedTeamSeason]);
+    return {
+      team, registrations, events, registrationSeason, registrationSeasonValue, registrationSeasons,
+      teamSeason, teamSeasons, genders, cells, decisions, departments, filieres, timeline, eventYears,
+      completedInterviews, interestingCandidates, interests, personalities, problemSolving, workEnvironments,
+      preferredActivities, activities,
+    };
+  }, [dataset, selectedRegistrationSeason, selectedTeamSeason]);
 
   const genderTotal = analytics.genders.Male + analytics.genders.Female;
   const malePercentage = genderTotal ? Math.round((analytics.genders.Male / genderTotal) * 100) : 0;
@@ -125,6 +155,7 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
   const timelinePeak = analytics.timeline.peak?.value
     ? `${analytics.timeline.peak.value} on ${analytics.timeline.peak.label}`
     : "No applications yet";
+  const interviewContext = `${analytics.completedInterviews.length} completed interview${analytics.completedInterviews.length === 1 ? "" : "s"}`;
 
   return (
     <div className="admin-tab-content admin-overview-page">
@@ -142,12 +173,19 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
         <MetricCard label="Team profiles" value={analytics.team.length} note="Stored club profiles" tone="blue" onClick={permissions.includes("team") ? () => onNavigate("team") : undefined} />
         {canReviewRegistrations && <MetricCard label="Accepted members" value={analytics.decisions.accepted} note={`Recruitment ${registrationContext}`} tone="teal" onClick={() => onNavigate("registrations")} />}
         {canReviewRegistrations && <MetricCard label="Pending reviews" value={analytics.decisions.pending} note={`Recruitment ${registrationContext}`} tone="amber" onClick={() => onNavigate("registrations")} />}
+        {canReviewRegistrations && <MetricCard label="Interesting Candidates" value={analytics.interestingCandidates} note={`Internal flag · ${registrationContext}`} tone="gold" onClick={() => onNavigate("registrations")} />}
         <MetricCard label="Club events" value={analytics.events.length} note="Published event records" tone="slate" onClick={permissions.includes("events") ? () => onNavigate("events") : undefined} />
       </div>
 
       <div className="admin-analytics-scope" aria-label="Analytics scope">
         <span><b>Team structure</b>{teamContext}</span>
-        {canReviewRegistrations && <span><b>Recruitment</b>{registrationContext}</span>}
+        {canReviewRegistrations && <label className="admin-analytics-scope-select">
+          <b>Recruitment</b>
+          <select value={analytics.registrationSeasonValue} onChange={(event) => setSelectedRegistrationSeason(event.target.value)} aria-label="Registration analytics season">
+            <option value="all">All seasons</option>
+            {analytics.registrationSeasons.map((season) => <option key={season} value={season}>{season}</option>)}
+          </select>
+        </label>}
         <span><b>Gender</b>All stored profiles</span>
       </div>
 
@@ -198,6 +236,41 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
           {analytics.filieres.length
             ? <AnalyticsDoughnutChart labels={analytics.filieres.map((item) => item.label)} values={analytics.filieres.map((item) => item.value)} colors={FILIERE_COLORS} centerValue={filiereTotal} centerLabel="Applications" datasetLabel="Applications" ariaLabel={`Applications by filière for ${registrationContext}`} />
             : <AnalyticsEmpty>No filière data is available for this recruitment season.</AnalyticsEmpty>}
+        </ChartPanel>}
+
+        {canReviewRegistrations && <div className="admin-analytics-grid-heading">
+          <div><p className="admin-eyebrow">Interview analytics</p><h2>Candidate preferences</h2></div>
+          <span>{interviewContext} · {registrationContext}</span>
+        </div>}
+
+        {canReviewRegistrations && <ChartPanel className="is-wide" title="Interests / hobbies" description="Every selected interest is counted for interviewed candidates" summary={seriesTotal(analytics.interests) ? `${seriesTotal(analytics.interests)} selections` : "No answers"} height={dynamicChartHeight(analytics.interests, 300)}>
+          {seriesTotal(analytics.interests)
+            ? <AnalyticsBarChart horizontal labels={analytics.interests.map((item) => item.label)} values={analytics.interests.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.blue} ariaLabel={`Interview interests for ${registrationContext}`} />
+            : <AnalyticsEmpty>No completed interview interest answers are available for {registrationContext}.</AnalyticsEmpty>}
+        </ChartPanel>}
+
+        {canReviewRegistrations && <ChartPanel title="Team personality" description="How interviewed candidates describe their team role" summary={seriesTotal(analytics.personalities) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.personalities, 300)}>
+          {seriesTotal(analytics.personalities)
+            ? <AnalyticsBarChart horizontal labels={analytics.personalities.map((item) => item.label)} values={analytics.personalities.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.teal} ariaLabel={`Team personality answers for ${registrationContext}`} />
+            : <AnalyticsEmpty>No completed team personality answers are available for {registrationContext}.</AnalyticsEmpty>}
+        </ChartPanel>}
+
+        {canReviewRegistrations && <ChartPanel title="Problem solving style" description="Preferred response when facing a new problem" summary={seriesTotal(analytics.problemSolving) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.problemSolving, 300)}>
+          {seriesTotal(analytics.problemSolving)
+            ? <AnalyticsBarChart horizontal labels={analytics.problemSolving.map((item) => item.label)} values={analytics.problemSolving.map((item) => item.value)} datasetLabel="Candidates" color="#475467" ariaLabel={`Problem solving answers for ${registrationContext}`} />
+            : <AnalyticsEmpty>No completed problem-solving answers are available for {registrationContext}.</AnalyticsEmpty>}
+        </ChartPanel>}
+
+        {canReviewRegistrations && <ChartPanel title="Preferred work environment" description="The setting where candidates expect to contribute best" summary={seriesTotal(analytics.workEnvironments) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.workEnvironments, 300)}>
+          {seriesTotal(analytics.workEnvironments)
+            ? <AnalyticsBarChart horizontal labels={analytics.workEnvironments.map((item) => item.label)} values={analytics.workEnvironments.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.amber} ariaLabel={`Preferred work environment answers for ${registrationContext}`} />
+            : <AnalyticsEmpty>No completed work-environment answers are available for {registrationContext}.</AnalyticsEmpty>}
+        </ChartPanel>}
+
+        {canReviewRegistrations && <ChartPanel title="Preferred club activities" description="Every selected activity is counted for interviewed candidates" summary={seriesTotal(analytics.preferredActivities) ? `${seriesTotal(analytics.preferredActivities)} selections` : "No answers"} height={dynamicChartHeight(analytics.preferredActivities, 300)}>
+          {seriesTotal(analytics.preferredActivities)
+            ? <AnalyticsBarChart horizontal labels={analytics.preferredActivities.map((item) => item.label)} values={analytics.preferredActivities.map((item) => item.value)} datasetLabel="Candidates" color="#6d5bd0" ariaLabel={`Preferred club activity answers for ${registrationContext}`} />
+            : <AnalyticsEmpty>No completed preferred-activity answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
         <ChartPanel className="is-wide" title="Club activity by year" description="Safely extracted from the legacy event date text" summary={analytics.eventYears.length ? `${analytics.eventYears.at(-1).label} is the latest recorded year` : "No usable event years"}>

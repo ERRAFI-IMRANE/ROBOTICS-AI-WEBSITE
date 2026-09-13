@@ -20,10 +20,16 @@ import { publicContent, supabase } from "../../lib/supabaseClient";
 import AnalyticsBarChart from "./overview/AnalyticsBarChart";
 import AnalyticsDoughnutChart from "./overview/AnalyticsDoughnutChart";
 import ChartPanel from "./overview/ChartPanel";
-import EventBarChart from "./overview/EventBarChart";
+import EventTrendChart from "./overview/EventTrendChart";
+import InterviewColumnChart from "./overview/InterviewColumnChart";
+import LollipopChart from "./overview/LollipopChart";
 import MetricCard from "./overview/MetricCard";
+import PersonalityRadarChart from "./overview/PersonalityRadarChart";
+import RankedActivityProgress from "./overview/RankedActivityProgress";
 import RecentActivityTable from "./overview/RecentActivityTable";
 import RegistrationLineChart from "./overview/RegistrationLineChart";
+import TeamTreemap from "./overview/TeamTreemap";
+import WorkEnvironmentPolarChart from "./overview/WorkEnvironmentPolarChart";
 import { chartPalette } from "./overview/chartSetup";
 
 function statusTone(status) {
@@ -49,6 +55,8 @@ function dynamicChartHeight(items, minimum = 270) {
 
 const FILIERE_COLORS = ["#1d4ed8", "#0f766e", "#d97706", "#6d5bd0", "#0e7490", "#be185d", "#475467", "#65a30d", "#c2410c", "#0369a1"];
 const INTERVIEW_OPTIONS = Object.freeze(Object.fromEntries(INTERVIEW_QUESTIONS.map((question) => [question.field, question.options])));
+const PROBLEM_SOLVING_SHORT_LABELS = ["Try alone", "Search & learn", "Ask experienced", "Discuss as team", "Try alternatives"];
+const WORK_ENVIRONMENT_SHORT_LABELS = ["Behind scenes", "With people", "Creative", "Technical", "Managing", "Mixed"];
 
 function seriesTotal(series) {
   return series.reduce((total, item) => total + item.value, 0);
@@ -219,10 +227,10 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
               {analytics.teamSeasons.map((season) => <option key={season} value={season}>{season}</option>)}
             </select>
           </label> : null}
-          height={dynamicChartHeight(analytics.cells, 350)}
+          height={350}
         >
           {cellMemberCount
-            ? <AnalyticsBarChart horizontal labels={analytics.cells.map((item) => item.label)} values={analytics.cells.map((item) => item.value)} datasetLabel="Members" color={chartPalette.blue} ariaLabel={`Team structure by cell for ${teamContext}`} />
+            ? <TeamTreemap items={analytics.cells} ariaLabel={`Team structure by cell for ${teamContext}`} />
             : <AnalyticsEmpty>No team assignments are available for {teamContext}.</AnalyticsEmpty>}
         </ChartPanel>
 
@@ -245,37 +253,37 @@ export default function AdminAnalytics({ onNavigate, initialData, permissions = 
 
         {canReviewRegistrations && <ChartPanel className="is-wide" title="Interests / hobbies" description="Every selected interest is counted for interviewed candidates" summary={seriesTotal(analytics.interests) ? `${seriesTotal(analytics.interests)} selections` : "No answers"} height={dynamicChartHeight(analytics.interests, 300)}>
           {seriesTotal(analytics.interests)
-            ? <AnalyticsBarChart horizontal labels={analytics.interests.map((item) => item.label)} values={analytics.interests.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.blue} ariaLabel={`Interview interests for ${registrationContext}`} />
+            ? <LollipopChart items={analytics.interests} ariaLabel={`Interview interests for ${registrationContext}`} />
             : <AnalyticsEmpty>No completed interview interest answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
         {canReviewRegistrations && <ChartPanel title="Team personality" description="How interviewed candidates describe their team role" summary={seriesTotal(analytics.personalities) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.personalities, 300)}>
           {seriesTotal(analytics.personalities)
-            ? <AnalyticsBarChart horizontal labels={analytics.personalities.map((item) => item.label)} values={analytics.personalities.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.teal} ariaLabel={`Team personality answers for ${registrationContext}`} />
+            ? <PersonalityRadarChart labels={analytics.personalities.map((item) => item.label)} values={analytics.personalities.map((item) => item.value)} ariaLabel={`Team personality answers for ${registrationContext}`} />
             : <AnalyticsEmpty>No completed team personality answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
         {canReviewRegistrations && <ChartPanel title="Problem solving style" description="Preferred response when facing a new problem" summary={seriesTotal(analytics.problemSolving) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.problemSolving, 300)}>
           {seriesTotal(analytics.problemSolving)
-            ? <AnalyticsBarChart horizontal labels={analytics.problemSolving.map((item) => item.label)} values={analytics.problemSolving.map((item) => item.value)} datasetLabel="Candidates" color="#475467" ariaLabel={`Problem solving answers for ${registrationContext}`} />
+            ? <InterviewColumnChart labels={analytics.problemSolving.map((item) => item.label)} shortLabels={PROBLEM_SOLVING_SHORT_LABELS} values={analytics.problemSolving.map((item) => item.value)} ariaLabel={`Problem solving answers for ${registrationContext}`} />
             : <AnalyticsEmpty>No completed problem-solving answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
         {canReviewRegistrations && <ChartPanel title="Preferred work environment" description="The setting where candidates expect to contribute best" summary={seriesTotal(analytics.workEnvironments) ? interviewContext : "No answers"} height={dynamicChartHeight(analytics.workEnvironments, 300)}>
           {seriesTotal(analytics.workEnvironments)
-            ? <AnalyticsBarChart horizontal labels={analytics.workEnvironments.map((item) => item.label)} values={analytics.workEnvironments.map((item) => item.value)} datasetLabel="Candidates" color={chartPalette.amber} ariaLabel={`Preferred work environment answers for ${registrationContext}`} />
+            ? <WorkEnvironmentPolarChart labels={analytics.workEnvironments.map((item) => item.label)} shortLabels={WORK_ENVIRONMENT_SHORT_LABELS} values={analytics.workEnvironments.map((item) => item.value)} ariaLabel={`Preferred work environment answers for ${registrationContext}`} />
             : <AnalyticsEmpty>No completed work-environment answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
         {canReviewRegistrations && <ChartPanel title="Preferred club activities" description="Every selected activity is counted for interviewed candidates" summary={seriesTotal(analytics.preferredActivities) ? `${seriesTotal(analytics.preferredActivities)} selections` : "No answers"} height={dynamicChartHeight(analytics.preferredActivities, 300)}>
           {seriesTotal(analytics.preferredActivities)
-            ? <AnalyticsBarChart horizontal labels={analytics.preferredActivities.map((item) => item.label)} values={analytics.preferredActivities.map((item) => item.value)} datasetLabel="Candidates" color="#6d5bd0" ariaLabel={`Preferred club activity answers for ${registrationContext}`} />
+            ? <RankedActivityProgress items={analytics.preferredActivities} ariaLabel={`Preferred club activity answers for ${registrationContext}`} />
             : <AnalyticsEmpty>No completed preferred-activity answers are available for {registrationContext}.</AnalyticsEmpty>}
         </ChartPanel>}
 
-        <ChartPanel className="is-wide" title="Club activity by year" description="Safely extracted from the legacy event date text" summary={analytics.eventYears.length ? `${analytics.eventYears.at(-1).label} is the latest recorded year` : "No usable event years"}>
+        <ChartPanel className="is-wide" title="Club activity by year" description="Event volume shown as a year-over-year trend" summary={analytics.eventYears.length ? `${analytics.eventYears.at(-1).label} is the latest recorded year` : "No usable event years"}>
           {analytics.eventYears.length
-            ? <EventBarChart labels={analytics.eventYears.map((item) => item.label)} values={analytics.eventYears.map((item) => item.value)} />
+            ? <EventTrendChart labels={analytics.eventYears.map((item) => item.label)} values={analytics.eventYears.map((item) => item.value)} />
             : <AnalyticsEmpty>No event records contain a usable four-digit year.</AnalyticsEmpty>}
         </ChartPanel>
       </div>

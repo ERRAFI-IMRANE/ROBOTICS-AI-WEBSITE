@@ -3220,6 +3220,112 @@ dialog.admin-confirm-dialog::backdrop {
   place-items: center;
 }
 
+.admin-team-treemap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #eef2f7;
+  border: 1px solid #e0e6ee;
+  border-radius: 7px;
+}
+
+.admin-team-treemap-block {
+  position: absolute;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(9px, 1.4vw, 17px);
+  overflow: hidden;
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: inset 0 -18px 38px rgba(4, 16, 34, 0.12);
+  cursor: default;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.admin-team-treemap-block:hover,
+.admin-team-treemap-block:focus-visible {
+  z-index: 2;
+  filter: brightness(1.08);
+  outline: 2px solid #fff;
+  outline-offset: -5px;
+}
+
+.admin-team-treemap-block span {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: clamp(8px, 1vw, 12px);
+  font-weight: 650;
+  line-height: 1.2;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.admin-team-treemap-block strong {
+  font: 700 clamp(17px, 2.5vw, 32px)/1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.admin-activity-progress {
+  display: flex;
+  height: 100%;
+  padding: 4px 2px;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-activity-progress-row {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-activity-progress-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-activity-progress-row span {
+  overflow: hidden;
+  color: #475467;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-activity-progress-row strong {
+  color: #25334a;
+  font: 700 10px var(--font-mono);
+}
+
+.admin-activity-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #edf1f6;
+  border-radius: 3px;
+}
+
+.admin-activity-progress-track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #173f7b, #6d5bd0);
+  border-radius: inherit;
+  transform-origin: left center;
+  animation: admin-ranked-progress-in 680ms var(--ease-out) both;
+}
+
+@keyframes admin-ranked-progress-in {
+  from { opacity: 0.45; transform: scaleX(0); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
 .admin-registration-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4724,6 +4830,16 @@ dialog.admin-confirm-dialog::backdrop {
   .admin-chart-widget-canvas,
   .admin-chart-widget.is-wide .admin-chart-widget-canvas {
     height: 250px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-team-treemap-block {
+    transition: none !important;
+  }
+
+  .admin-activity-progress-track i {
+    animation: none !important;
   }
 }
 

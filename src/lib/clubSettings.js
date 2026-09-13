@@ -6,27 +6,59 @@ export function normalizeSeason(value) {
 
 export const shortSeason = (value) => normalizeSeason(value).replace(/20(\d{2})/g, "$1");
 
+export function normalizePublishedSeasons(settings) {
+  const candidates = Array.isArray(settings?.public_staff_seasons)
+    ? settings.public_staff_seasons
+    : [settings?.public_staff_season];
+  return [...new Set(candidates.map(normalizeSeason).filter(Boolean))];
+}
+
 export async function readClubSettings(client) {
-  const { data, error } = await client.from("club_settings")
-    .select("current_season, public_staff_season").eq("id", 1).single();
+  let { data, error } = await client.from("club_settings")
+    .select("current_season, public_staff_season, public_staff_seasons").eq("id", 1).single();
+  if (error && ["42703", "PGRST204"].includes(error.code)) {
+    ({ data, error } = await client.from("club_settings")
+      .select("current_season, public_staff_season").eq("id", 1).single());
+  }
   if (error) {
     if (["PGRST205", "42P01", "PGRST116"].includes(error.code)) throw new Error("Season settings are not configured or not visible to this account. Apply supabase/admin_rebuild.sql and check officer permissions. Existing staff and events do not require this table to load.");
     throw new Error("Could not load season settings: " + (error.message || "Check your connection and officer permissions."));
   }
   if (!data) throw new Error("No season settings row exists. Apply supabase/admin_rebuild.sql to configure seasons.");
-  return data;
+  const publicStaffSeasons = normalizePublishedSeasons(data);
+  return {
+    ...data,
+    public_staff_season: publicStaffSeasons[0] || "",
+    public_staff_seasons: publicStaffSeasons,
+  };
 }
 
 export async function saveClubSettings(client, values) {
   const current = normalizeSeason(values.current_season);
-  const staff = normalizeSeason(values.public_staff_season);
-  if (!current || !staff) throw new Error("Use consecutive academic years, for example 2026-2027.");
-  const { data, error } = await client.rpc("save_club_settings", {
-    p_current_season: current, p_public_staff_season: staff,
+  const sourceSeasons = Array.isArray(values.public_staff_seasons)
+    ? values.public_staff_seasons
+    : [values.public_staff_season];
+  const staffSeasons = [...new Set(sourceSeasons.map(normalizeSeason).filter(Boolean))];
+  if (!current || !staffSeasons.length || staffSeasons.length !== sourceSeasons.length) {
+    throw new Error("Use one or more consecutive academic seasons, for example 2026-2027.");
+  }
+  const { data, error } = await client.rpc("save_club_settings_seasons", {
+    p_current_season: current,
+    p_public_staff_seasons: staffSeasons,
   });
-  if (error) throw new Error(error.message || "Settings could not be saved.");
-  if (!data || data.current_season !== current || data.public_staff_season !== staff) throw new Error("Settings update was not confirmed. Refresh before retrying.");
-  return data;
+  if (error) {
+    if (error.code === "PGRST202") throw new Error("Apply supabase/migration_multiple_public_team_seasons.sql before publishing multiple team seasons.");
+    throw new Error(error.message || "Settings could not be saved.");
+  }
+  const savedSeasons = normalizePublishedSeasons(data);
+  if (!data || data.current_season !== current || savedSeasons.join("|") !== staffSeasons.join("|")) {
+    throw new Error("Settings update was not confirmed. Refresh before retrying.");
+  }
+  return {
+    ...data,
+    public_staff_season: savedSeasons[0],
+    public_staff_seasons: savedSeasons,
+  };
 }
 
 export async function decideRegistration(client, id, decision, reason = "") {

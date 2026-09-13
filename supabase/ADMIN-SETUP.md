@@ -8,7 +8,7 @@ The frontend and SQL were edited locally only. No browser was used, and no SQL, 
 2. Run `admin_rebuild.sql` in the Supabase SQL editor. It runs in one transaction. Existing staff/events/applications are not deleted by this setup. It preserves the existing current campaign and initially keeps the public roster on 2025–2026.
 3. Create or select an officer account in Supabase Authentication. Assign `club_admin: true` in **app metadata**, not user metadata. The SQL file ends with a commented example targeting a specific account UUID; replace that UUID and run it separately. Never expose a service-role key in Vite variables.
 4. Sign in to the admin with that account’s email/password. The old client-side passcodes and `rai_admin_auth` session flag no longer grant access. Sign out/in after assigning the role so the JWT is refreshed.
-5. In **Parameters**, choose the current academic season and the staff season to publish. The published season must already contain a staff assignment. Save. A newly created intake starts closed; use **Open applications** to activate it.
+5. In **Parameters** or **Staff**, choose one or more staff seasons to publish. Every published season must already contain a staff assignment. Save. A newly created intake starts closed; use **Open applications** to activate it.
 
 Do not rerun the older permissive-policy migrations after this migration: they can restore public write access.
 
@@ -17,6 +17,10 @@ Do not rerun the older permissive-policy migrations after this migration: they c
 For an existing deployment, review and run `migration_team_controlled_fields.sql` once in the Supabase SQL editor. It updates the atomic staff save function so `sex` is stored as `M` or `F`, seasons are stored only as full `YYYY-YYYY` values, and each selected role is saved with its generated abbreviation and display order. It also creates the missing `club_settings` row. It does not delete staff profiles or their season history. Its older Supabase Storage policy block is superseded by the R2 migration below.
 
 The approved post list and the four available seasons live in `src/constants/teamPosts.js`. The Add/Edit forms and the public roster both use this shared configuration. Legacy spellings are normalized when an existing member is edited; all new writes use the canonical values.
+
+## Multiple public team seasons
+
+For an existing deployment, review and run `migration_multiple_public_team_seasons.sql` once. It adds the `public_staff_seasons` array, keeps `public_staff_season` synchronized as a backward-compatible primary season, and adds the atomic RPC used by the dashboard. Existing public season data is preserved automatically. The public Team section displays season tabs only when several rosters are selected.
 
 ## Admin user management
 
@@ -28,12 +32,16 @@ After the base dashboard migration is active:
 
 The browser only invokes the `admin-users` function with the signed-in administrator's access token. The service-role key remains inside the Edge Function and must never be added to a `VITE_` environment variable. Administrators cannot edit their own permissions while signed in, preventing accidental self-lockout. New accounts receive a temporary password, confirmed email, `club_admin: true`, and only the permissions selected in the form.
 
+## Registration interviews
+
+After the existing interview columns are present, review and run `migration_registration_interviews.sql`. It does not add or alter columns. It prevents public applications from supplying interview answers and creates the protected RPCs used by the five-step admin wizard. The final pending-applicant review saves the interview and Accept/Refuse decision atomically; refusing requires a reason. Only authenticated officers with the `registrations` permission can execute these operations. The first interview timestamp is preserved when an existing interview is edited. Rerun this idempotent migration if it was applied before the combined review workflow was added.
+
 ## Controls
 
-- **Registrations:** Accept/refuse updates `public.registrations.status` in place; refusal requires a reason. Processed applications remain in the same table as history.
+- **Registrations:** The interview wizard updates the existing application through a permission-checked RPC. Accept/refuse remains independent, updates `public.registrations.status` in place, and requires a reason for refusals. Processed applications remain in the same table as history.
 - **Staff:** The existing add/edit/delete forms remain. Profile and season edits are saved atomically. Removing a season preserves other assignments; permanent deletion remains a separate explicit action.
 - **Events:** The dashboard uses the flat `title`, `date`, `image_url`, `link`, and `created_at` columns. New dates are saved as `DD/MM/YYYY`; legacy ranges still display until an admin chooses a normalized date while editing.
-- **Parameters:** Current season controls the Join page. Public staff season independently controls the single published Team roster. Selecting a different intake closes other campaigns without deleting applications.
+- **Parameters:** Current season controls the Join page. Public staff seasons independently control one or several Team rosters. Selecting a different intake closes other campaigns without deleting applications.
 - **Overview:** Counts and recent events come from Supabase. The preserved Projects, Inventory, and Budget sections are explicitly labeled preview/demo content.
 
 ## Cloudflare R2 image uploads

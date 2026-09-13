@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { publicContent, supabase } from "../../lib/supabaseClient";
-import { readClubSettings } from "../../lib/clubSettings";
+import { normalizePublishedSeasons, readClubSettings } from "../../lib/clubSettings";
 import {
   DEFAULT_TEAM_SEASON,
   TEAM_SEASONS,
@@ -193,17 +193,27 @@ function resolveTeamRecords(rawData, targetSeason = DEFAULT_TEAM_SEASON) {
   return { members: resolvedMembers, season: resolvedSeason };
 }
 
-export default function TeamSection({ initialTeam = null, initialSeason = DEFAULT_TEAM_SEASON }) {
+export default function TeamSection({ initialTeam = null, initialSeason = DEFAULT_TEAM_SEASON, initialSeasons = null }) {
   const hasInitialTeam = Array.isArray(initialTeam);
-  const initialRoster = hasInitialTeam ? resolveTeamRecords(initialTeam, initialSeason) : null;
+  const initialPublishedSeasons = useMemo(() => normalizePublishedSeasons({
+    public_staff_seasons: initialSeasons,
+    public_staff_season: initialSeason,
+  }), [initialSeason, initialSeasons]);
+  const startingSeasons = initialPublishedSeasons.length ? initialPublishedSeasons : [initialSeason];
+  const initialRoster = hasInitialTeam ? resolveTeamRecords(initialTeam, startingSeasons[0]) : null;
+  const [rawMembers, setRawMembers] = useState(() => hasInitialTeam ? initialTeam : []);
   const [members, setMembers] = useState(() => initialRoster?.members || []);
   const [loading, setLoading] = useState(!hasInitialTeam);
   const [selectedYear, setSelectedYear] = useState(() => initialRoster?.season || initialSeason);
+  const [publishedSeasons, setPublishedSeasons] = useState(startingSeasons);
   const [hoveredCardId, setHoveredCardId] = useState(null);
 
   useEffect(() => {
     if (hasInitialTeam) {
-      const resolved = resolveTeamRecords(initialTeam, initialSeason);
+      const seasons = initialPublishedSeasons.length ? initialPublishedSeasons : [initialSeason];
+      const resolved = resolveTeamRecords(initialTeam, seasons[0]);
+      setRawMembers(initialTeam);
+      setPublishedSeasons(seasons);
       setSelectedYear(resolved.season);
       setMembers(resolved.members);
       setLoading(false);
@@ -217,16 +227,14 @@ export default function TeamSection({ initialTeam = null, initialSeason = DEFAUL
         setLoading(true);
 
         // 1. Determine published season from club_settings
-        let targetSeason = DEFAULT_TEAM_SEASON;
+        let targetSeasons = [DEFAULT_TEAM_SEASON];
         try {
           const client = publicContent || supabase;
           const settings = await withRequestTimeout(readClubSettings(client), "Club settings", 4000);
-          if (settings && settings.public_staff_season) {
-            const parsed = normalizeTeamSeason(settings.public_staff_season);
-            if (parsed) targetSeason = parsed;
-          }
+          const configuredSeasons = normalizePublishedSeasons(settings);
+          if (configuredSeasons.length) targetSeasons = configuredSeasons;
         } catch {
-          targetSeason = DEFAULT_TEAM_SEASON;
+          targetSeasons = [DEFAULT_TEAM_SEASON];
         }
 
         // 2. Fetch all staff members using session-independent publicContent client
@@ -290,9 +298,11 @@ export default function TeamSection({ initialTeam = null, initialSeason = DEFAUL
           }
         }
 
-        const resolved = resolveTeamRecords(rawData, targetSeason);
+        const resolved = resolveTeamRecords(rawData, targetSeasons[0]);
 
         if (isMounted) {
+          setRawMembers(rawData);
+          setPublishedSeasons(targetSeasons);
           setSelectedYear(resolved.season);
           setMembers(resolved.members);
         }
@@ -314,7 +324,16 @@ export default function TeamSection({ initialTeam = null, initialSeason = DEFAUL
     return () => {
       isMounted = false;
     };
-  }, [hasInitialTeam, initialSeason, initialTeam]);
+  }, [hasInitialTeam, initialPublishedSeasons, initialSeason, initialTeam]);
+
+  const selectPublishedSeason = (season) => {
+    const parsed = normalizeTeamSeason(season);
+    if (!parsed || parsed === selectedYear || !publishedSeasons.includes(parsed)) return;
+    const resolved = resolveTeamRecords(rawMembers, parsed);
+    setSelectedYear(resolved.season);
+    setMembers(resolved.members);
+    setHoveredCardId(null);
+  };
 
   const filteredMembers = members;
 
@@ -360,7 +379,21 @@ export default function TeamSection({ initialTeam = null, initialSeason = DEFAUL
           </div>
         </div>
 
-        <div className="team-filter-bar-wrapper"><span className="team-filter-tab is-active">STAFF / {selectedYear || "…"}</span></div>
+        <div className="team-filter-bar-wrapper" aria-label="Published team seasons">
+          <div className="team-filter-bar">
+            {publishedSeasons.map((season) => (
+              <button
+                key={season}
+                type="button"
+                className={`team-filter-tab ${selectedYear === season ? "is-active" : ""}`}
+                aria-pressed={selectedYear === season}
+                onClick={() => selectPublishedSeason(season)}
+              >
+                STAFF / {season}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Dynamic Content: Loading / Empty / Showcase Grid */}
         {loading ? (

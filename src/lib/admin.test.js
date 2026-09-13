@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { normalizeSeason, shortSeason, saveClubSettings, decideRegistration } from "./clubSettings.js";
-import { deleteEvent, eventPayload, eventView, formatDateForDatabase, formatDateForInput, parseEventDate, safeEventUrl, saveEvent } from "./adminEvents.js";
+import { normalizePublishedSeasons, normalizeSeason, shortSeason, saveClubSettings, decideRegistration } from "./clubSettings.js";
+import { deleteEvent, eventPayload, eventView, formatDateForDatabase, formatDateForInput, parseEventDate, safeEventUrl, saveEvent, sortEventsNewestFirst } from "./adminEvents.js";
 import { saveStaff, deleteStaff } from "./adminStaff.js";
 import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
@@ -16,6 +16,21 @@ import {
   normalizeTeamRole,
 } from "../constants/teamPosts.js";
 import { ALBUM_PHOTOS, pickRandomAlbumPhotos } from "../data/albumPhotos.js";
+import {
+  completeRegistrationReview,
+  interviewAnswersFromRegistration,
+  saveRegistrationInterview,
+  validateInterviewAnswers,
+} from "./registrationInterview.js";
+import {
+  applicationsTimeline,
+  countLabels,
+  eventsByYear,
+  genderDistribution,
+  registrationDecisionStats,
+  teamCellForPost,
+  teamStructure,
+} from "./adminAnalytics.js";
 
 const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
 
@@ -30,10 +45,114 @@ test("album manifest includes every folder image and selects seven unique cards"
   assert.equal(selection.length, 7);
   assert.equal(new Set(selection.map((photo) => photo.src)).size, 7);
 });
+
+test("overview analytics normalize team cells and count each member once per group", () => {
+  const expectedGroups = {
+    PRES: "Leadership / Supervision", VP: "Leadership / Supervision", SUP: "Leadership / Supervision", "CO-SUP": "Leadership / Supervision", ADV: "Leadership / Supervision", MENTOR: "Leadership / Supervision",
+    "MED-PRES": "Media", "MED-VP": "Media", SMM: "Media", "VID-EDIT": "Media",
+    "DES-PRES": "Design", "DES-VP": "Design", PHOTO: "Photography", "SEC-PRES": "Secretary", "SEC-VP": "Secretary",
+    "ORG-PRES": "Organization", "ORG-VP": "Organization", "EVT-COORD": "Organization",
+    "COM-PRES": "Communication", "COM-VP": "Communication", FDBK: "Communication",
+    "FIN-PRES": "Financial", "FIN-VP": "Financial", MEM: "Active Members",
+  };
+  Object.entries(expectedGroups).forEach(([post, group]) => assert.equal(teamCellForPost(post.toLowerCase()), group));
+  assert.equal(teamCellForPost("ORG-UNKNOWN"), "");
+  const structure = teamStructure([
+    { id: 1, team_seasons: [{ season: "2026-2027", post_abbr: "MED-P" }, { season: "2026-2027", post_abbr: "SMM" }] },
+    { id: 2, team_seasons: [{ season: "2026-2027", post_abbr: "PHOTO" }, { season: "2025-2026", post_abbr: "MEM" }] },
+  ], "2026-2027");
+  assert.deepEqual(structure, [{ label: "Media", value: 1 }, { label: "Photography", value: 1 }]);
+  assert.deepEqual(genderDistribution([{ sex: "M" }, { sex: " f " }, { sex: null }]), { Male: 1, Female: 1, unknown: 1 });
+});
+
+test("team structure uses exact case-insensitive post abbreviations and exposes every cell", () => {
+  const structure = teamStructure([
+    { id: 3, team_seasons: [{ season: "26-27", post_abbr: "des-pres" }] },
+    { id: 4, team_seasons: [{ season: "2026-2027", post_abbr: "EVT-COORD" }] },
+    { id: 5, team_seasons: [{ season: "2026-2027", post_abbr: "ORG-UNKNOWN" }] },
+  ], "2026-2027", { includeEmpty: true });
+  assert.equal(structure.find((cell) => cell.label === "Design").value, 1);
+  assert.equal(structure.find((cell) => cell.label === "Organization").value, 1);
+  assert.equal(structure.find((cell) => cell.label === "Financial").value, 0);
+});
+
+test("registration analytics exclude pending decisions and normalize academic labels", () => {
+  const rows = [
+    { status: "accepted", department: " Computer Science " },
+    { status: "accepted", department: "computer science" },
+    { status: "refused", department: "Business" },
+    { status: "pending", department: " " },
+  ];
+  const decisions = registrationDecisionStats(rows);
+  assert.deepEqual({ ...decisions, acceptanceRate: Math.round(decisions.acceptanceRate) }, { accepted: 2, refused: 1, pending: 1, decided: 3, acceptanceRate: 67 });
+  assert.deepEqual(countLabels(rows, "department"), [{ label: "Computer Science", value: 2 }, { label: "Business", value: 1 }]);
+  assert.equal(registrationDecisionStats([{ status: "pending" }]).acceptanceRate, null);
+});
+
+test("application timelines include quiet UTC days and ignore invalid timestamps", () => {
+  const timeline = applicationsTimeline([
+    { created_at: "2026-09-01T23:30:00-02:00" },
+    { created_at: "2026-09-04T08:00:00Z" },
+    { created_at: "not-a-date" },
+  ]);
+  assert.equal(timeline.granularity, "day");
+  assert.deepEqual(timeline.values, [1, 0, 1]);
+  assert.equal(timeline.peak.value, 1);
+});
+
+test("event analytics safely extract years from mixed text and ignore unusable dates", () => {
+  assert.deepEqual(eventsByYear([
+    { date: "20/04/2026" },
+    { date: "25/02/2026 - 26/02/2026" },
+    { date: "Conference 2024" },
+    { date: "invalid" },
+    { date: null },
+  ]), [{ label: "2024", value: 1 }, { label: "2026", value: 2 }]);
+});
 function rpcMock(result) {
   const calls = [];
   return { calls, async rpc(name, args) { calls.push({ name, args }); return result; } };
 }
+const completeInterview = {
+  interest_type: ["Design", "Coding / Robotics / AI"],
+  team_role_style: "Gives creative ideas",
+  problem_solving_style: "Discuss it with the team",
+  work_environment: "Creative work",
+  preferred_activity: ["Graphic Design / Content Creation"],
+};
+test("interview answers preload safely and require all five responses", () => {
+  assert.deepEqual(interviewAnswersFromRegistration({ ...completeInterview, interest_type: ["Design", "Invalid"] }), { ...completeInterview, interest_type: ["Design"] });
+  assert.deepEqual(validateInterviewAnswers(completeInterview), completeInterview);
+  assert.throws(() => validateInterviewAnswers({ ...completeInterview, preferred_activity: [] }), /Which type of club activity/);
+});
+test("interview saving updates one registration through the protected RPC", async () => {
+  const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, interviewed_at: "2026-09-13T10:00:00Z" }, error: null });
+  await saveRegistrationInterview(client, 18, completeInterview);
+  assert.equal(client.calls[0].name, "save_registration_interview");
+  assert.equal(client.calls[0].args.p_registration_id, 18);
+  assert.deepEqual(client.calls[0].args.p_interest_type, completeInterview.interest_type);
+});
+test("completed review saves interview and decision through one atomic RPC", async () => {
+  const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, status: "refused", refusal_reason: "Limited places" }, error: null });
+  await completeRegistrationReview(client, 18, completeInterview, "refused", "  Limited places  ");
+  assert.equal(client.calls.length, 1);
+  assert.deepEqual({
+    name: client.calls[0].name,
+    decision: client.calls[0].args.p_decision,
+    reason: client.calls[0].args.p_reason,
+  }, { name: "complete_registration_review", decision: "refused", reason: "Limited places" });
+  await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "refused", " "), /refusal reason/);
+  assert.equal(client.calls.length, 1);
+});
+test("interview migration blocks public answers and preserves the first interview timestamp", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_registration_interviews.sql", import.meta.url), "utf8");
+  assert.match(migration, /interest_type IS NULL[\s\S]*interview_completed IS FALSE[\s\S]*interviewed_at IS NULL/);
+  assert.match(migration, /public\.has_club_permission\('registrations'\)/);
+  assert.match(migration, /interviewed_at = coalesce\(registration\.interviewed_at, now\(\)\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_registration_review/);
+  assert.match(migration, /PERFORM public\.save_registration_interview[\s\S]*SET status = p_decision/);
+  assert.doesNotMatch(migration, /GRANT UPDATE\s*\(/);
+});
 function tableMock(result) {
   const calls = [];
   const query = {
@@ -66,13 +185,31 @@ test("controlled team posts generate internal metadata and full season keys", ()
   assert.throws(() => createTeamAssignment("25-26", "Photographer"), /YYYY-YYYY/);
   assert.throws(() => createTeamAssignment("2025-2026", "Unknown role"), /post/);
 });
-test("settings use one atomic RPC with independent current and published seasons", async () => {
-  const data = { current_season: "2026-2027", public_staff_season: "2025-2026" };
+test("settings use one atomic RPC with one or many published team seasons", async () => {
+  const data = {
+    current_season: "2026-2027",
+    public_staff_season: "2025-2026",
+    public_staff_seasons: ["2025-2026", "2026-2027"],
+  };
   const client = rpcMock({ data, error: null });
   assert.deepEqual(await saveClubSettings(client, data), data);
   assert.equal(client.calls.length, 1);
-  assert.equal(client.calls[0].name, "save_club_settings");
+  assert.deepEqual(client.calls[0], {
+    name: "save_club_settings_seasons",
+    args: {
+      p_current_season: "2026-2027",
+      p_public_staff_seasons: ["2025-2026", "2026-2027"],
+    },
+  });
+  assert.deepEqual(normalizePublishedSeasons({ public_staff_season: "2024-2025" }), ["2024-2025"]);
   await assert.rejects(saveClubSettings(client, { ...data, current_season: "bad" }));
+});
+test("multiple public team seasons migration preserves the legacy primary season", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_multiple_public_team_seasons.sql", import.meta.url), "utf8");
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS public_staff_seasons text\[\]/);
+  assert.match(migration, /SET public_staff_seasons = ARRAY\[public_staff_season\]/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.save_club_settings_seasons/);
+  assert.match(migration, /public_staff_season = normalized_seasons\[1\]/);
 });
 test("admissions update the registration through one atomic decision endpoint", async () => {
   const client = rpcMock({ data: { registration_id: 15, decision: "accepted" }, error: null });
@@ -166,7 +303,18 @@ test("event date helpers round-trip and parse legacy ranges", () => {
   assert.equal(formatDateForInput("09/04/2026"), "2026-04-09");
   assert.equal(formatDateForInput("13-14 Oct 2024"), "");
   assert.equal(parseEventDate("13-14 Oct 2024")?.toISOString(), "2024-10-13T00:00:00.000Z");
+  assert.equal(parseEventDate("25/02/2026 - 26/02/2026")?.toISOString(), "2026-02-25T00:00:00.000Z");
+  assert.equal(parseEventDate("03/2026")?.toISOString(), "2026-03-01T00:00:00.000Z");
   assert.throws(() => formatDateForDatabase("2026-02-30"), /valid/);
+});
+test("event chronology puts newest valid event dates first", () => {
+  const events = [
+    { id: "invalid", date: "To be announced", created_at: "2027-01-01T00:00:00Z" },
+    { id: "range", date: "25/02/2026 - 26/02/2026", created_at: null },
+    { id: "month", date: "03/2026", created_at: null },
+    { id: "old", date: "13-14 Oct 2024", created_at: null },
+  ];
+  assert.deepEqual(sortEventsNewestFirst(events).map(({ id }) => id), ["month", "range", "old", "invalid"]);
 });
 test("unsafe links and transient image blobs are rejected", () => {
   assert.equal(safeEventUrl("javascript:alert(1)"), "");

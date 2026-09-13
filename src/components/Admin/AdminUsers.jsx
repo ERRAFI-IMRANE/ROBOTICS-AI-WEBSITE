@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ADMIN_PERMISSION_OPTIONS } from "../../lib/adminPermissions";
 import { createAdminUser, listAdminUsers, updateAdminUser } from "../../lib/adminUsers";
 import { supabase } from "../../lib/supabaseClient";
+import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
+import { useAdminToast } from "./useAdminToast";
 
 const DEFAULT_PERMISSIONS = ["overview", "team", "events", "registrations"];
 
@@ -28,13 +30,14 @@ export default function AdminUsers({ currentUser }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [confirmation, setConfirmation] = useState(null);
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
+  const { toast, showToast, clearToast } = useAdminToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,32 +84,54 @@ export default function AdminUsers({ currentUser }) {
       : [...current, permission]);
   };
 
-  const save = async (event) => {
-    event.preventDefault();
-    if (busy) return;
+  const performSave = async () => {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       if (editor.mode === "create") {
         await createAdminUser(supabase, { displayName, email, password, permissions });
-        setNotice("Admin account created. The officer can sign in with the temporary password.");
+        showToast("Admin account created. The officer can now sign in with the temporary password.");
       } else {
         await updateAdminUser(supabase, editor.user.id, { displayName, permissions });
-        setNotice("Admin permissions updated.");
+        showToast("Admin permissions updated successfully.");
       }
       setEditor(null);
       setPassword("");
       await load();
     } catch (saveError) {
-      setError(saveError.message || "The admin account could not be saved.");
+      const message = saveError.message || "The admin account could not be saved.";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setBusy(false);
     }
   };
 
+  const save = (event) => {
+    event.preventDefault();
+    if (busy || !editor) return;
+    const isCreate = editor.mode === "create";
+    setConfirmation({
+      title: isCreate ? "Create this admin account?" : "Save permission changes?",
+      message: isCreate
+        ? `${displayName.trim() || email.trim()} will receive access to ${permissions.length} dashboard area${permissions.length === 1 ? "" : "s"}.`
+        : `Update dashboard access for ${editor.user.display_name || editor.user.email}?`,
+      confirmLabel: isCreate ? "Create admin" : "Save permissions",
+      action: performSave,
+    });
+  };
+
+  const runConfirmedAction = async () => {
+    const action = confirmation?.action;
+    if (!action) return;
+    setConfirmation(null);
+    await action();
+  };
+
   return (
     <div className="admin-tab-content admin-users-page">
+      <AdminToast toast={toast} onClose={clearToast} />
+
       <div className="admin-view-header">
         <div>
           <h1 className="admin-page-title">Admin users</h1>
@@ -118,7 +143,6 @@ export default function AdminUsers({ currentUser }) {
         </div>
       </div>
 
-      {notice && <div className="admin-inline-success" role="status">{notice}</div>}
       {error && !editor && <div className="admin-inline-error" role="alert">{error}</div>}
 
       <div className="member-filters-bar admin-users-toolbar">
@@ -220,6 +244,13 @@ export default function AdminUsers({ currentUser }) {
           </form>
         </div>
       )}
+
+      <AdminConfirmDialog
+        confirmation={confirmation}
+        busy={busy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={runConfirmedAction}
+      />
     </div>
   );
 }

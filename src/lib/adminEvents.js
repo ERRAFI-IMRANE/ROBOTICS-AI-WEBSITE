@@ -56,8 +56,11 @@ export function parseEventDate(value) {
   const raw = String(row ? row.date || "" : value || "").trim();
   if (!raw) return null;
 
-  const stored = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Use the first date for stored ranges such as "25/02/2026 - 26/02/2026".
+  const stored = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s*(?:-|–|—)\s*\d{1,2}\/\d{1,2}\/\d{4})?$/);
   if (stored) return validUtcDate(Number(stored[3]), Number(stored[2]) - 1, Number(stored[1]));
+  const storedMonth = raw.match(/^(\d{1,2})\/(\d{4})$/);
+  if (storedMonth) return validUtcDate(Number(storedMonth[2]), Number(storedMonth[1]) - 1, 1);
   const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
   if (iso) return validUtcDate(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
 
@@ -67,6 +70,21 @@ export function parseEventDate(value) {
   const monthWord = raw.toLowerCase().match(/[a-zàâçéèêëîïôûùüÿñæœ]+/g)?.find((word) => MONTH_LOOKUP[word] !== undefined);
   if (year && monthWord) return validUtcDate(year, MONTH_LOOKUP[monthWord], day);
   return null;
+}
+
+export function sortEventsNewestFirst(rows = []) {
+  return [...rows].sort((eventA, eventB) => {
+    const dateA = parseEventDate(eventA)?.getTime() ?? Number.NEGATIVE_INFINITY;
+    const dateB = parseEventDate(eventB)?.getTime() ?? Number.NEGATIVE_INFINITY;
+    if (dateA !== dateB) return dateB - dateA;
+
+    // Invalid or identical event dates retain a deterministic newest-created order.
+    const createdA = eventA?.created_at ? new Date(eventA.created_at).getTime() : 0;
+    const createdB = eventB?.created_at ? new Date(eventB.created_at).getTime() : 0;
+    const safeCreatedA = Number.isNaN(createdA) ? 0 : createdA;
+    const safeCreatedB = Number.isNaN(createdB) ? 0 : createdB;
+    return safeCreatedB - safeCreatedA;
+  });
 }
 
 export function eventView(row = {}) {

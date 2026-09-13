@@ -1896,7 +1896,7 @@ dialog.admin-event-dialog {
    -------------------------------------------------------------------------- */
 .admin-toast-bar {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   background: var(--text);
   color: var(--bg);
@@ -1907,6 +1907,600 @@ dialog.admin-event-dialog {
   box-shadow: var(--shadow-lg);
   z-index: 1000;
   animation: toastSlideUp 180ms var(--ease-out);
+}
+
+/* Transaction confirmation and result feedback */
+.admin-action-toast {
+  position: fixed;
+  inset: 22px 22px auto auto;
+  z-index: 2500;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 28px;
+  align-items: start;
+  width: min(390px, calc(100vw - 28px));
+  margin: 0;
+  padding: 14px;
+  color: #142033;
+  background: #fff;
+  border: 1px solid #cfd9e6;
+  border-left: 4px solid #13806f;
+  border-radius: 0;
+  box-shadow: 0 18px 46px rgba(7, 22, 44, 0.2);
+  animation: adminToastEnter 200ms var(--ease-out);
+}
+
+.admin-action-toast:popover-open {
+  display: grid;
+}
+
+.admin-action-toast.is-error {
+  border-left-color: #c43b45;
+}
+
+.admin-action-toast-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  color: #fff;
+  background: #13806f;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-action-toast.is-error .admin-action-toast-icon {
+  background: #c43b45;
+}
+
+.admin-action-toast > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-action-toast strong {
+  color: #142033;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.admin-action-toast p {
+  margin: 0;
+  color: #5c6b7d;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.admin-action-toast button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #6a7788;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-action-toast button:hover,
+.admin-action-toast button:focus-visible {
+  color: #142033;
+  background: #eef3f8;
+  outline: 2px solid #8db7df;
+  outline-offset: -2px;
+}
+
+@keyframes adminToastEnter {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+dialog.admin-confirm-dialog {
+  width: min(450px, calc(100vw - 28px));
+  max-width: 450px;
+  margin: auto;
+  padding: 0;
+  color: #142033;
+  background: #fff;
+  border: 1px solid #cbd6e3;
+  border-radius: 0;
+  box-shadow: 0 28px 80px rgba(5, 18, 38, 0.3);
+}
+
+dialog.admin-confirm-dialog::backdrop {
+  background: rgba(5, 18, 38, 0.66);
+  backdrop-filter: blur(2px);
+}
+
+.admin-confirm-content {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 16px;
+  padding: 24px;
+}
+
+.admin-confirm-symbol {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: #fff;
+  background: #164d7c;
+  border-radius: 0;
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.admin-confirm-symbol.is-danger {
+  background: #b8323c;
+}
+
+.admin-confirm-copy {
+  align-self: center;
+  min-width: 0;
+}
+
+.admin-confirm-copy h2 {
+  margin: 0 0 7px;
+  color: #10213a;
+  font: 750 19px/1.25 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.admin-confirm-copy p {
+  margin: 0;
+  color: #657386;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.admin-confirm-actions button {
+  min-width: 112px;
+}
+
+@media (max-width: 520px) {
+  .admin-action-toast {
+    inset: 12px 14px auto;
+    width: auto;
+  }
+
+  .admin-confirm-content {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .admin-confirm-symbol {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-confirm-actions button {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-action-toast {
+    animation: none;
+  }
+}
+
+/* Team roster period control */
+.admin-team-season-console {
+  display: grid;
+  grid-template-areas: "heading options summary publish";
+  grid-template-columns: minmax(210px, 0.9fr) minmax(350px, 1.5fr) auto auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  border-left: 4px solid #164d7c;
+  border-radius: 0;
+  box-shadow: 0 3px 10px rgba(15, 36, 62, 0.045);
+}
+
+.admin-team-season-heading {
+  grid-area: heading;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.admin-team-season-mark {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: #164d7c;
+  background: #edf5fb;
+  border: 1px solid #c9dceb;
+}
+
+.admin-team-season-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.admin-team-season-heading h2 {
+  margin: 0;
+  color: #10213a;
+  font: 750 14px/1.25 var(--font-display);
+}
+
+.admin-team-season-heading p {
+  margin: 3px 0 0;
+  color: #718095;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.admin-team-season-options {
+  grid-area: options;
+  display: grid;
+  grid-template-columns: repeat(var(--season-count, 4), minmax(86px, 1fr));
+  min-width: 0;
+  overflow-x: auto;
+  background: #f3f6f9;
+  border: 1px solid #d8e1eb;
+}
+
+.admin-team-season-options button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 10px;
+  color: #69788b;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid #d8e1eb;
+  border-radius: 0;
+  font: 700 10px/1 var(--font-body);
+  cursor: pointer;
+  transition: color 170ms ease, background-color 170ms ease, box-shadow 170ms ease;
+}
+
+.admin-team-season-options button:last-child {
+  border-right: 0;
+}
+
+.admin-team-season-options button:hover,
+.admin-team-season-options button:focus-visible {
+  color: #173a5d;
+  background: #e9f2fa;
+  outline: 2px solid #8db7df;
+  outline-offset: -2px;
+}
+
+.admin-team-season-options button.is-active {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  background: #164d7c;
+  box-shadow: 0 6px 16px rgba(22, 77, 124, 0.18);
+}
+
+.admin-team-season-options small {
+  display: grid;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  color: #5f7187;
+  background: #fff;
+  border: 1px solid #d4dee8;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-team-season-options button.is-active small {
+  color: #164d7c;
+  border-color: #fff;
+}
+
+.admin-team-season-select {
+  display: none;
+  grid-area: select;
+}
+
+.admin-team-season-select > span {
+  color: #657386;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.admin-team-season-summary {
+  grid-area: summary;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 84px;
+  padding-left: 17px;
+  border-left: 1px solid #dde5ee;
+}
+
+.admin-team-season-summary > strong {
+  color: #10213a;
+  font: 780 27px/1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.admin-team-season-summary > span {
+  display: grid;
+  gap: 2px;
+  color: #4f6074;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.admin-team-season-summary small {
+  color: #8793a3;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.admin-team-public-season {
+  grid-area: publish;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.admin-team-public-season .btn-primary,
+.admin-team-public-season .btn-secondary {
+  min-height: 36px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.admin-team-season-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  color: #69788b;
+  background: #f5f7fa;
+  border: 1px solid #d8e1eb;
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.admin-team-season-status.is-live {
+  color: #087454;
+  background: #eaf8f3;
+  border-color: #b8e2d4;
+}
+
+.admin-team-season-status.is-live i {
+  width: 7px;
+  height: 7px;
+  background: #13806f;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(19, 128, 111, 0.12);
+}
+
+.admin-team-season-status.is-loading {
+  color: #78879a;
+}
+
+.admin-team-roster-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 38px;
+}
+
+.admin-team-roster-tools p {
+  margin: 0;
+  color: #78879a;
+  font-size: 10px;
+}
+
+.admin-team-roster-tools p strong {
+  color: #263b55;
+}
+
+.admin-team-roster-tools .form-text-input {
+  width: min(100%, 290px);
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.admin-settings-season-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.admin-settings-season-checklist label {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 11px;
+  color: #657386;
+  background: #f8fafc;
+  border: 1px solid #d9e2ec;
+  cursor: pointer;
+  transition: color 170ms ease, background-color 170ms ease, border-color 170ms ease;
+}
+
+.admin-settings-season-checklist label:hover,
+.admin-settings-season-checklist label:focus-within {
+  color: #173a5d;
+  border-color: #9abbd8;
+}
+
+.admin-settings-season-checklist label.is-selected {
+  color: #123d64;
+  background: #edf5fb;
+  border-color: #8db7df;
+}
+
+.admin-settings-season-checklist input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #164d7c;
+}
+
+.admin-settings-season-checklist span {
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.admin-settings-season-checklist small {
+  color: #8793a3;
+  font-size: 9px;
+}
+
+.admin-settings-season-checklist .is-selected small {
+  color: #13806f;
+  font-weight: 750;
+}
+
+.admin-team-season-count {
+  margin-left: 2px;
+  color: var(--text-muted);
+  font: 650 10px/1 var(--font-mono);
+}
+
+.filter-pill-btn.is-active .admin-team-season-count {
+  color: #517294;
+}
+
+.admin-team-search-input {
+  width: min(100%, 290px);
+}
+
+.admin-team-search-input .form-text-input {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.admin-public-seasons-dialog {
+  width: min(620px, calc(100vw - 28px));
+}
+
+.admin-public-seasons-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-public-seasons-summary strong {
+  color: #164d7c;
+  font: 780 30px/1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.admin-public-seasons-summary span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-public-seasons-grid label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 1280px) {
+  .admin-team-season-console {
+    grid-template-areas:
+      "heading publish"
+      "options summary";
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-team-season-options {
+    width: min(100%, 560px);
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-team-season-console {
+    grid-template-areas:
+      "heading summary"
+      "select select"
+      "publish publish";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .admin-team-season-options {
+    display: none;
+  }
+
+  .admin-team-season-select {
+    display: grid;
+    gap: 6px;
+  }
+
+  .admin-team-season-summary {
+    padding-left: 12px;
+  }
+
+  .admin-team-public-season,
+  .admin-team-public-season .btn-primary,
+  .admin-team-public-season .btn-secondary,
+  .admin-team-season-status {
+    width: 100%;
+  }
+
+  .admin-team-public-season .btn-primary,
+  .admin-team-public-season .btn-secondary,
+  .admin-team-season-status {
+    justify-content: center;
+  }
+
+  .admin-team-roster-tools {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-team-roster-tools .form-text-input {
+    width: 100%;
+  }
+
+  .admin-settings-season-checklist {
+    grid-template-columns: 1fr;
+  }
 }
 
 @keyframes toastSlideUp {
@@ -3881,7 +4475,8 @@ dialog.admin-event-dialog {
   font-size: 10px;
 }
 
-.admin-chart-widget header > span {
+.admin-chart-widget header > span,
+.admin-chart-widget-actions > span {
   flex: 0 0 auto;
   padding: 5px 8px;
   color: #475467;
@@ -6486,5 +7081,577 @@ dialog.admin-event-editor-dialog[open] .admin-event-editor-form {
   dialog.admin-event-editor-dialog {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Registration interview workflow */
+.admin-registration-status-stack {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-interview-status {
+  color: #7a8699;
+  font: 650 8px var(--font-mono);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.admin-interview-status.is-complete {
+  color: #087454;
+}
+
+.admin-interview-action {
+  min-height: 31px;
+  padding: 5px 10px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+dialog.admin-interview-dialog {
+  width: min(860px, calc(100vw - 34px));
+  max-width: none;
+  max-height: calc(100dvh - 34px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  color: #172033;
+  background: #fff;
+  border: 1px solid #d9e1eb;
+  border-radius: 12px;
+  box-shadow: 0 28px 80px rgba(9, 23, 46, 0.28);
+}
+
+dialog.admin-interview-dialog::backdrop {
+  background: rgba(8, 18, 35, 0.66);
+  backdrop-filter: blur(5px);
+}
+
+.admin-interview-shell {
+  display: flex;
+  max-height: calc(100dvh - 34px);
+  flex-direction: column;
+}
+
+.admin-interview-header {
+  position: relative;
+  z-index: 1;
+  padding: 20px 24px 15px;
+  background: #fbfcfe;
+  border-bottom: 1px solid #e5eaf1;
+}
+
+.admin-interview-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-interview-heading-row h2 {
+  margin: 3px 0 0;
+  font: 650 23px/1.15 var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.admin-interview-applicant {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  overflow: hidden;
+  background: #dfe6ef;
+  border: 1px solid #dfe6ef;
+  border-radius: 7px;
+}
+
+.admin-interview-applicant > span {
+  display: flex;
+  min-width: 0;
+  padding: 9px 10px;
+  background: #fff;
+  flex-direction: column;
+}
+
+.admin-interview-applicant small {
+  color: #8994a5;
+  font: 650 7px var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.admin-interview-applicant strong {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #344054;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.admin-interview-applicant strong.is-pending { color: #a15c08; }
+.admin-interview-applicant strong.is-accepted { color: #087454; }
+.admin-interview-applicant strong.is-refused { color: #b42318; }
+
+.admin-interview-progress-copy {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 13px;
+  color: #667085;
+  font: 650 8px var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-interview-progress {
+  height: 4px;
+  margin-top: 7px;
+  overflow: hidden;
+  background: #e6ebf2;
+  border-radius: 999px;
+}
+
+.admin-interview-progress i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #173f7b, #1d69e7);
+  border-radius: inherit;
+  transition: width 280ms var(--ease-out);
+}
+
+.admin-interview-viewport {
+  flex: 1 1 390px;
+  min-height: 280px;
+  max-height: 480px;
+  overflow: hidden auto;
+}
+
+.admin-interview-track {
+  display: flex;
+  align-items: flex-start;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.admin-interview-step {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 27px 24px 30px;
+}
+
+.admin-interview-question-copy small {
+  color: #1d4ed8;
+  font: 700 8px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-interview-question-copy h3 {
+  margin: 7px 0 0;
+  color: #172033;
+  font: 650 clamp(20px, 3vw, 28px)/1.17 var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.admin-interview-question-copy p {
+  margin: 6px 0 0;
+  color: #7a8699;
+  font-size: 10px;
+}
+
+.admin-interview-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 22px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-interview-options label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 11px 12px;
+  color: #475467;
+  font-size: 10px;
+  line-height: 1.35;
+  background: #fff;
+  border: 1px solid #dce3ec;
+  border-radius: 7px;
+  cursor: pointer;
+  gap: 10px;
+  transition: border-color 170ms ease, background 170ms ease, box-shadow 170ms ease, transform 170ms ease;
+}
+
+.admin-interview-options label:hover {
+  border-color: #aebed3;
+  box-shadow: 0 5px 14px rgba(16, 43, 82, 0.07);
+  transform: translateY(-1px);
+}
+
+.admin-interview-options label.is-selected {
+  color: #153f7b;
+  background: #f1f6ff;
+  border-color: #2b6fde;
+  box-shadow: inset 3px 0 0 #1d5fca;
+}
+
+.admin-interview-options input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.admin-interview-options label:focus-within {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.admin-interview-options label i {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  color: #fff;
+  font: 700 11px var(--font-body);
+  background: #f1f4f8;
+  border: 1px solid #cfd8e5;
+  border-radius: 5px;
+  place-items: center;
+}
+
+.admin-interview-options label.is-selected i {
+  background: #1d5fca;
+  border-color: #1d5fca;
+}
+
+.admin-interview-review-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.admin-interview-review-group {
+  padding: 11px 12px;
+  background: #f8fafc;
+  border: 1px solid #e1e7ef;
+  border-radius: 7px;
+}
+
+.admin-interview-review-group > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-interview-review-group small {
+  color: #738096;
+  font: 700 7px var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.admin-interview-review-group button {
+  padding: 0;
+  color: #1d5fca;
+  font-size: 8px;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.admin-interview-review-group ul {
+  margin: 8px 0 0;
+  padding-left: 15px;
+  color: #344054;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.admin-interview-decision-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(280px, 1.2fr);
+  gap: 16px;
+  margin-top: 12px;
+  padding: 14px;
+  background: #f4f7fb;
+  border: 1px solid #dce4ef;
+  border-radius: 7px;
+}
+
+.admin-interview-decision-panel > div > small {
+  color: #1d4ed8;
+  font: 700 7px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-interview-decision-panel h4 {
+  margin: 5px 0 0;
+  color: #172033;
+  font: 650 13px var(--font-display);
+}
+
+.admin-interview-decision-panel p {
+  margin: 4px 0 0;
+  color: #7a8699;
+  font-size: 9px;
+}
+
+.admin-interview-decision-panel > label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.admin-interview-decision-panel label > span {
+  margin-bottom: 6px;
+  color: #475467;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.admin-interview-decision-panel textarea {
+  min-height: 84px;
+  padding: 9px 10px;
+  color: #25334a;
+  font: 10px/1.5 var(--font-body);
+  resize: vertical;
+  background: #fff;
+  border: 1px solid #cfd8e5;
+  border-radius: 6px;
+}
+
+.admin-interview-decision-panel textarea:focus {
+  border-color: #1d5fca;
+  outline: 2px solid rgba(29, 95, 202, 0.12);
+}
+
+.admin-interview-decision-panel label > small {
+  margin-top: 4px;
+  color: #8994a5;
+  font: 7px var(--font-mono);
+  text-align: right;
+}
+
+.admin-interview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 11px 24px;
+  background: #fbfcfe;
+  border-top: 1px solid #e1e7ef;
+  gap: 16px;
+}
+
+.admin-interview-error {
+  color: #b42318;
+  font-size: 9px;
+}
+
+.admin-interview-actions {
+  display: flex;
+  margin-left: auto;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  dialog.admin-interview-dialog {
+    width: calc(100vw - 18px);
+    max-height: calc(100dvh - 18px);
+  }
+
+  .admin-interview-shell {
+    max-height: calc(100dvh - 18px);
+  }
+
+  .admin-registration-status-stack {
+    align-items: flex-start;
+  }
+
+  .admin-interview-applicant,
+  .admin-interview-options,
+  .admin-interview-review-list,
+  .admin-interview-decision-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-interview-header,
+  .admin-interview-step,
+  .admin-interview-footer {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+}
+
+@media (max-width: 500px) {
+  .admin-interview-applicant,
+  .admin-interview-options,
+  .admin-interview-review-list,
+  .admin-interview-decision-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-interview-viewport {
+    min-height: 280px;
+  }
+
+  .admin-interview-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-interview-actions,
+  .admin-interview-actions button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-interview-track,
+  .admin-interview-progress i,
+  .admin-interview-options label {
+    transition: none !important;
+  }
+}
+
+/* Live overview analytics extend the existing dashboard visual language. */
+.admin-analytics-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+.admin-analytics-scope span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  padding: 6px 9px;
+  color: #667085;
+  font-size: 9px;
+  background: #f8fafc;
+  border: 1px solid #e0e6ee;
+  border-radius: 6px;
+}
+
+.admin-analytics-scope b {
+  margin-right: 6px;
+  color: #243247;
+  font-weight: 700;
+}
+
+.admin-analytics-grid {
+  align-items: stretch;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-chart-widget-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-chart-season-select {
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  padding-left: 9px;
+  overflow: hidden;
+  color: #667085;
+  font-size: 9px;
+  font-weight: 650;
+  background: #fff;
+  border: 1px solid #d9e1eb;
+  border-radius: 6px;
+}
+
+.admin-chart-season-select span {
+  margin-right: 7px;
+}
+
+.admin-chart-season-select select {
+  align-self: stretch;
+  min-width: 116px;
+  padding: 0 27px 0 9px;
+  color: #243247;
+  font: 650 10px var(--font-body);
+  background: #f8fafc;
+  border: 0;
+  border-left: 1px solid #e0e6ee;
+  cursor: pointer;
+}
+
+.admin-chart-season-select select:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+}
+
+.admin-chart-empty {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 210px;
+  padding: 24px;
+  color: #7a8699;
+  font-size: 11px;
+  line-height: 1.55;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px dashed #d9e1eb;
+  border-radius: 7px;
+  place-items: center;
+}
+
+@media (max-width: 980px) {
+  .admin-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .admin-analytics-scope {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .admin-analytics-scope span {
+    justify-content: space-between;
+  }
+
+  .admin-chart-widget > header {
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .admin-chart-widget-actions {
+    width: 100%;
+    align-items: stretch;
+    justify-content: space-between;
+  }
+
+  .admin-chart-season-select {
+    flex: 1 1 170px;
+    justify-content: space-between;
+  }
+
+  .admin-chart-widget header > span,
+  .admin-chart-widget-actions > span {
+    max-width: 100%;
+    white-space: normal;
   }
 }

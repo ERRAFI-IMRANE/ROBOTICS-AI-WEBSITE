@@ -22,16 +22,22 @@ CREATE TABLE IF NOT EXISTS public.club_settings (
   id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   current_season text NOT NULL,
   public_staff_season text NOT NULL,
+  public_staff_seasons text[] NOT NULL DEFAULT '{}'::text[],
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-INSERT INTO public.club_settings (id, current_season, public_staff_season)
+INSERT INTO public.club_settings (id, current_season, public_staff_season, public_staff_seasons)
 VALUES (
   1,
   coalesce((SELECT season FROM public.registration_settings ORDER BY is_open DESC, season DESC LIMIT 1), '2026-2027'),
-  coalesce((SELECT season FROM public.team_seasons ORDER BY season DESC LIMIT 1), '2025-2026')
+  coalesce((SELECT season FROM public.team_seasons ORDER BY season DESC LIMIT 1), '2025-2026'),
+  ARRAY[coalesce((SELECT season FROM public.team_seasons ORDER BY season DESC LIMIT 1), '2025-2026')]
 )
 ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.club_settings ADD COLUMN IF NOT EXISTS public_staff_seasons text[] NOT NULL DEFAULT '{}'::text[];
+UPDATE public.club_settings SET public_staff_seasons = ARRAY[public_staff_season]
+WHERE coalesce(cardinality(public_staff_seasons), 0) = 0;
 
 ALTER TABLE public.club_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS club_public_read ON public.club_settings;

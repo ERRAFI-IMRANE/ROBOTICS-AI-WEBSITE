@@ -27,7 +27,7 @@ function localStorageApi() {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const fileEnvironment = loadEnv(mode, process.cwd(), '')
   const serverEnvironmentKeys = [
     'R2_ACCESS_KEY_ID',
@@ -41,7 +41,11 @@ export default defineConfig(({ mode }) => {
     'VITE_SUPABASE_ANON_KEY',
   ]
   serverEnvironmentKeys.forEach((key) => {
-    if (process.env[key] === undefined && fileEnvironment[key] !== undefined) {
+    // During local development, prefer the current .env value so a Vite
+    // config restart cannot retain stale server-only credentials or URLs.
+    if (command === 'serve' && fileEnvironment[key] !== undefined) {
+      process.env[key] = fileEnvironment[key]
+    } else if (process.env[key] === undefined && fileEnvironment[key] !== undefined) {
       process.env[key] = fileEnvironment[key]
     }
   })

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { normalizeSeason, readClubSettings, saveClubSettings } from "../../lib/clubSettings";
+import { normalizePublishedSeasons, normalizeSeason, readClubSettings, saveClubSettings } from "../../lib/clubSettings";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
 import "./AdminDashboard.css";
 
 export default function AdminSettings() {
-  const [values, setValues] = useState({ current_season: "", public_staff_season: "" });
+  const [values, setValues] = useState({ current_season: "", public_staff_season: "", public_staff_seasons: [] });
   const [seasons, setSeasons] = useState([]);
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +40,20 @@ export default function AdminSettings() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function togglePublicStaffSeason(season) {
+    const current = normalizePublishedSeasons(values);
+    const checked = current.includes(season);
+    if (checked && current.length === 1) {
+      setError("At least one staff season must remain visible on the public website.");
+      return;
+    }
+    const next = checked
+      ? current.filter((item) => item !== season)
+      : [...current, season].sort((a, b) => b.localeCompare(a));
+    setError("");
+    setValues({ ...values, public_staff_season: next[0], public_staff_seasons: next });
+  }
 
   async function save(event) {
     event.preventDefault();
@@ -140,29 +154,25 @@ export default function AdminSettings() {
             </div>
 
             <div className="form-field-group">
-              <label className="form-field-label" htmlFor="public-staff-season">
-                Staff season shown on public site
-              </label>
+              <span className="form-field-label">Staff seasons shown on public site</span>
               {loading ? (
                 <div className="skeleton-shimmer skeleton-line" style={{ height: "38px" }} />
               ) : (
-                <select
-                  id="public-staff-season"
-                  className="form-select-input"
-                  required
-                  value={values.public_staff_season}
-                  onChange={(e) => setValues({ ...values, public_staff_season: e.target.value })}
-                >
-                  <option value="">Select a staff season</option>
-                  {[...new Set([...seasons, values.public_staff_season].filter(Boolean))].map((season) => (
-                    <option key={season} value={season}>
-                      {season}
-                    </option>
-                  ))}
-                </select>
+                <div className="admin-settings-season-checklist">
+                  {[...new Set([...seasons, ...normalizePublishedSeasons(values)].filter(Boolean))].map((season) => {
+                    const checked = normalizePublishedSeasons(values).includes(season);
+                    return (
+                      <label key={season} className={checked ? "is-selected" : ""}>
+                        <input type="checkbox" checked={checked} onChange={() => togglePublicStaffSeason(season)} />
+                        <span>{season}</span>
+                        <small>{checked ? "Visible" : "Hidden"}</small>
+                      </label>
+                    );
+                  })}
+                </div>
               )}
               <p className="admin-panel-meta">
-                The public Team section will display only this roster. Staff records in other seasons remain accessible in the console.
+                The public Team section shows one roster directly, or season tabs when several are selected. Hidden seasons remain accessible in the console.
               </p>
             </div>
 

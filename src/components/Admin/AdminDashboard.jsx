@@ -272,6 +272,48 @@ export default function AdminDashboard({ onClose }) {
     if (isAuthenticated && !workspace && !workspaceError) preloadWorkspace();
   }, [isAuthenticated, preloadWorkspace, workspace, workspaceError]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !adminUser) return undefined;
+
+    let active = true;
+    let refreshTimer;
+    let refreshRunning = false;
+    const permissions = getAdminPermissions(adminUser);
+    const tables = ["team", "team_seasons", "events", "registration_settings"];
+    if (permissions.includes("registrations")) tables.push("registrations");
+
+    const refreshFromDatabase = async () => {
+      if (!active || refreshRunning) return;
+      refreshRunning = true;
+      try {
+        const nextWorkspace = await loadAdminWorkspace(supabase, publicContent, () => {}, permissions);
+        if (active) setWorkspace(nextWorkspace);
+      } catch (error) {
+        // Keep the last confirmed dataset visible; the manual refresh exposes a detailed error.
+        console.warn("Admin workspace live refresh failed:", error.message);
+      } finally {
+        refreshRunning = false;
+      }
+    };
+
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(refreshFromDatabase, 240);
+    };
+
+    let channel = supabase.channel(`admin-workspace-${adminUser.id}`);
+    tables.forEach((table) => {
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRefresh);
+    });
+    channel.subscribe();
+
+    return () => {
+      active = false;
+      window.clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [adminUser, isAuthenticated]);
+
   const handleLoginSubmit = async (event) => {
     event.preventDefault();
     if (authBusy) return;

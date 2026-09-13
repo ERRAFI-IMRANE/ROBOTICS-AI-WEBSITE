@@ -11,11 +11,21 @@ CREATE TABLE IF NOT EXISTS public.club_settings (
   id integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   current_season text NOT NULL,
   public_staff_season text NOT NULL,
+  public_staff_seasons text[] NOT NULL DEFAULT '{}'::text[],
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-INSERT INTO public.club_settings (id, current_season, public_staff_season)
-SELECT 1, coalesce((SELECT season FROM public.registration_settings ORDER BY season DESC LIMIT 1), '2026-2027'), '2025-2026'
+INSERT INTO public.club_settings (id, current_season, public_staff_season, public_staff_seasons)
+SELECT 1, coalesce((SELECT season FROM public.registration_settings ORDER BY season DESC LIMIT 1), '2026-2027'), '2025-2026', ARRAY['2025-2026']
 ON CONFLICT (id) DO NOTHING;
+ALTER TABLE public.club_settings ADD COLUMN IF NOT EXISTS public_staff_seasons text[] NOT NULL DEFAULT '{}'::text[];
+UPDATE public.club_settings SET public_staff_seasons = ARRAY[public_staff_season]
+WHERE coalesce(cardinality(public_staff_seasons), 0) = 0;
+UPDATE public.club_settings SET public_staff_season = public_staff_seasons[1]
+WHERE public_staff_season IS DISTINCT FROM public_staff_seasons[1];
+ALTER TABLE public.club_settings DROP CONSTRAINT IF EXISTS club_settings_public_staff_seasons_not_empty;
+ALTER TABLE public.club_settings ADD CONSTRAINT club_settings_public_staff_seasons_not_empty CHECK (cardinality(public_staff_seasons) >= 1);
+ALTER TABLE public.club_settings DROP CONSTRAINT IF EXISTS club_settings_primary_public_staff_season_sync;
+ALTER TABLE public.club_settings ADD CONSTRAINT club_settings_primary_public_staff_season_sync CHECK (public_staff_season = public_staff_seasons[1]);
 -- If this fails, resolve duplicate campaign seasons manually; no records are deleted here.
 CREATE UNIQUE INDEX IF NOT EXISTS registration_settings_season_unique ON public.registration_settings(season);
 
@@ -68,28 +78,48 @@ DO $$ DECLARE t text; seq text; BEGIN
 END $$;
 CREATE POLICY club_public_apply ON public.registrations FOR INSERT TO anon, authenticated
 WITH CHECK (
-  status = 'pending' AND refusal_reason IS NULL AND length(trim(full_name)) BETWEEN 1 AND 120
+  status = 'pending' AND refusal_reason IS NULL
+  AND interest_type IS NULL AND team_role_style IS NULL AND problem_solving_style IS NULL
+  AND work_environment IS NULL AND preferred_activity IS NULL
+  AND interview_completed IS FALSE AND interviewed_at IS NULL
+  AND length(trim(full_name)) BETWEEN 1 AND 120
   AND email IS NOT NULL AND length(email) BETWEEN 3 AND 254
   AND phone IS NOT NULL AND department IS NOT NULL AND filiere IS NOT NULL
   AND years_of_study BETWEEN 1 AND 5
   AND EXISTS (SELECT 1 FROM public.registration_settings r JOIN public.club_settings c ON c.current_season = r.season WHERE c.id = 1 AND r.is_open AND r.season = registration_season)
 );
 
-CREATE OR REPLACE FUNCTION public.save_club_settings(p_current_season text, p_public_staff_season text)
+CREATE OR REPLACE FUNCTION public.save_club_settings_seasons(p_current_season text, p_public_staff_seasons text[])
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
-DECLARE start_year integer;
+DECLARE start_year integer; season text; normalized_seasons text[];
 BEGIN
   IF NOT public.is_club_admin() THEN RAISE EXCEPTION 'Officer access required'; END IF;
-  IF p_current_season !~ '^20[0-9]{2}-20[0-9]{2}$' OR p_public_staff_season !~ '^20[0-9]{2}-20[0-9]{2}$' THEN RAISE EXCEPTION 'Invalid season'; END IF;
+  IF p_current_season !~ '^20[0-9]{2}-20[0-9]{2}$' THEN RAISE EXCEPTION 'Invalid season'; END IF;
   start_year := left(p_current_season, 4)::integer;
-  IF right(p_current_season, 4)::integer <> start_year + 1 OR right(p_public_staff_season, 4)::integer <> left(p_public_staff_season, 4)::integer + 1 THEN RAISE EXCEPTION 'Season years must be consecutive'; END IF;
+  IF right(p_current_season, 4)::integer <> start_year + 1 THEN RAISE EXCEPTION 'Season years must be consecutive'; END IF;
+  SELECT array_agg(value ORDER BY first_position) INTO normalized_seasons
+  FROM (
+    SELECT trim(value) AS value, min(ord) AS first_position
+    FROM unnest(p_public_staff_seasons) WITH ORDINALITY AS selected(value, ord)
+    WHERE length(trim(value)) > 0
+    GROUP BY trim(value)
+  ) unique_seasons;
+  IF coalesce(cardinality(normalized_seasons), 0) = 0 THEN RAISE EXCEPTION 'Select at least one public staff season'; END IF;
+  FOREACH season IN ARRAY normalized_seasons LOOP
+    IF season !~ '^20[0-9]{2}-20[0-9]{2}$' OR right(season, 4)::integer <> left(season, 4)::integer + 1 THEN RAISE EXCEPTION 'Season years must be consecutive'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.team_seasons WHERE team_seasons.season IN (season, substring(season, 3, 2) || '-' || right(season, 2), substring(season, 3, 2) || '/' || right(season, 2))) THEN RAISE EXCEPTION 'Add staff to season % before publishing it', season; END IF;
+  END LOOP;
   PERFORM id FROM public.club_settings WHERE id = 1 FOR UPDATE;
-  IF NOT EXISTS (SELECT 1 FROM public.team_seasons WHERE season IN (p_public_staff_season, substring(p_public_staff_season, 3, 2) || '-' || right(p_public_staff_season, 2))) THEN RAISE EXCEPTION 'Add staff to the selected public season before publishing it'; END IF;
   INSERT INTO public.registration_settings(season, is_open) VALUES (p_current_season, false) ON CONFLICT (season) DO NOTHING;
   UPDATE public.registration_settings SET is_open = false, closed_at = now(), updated_at = now() WHERE season <> p_current_season AND is_open;
-  UPDATE public.club_settings SET current_season = p_current_season, public_staff_season = p_public_staff_season, updated_at = now() WHERE id = 1;
-  RETURN jsonb_build_object('current_season', p_current_season, 'public_staff_season', p_public_staff_season);
+  UPDATE public.club_settings SET current_season = p_current_season, public_staff_season = normalized_seasons[1], public_staff_seasons = normalized_seasons, updated_at = now() WHERE id = 1;
+  RETURN jsonb_build_object('current_season', p_current_season, 'public_staff_season', normalized_seasons[1], 'public_staff_seasons', normalized_seasons);
 END; $$;
+
+CREATE OR REPLACE FUNCTION public.save_club_settings(p_current_season text, p_public_staff_season text)
+RETURNS jsonb LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
+  SELECT public.save_club_settings_seasons(p_current_season, ARRAY[p_public_staff_season]);
+$$;
 
 CREATE OR REPLACE FUNCTION public.decide_club_registration(p_registration_id bigint, p_decision text, p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
@@ -174,9 +204,10 @@ DO $$ DECLARE f record; BEGIN
 END $$;
 DROP FUNCTION IF EXISTS public.accept_club_registration(bigint);
 DROP FUNCTION IF EXISTS public.refuse_club_registration(bigint,text);
+REVOKE EXECUTE ON FUNCTION public.save_club_settings_seasons(text,text[]) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.save_club_settings(text,text) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.decide_club_registration(bigint,text,text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.save_club_settings(text,text), public.decide_club_registration(bigint,text,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.save_club_settings_seasons(text,text[]), public.save_club_settings(text,text), public.decide_club_registration(bigint,text,text) TO authenticated;
 COMMIT;
 
 -- AFTER REVIEW: create an officer in Supabase Authentication, then run this separately

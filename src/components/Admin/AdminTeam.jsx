@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase, publicContent } from "../../lib/supabaseClient";
 import { withRequestTimeout } from "../../lib/requestTimeout";
 import { saveStaff, deleteStaff } from "../../lib/adminStaff";
+import { normalizePublishedSeasons, readClubSettings, saveClubSettings } from "../../lib/clubSettings";
 import { deleteMediaUrls, uploadMedia } from "../../lib/mediaStorage";
+import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
+import { useAdminToast } from "./useAdminToast";
 import {
   DEFAULT_TEAM_SEASON,
   TEAM_POSTS,
@@ -146,12 +149,20 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const hasInitialMembers = Array.isArray(initialMembers);
   const seededMembers = hasInitialMembers ? initialMembers : [];
   const [members, setMembers] = useState(seededMembers);
-  const yearsList = TEAM_SEASONS;
+  const yearsList = useMemo(() => [...new Set([
+    ...TEAM_SEASONS,
+    ...members.flatMap((member) => getMemberYears(member)),
+  ])].sort((a, b) => b.localeCompare(a)), [members]);
   const [selectedYear, setSelectedYear] = useState(DEFAULT_TEAM_SEASON);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(!hasInitialMembers);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [seasonSettings, setSeasonSettings] = useState(null);
+  const [seasonSettingsLoading, setSeasonSettingsLoading] = useState(true);
+  const [publishingSeason, setPublishingSeason] = useState(false);
+  const [isPublicSeasonsModalOpen, setIsPublicSeasonsModalOpen] = useState(false);
+  const [publicSeasonDraft, setPublicSeasonDraft] = useState([]);
 
   // Profile Details Inspection Modal
   const [selectedProfileMember, setSelectedProfileMember] = useState(null);
@@ -209,7 +220,29 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const [formLinkedin, setFormLinkedin] = useState("");
   const [formGithub, setFormGithub] = useState("");
 
-  const [toastMsg, setToastMsg] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
+  const { toast, showToast, clearToast } = useAdminToast();
+
+  const seasonCounts = useMemo(() => Object.fromEntries(yearsList.map((season) => [
+    season,
+    members.filter((member) => getMemberYears(member).includes(season)).length,
+  ])), [members, yearsList]);
+
+  const loadSeasonSettings = useCallback(async () => {
+    setSeasonSettingsLoading(true);
+    try {
+      const settings = await readClubSettings(supabase);
+      setSeasonSettings(settings);
+      setSelectedYear((current) => current === DEFAULT_TEAM_SEASON
+        ? normalizePublishedSeasons(settings)[0] || current
+        : current);
+    } catch {
+      // Roster browsing remains available if season publishing is not configured.
+      setSeasonSettings(null);
+    } finally {
+      setSeasonSettingsLoading(false);
+    }
+  }, []);
 
   const loadTeamData = useCallback(async () => {
     try {
@@ -256,7 +289,11 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       setMembers(rows);
       onDataChange(rows);
 
-      setSelectedYear((current) => TEAM_SEASONS.includes(current) ? current : DEFAULT_TEAM_SEASON);
+      const loadedSeasons = [...new Set([
+        ...TEAM_SEASONS,
+        ...rows.flatMap((member) => getMemberYears(member)),
+      ])];
+      setSelectedYear((current) => loadedSeasons.includes(current) ? current : DEFAULT_TEAM_SEASON);
     } catch (err) {
       console.warn("Could not fetch team from database:", err);
       setLoadError("Could not load staff from Supabase: " + (err.message || "Check your connection and access permissions."));
@@ -269,10 +306,9 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     if (!hasInitialMembers) loadTeamData();
   }, [hasInitialMembers, loadTeamData]);
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
-  };
+  useEffect(() => {
+    loadSeasonSettings();
+  }, [loadSeasonSettings]);
 
   const handleOpenAdd = () => {
     setEditingMember(null);
@@ -349,39 +385,11 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     }));
   };
 
-  const handleSaveMember = async (e) => {
-    e.preventDefault();
-    if (saving) return;
-    if (!formName.trim()) {
-      showToast("Please provide the full name.");
-      return;
-    }
-
-    const seasons = Object.keys(formSeasonRoles);
-    if (seasons.length === 0) {
-      showToast("Please select at least one season.");
-      return;
-    }
-    if (!["M", "F"].includes(formSex)) {
-      showToast("Choose Male or Female.");
-      return;
-    }
-
-    let assignments;
-    try {
-      assignments = seasons.map((season) => createTeamAssignment(season, formSeasonRoles[season]));
-    } catch (validationError) {
-      showToast(validationError.message || "Check the selected seasons and roles.");
-      return;
-    }
-
+  const performSaveMember = async (assignments) => {
     setSaving(true);
-
     const uploadedUrls = [];
     let databaseSaved = false;
     try {
-      showToast("Saving record to database...");
-
       let finalAvatarUrl = avatarPreview;
       if (avatarFile) {
         const uploaded = await uploadMedia(supabase, avatarFile, "AVATARS");
@@ -426,48 +434,65 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       }
 
       await loadTeamData();
-      showToast(editingMember ? "Staff profile, seasons, and R2 media updated." : "Staff profile added with its R2 media.");
+      showToast(editingMember ? "Staff profile and season assignments updated." : "Staff profile added successfully.");
       setIsModalOpen(false);
     } catch (err) {
       if (!databaseSaved && uploadedUrls.length) {
         try {
           await deleteMediaUrls(supabase, uploadedUrls);
         } catch (cleanupError) {
-          showToast(`Error saving profile: ${err?.message || "Unknown error"}. New R2 media also needs manual cleanup: ${cleanupError.message}`);
+          showToast(`The profile was not saved. ${err?.message || "Unknown error"} The new R2 media also needs manual cleanup: ${cleanupError.message}`, "error");
           return;
         }
       }
       if (databaseSaved) {
         await loadTeamData();
         setIsModalOpen(false);
-        showToast(`Profile saved, but old R2 media cleanup failed: ${err?.message || "Unknown error"}`);
+        showToast(`The profile was saved, but old R2 media cleanup failed: ${err?.message || "Unknown error"}`, "error");
       } else {
-        showToast("Error saving profile: " + (err?.message || ""));
+        showToast(err?.message || "The staff profile could not be saved.", "error");
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteMember = async (member) => {
-    if (!member) return;
-    const memberYears = getMemberYears(member);
-    const hasMultipleSeasons = memberYears.length > 1;
-
-    let deleteSeasonOnly = false;
-
-    if (hasMultipleSeasons) {
-      const choice = window.confirm(
-        `Member "${getMemberName(member)}" has records across multiple seasons (${memberYears.join(", ")}).\n\n` +
-        `Click OK to remove them ONLY from season "${selectedYear}" (preserves records in other seasons).\n` +
-        `Click Cancel if you do not want to remove them.`
-      );
-      if (!choice) return;
-      deleteSeasonOnly = true;
-    } else {
-      if (!window.confirm(`Confirm complete deletion of member "${getMemberName(member)}"?`)) return;
+  const handleSaveMember = (event) => {
+    event.preventDefault();
+    if (saving) return;
+    if (!formName.trim()) {
+      showToast("Please provide the full name.", "error");
+      return;
     }
 
+    const seasons = Object.keys(formSeasonRoles);
+    if (!seasons.length) {
+      showToast("Please select at least one season.", "error");
+      return;
+    }
+    if (!["M", "F"].includes(formSex)) {
+      showToast("Choose Male or Female.", "error");
+      return;
+    }
+
+    try {
+      const assignments = seasons.map((season) => createTeamAssignment(season, formSeasonRoles[season]));
+      const isEditing = Boolean(editingMember);
+      setConfirmation({
+        title: isEditing ? "Save member changes?" : "Add this member?",
+        message: isEditing
+          ? `Update ${formName.trim()}'s profile and ${assignments.length} season assignment${assignments.length === 1 ? "" : "s"}?`
+          : `Add ${formName.trim()} to the team with ${assignments.length} season assignment${assignments.length === 1 ? "" : "s"}?`,
+        confirmLabel: isEditing ? "Save changes" : "Add member",
+        action: () => performSaveMember(assignments),
+      });
+    } catch (validationError) {
+      showToast(validationError.message || "Check the selected seasons and roles.", "error");
+    }
+  };
+
+  const performDeleteMember = async (member, deleteSeasonOnly) => {
+    setSaving(true);
     try {
       await deleteStaff(supabase, member.id, deleteSeasonOnly ? selectedYear : null);
       if (!deleteSeasonOnly) {
@@ -477,7 +502,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
             ? "Staff profile and managed R2 media deleted."
             : "Staff profile deleted. External or legacy media was left untouched.");
         } catch (cleanupError) {
-          showToast(`Staff profile deleted, but its R2 media cleanup failed: ${cleanupError.message}`);
+          showToast(`The staff profile was deleted, but its R2 media cleanup failed: ${cleanupError.message}`, "error");
         }
       } else {
         showToast("Staff member removed from this season.");
@@ -485,13 +510,29 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       await loadTeamData();
     } catch (err) {
       console.warn("Delete error:", err);
-      showToast("Error deleting member.");
+      showToast(err?.message || "The member could not be deleted.", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handlePermanentDelete = async (memberId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this member from all seasons? This action cannot be undone.")) return;
+  const handleDeleteMember = (member) => {
+    if (!member || saving) return;
+    const memberYears = getMemberYears(member);
+    const deleteSeasonOnly = memberYears.length > 1;
+    setConfirmation({
+      title: deleteSeasonOnly ? "Remove this season assignment?" : "Delete this member?",
+      message: deleteSeasonOnly
+        ? `${getMemberName(member)} will be removed from ${selectedYear}. Their records in ${memberYears.filter((year) => year !== selectedYear).join(", ")} will remain.`
+        : `${getMemberName(member)} and their managed profile media will be permanently deleted. This action cannot be undone.`,
+      confirmLabel: deleteSeasonOnly ? "Remove from season" : "Delete member",
+      tone: "danger",
+      action: () => performDeleteMember(member, deleteSeasonOnly),
+    });
+  };
 
+  const performPermanentDelete = async (memberId) => {
+    setSaving(true);
     try {
       const member = members.find((item) => String(item.id) === String(memberId));
       await deleteStaff(supabase, memberId);
@@ -505,14 +546,99 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       }
       setIsProfileModalOpen(false);
       await loadTeamData();
-      showToast(cleanupWarning
-        ? `Member deleted, but their R2 media cleanup failed: ${cleanupWarning}`
-        : managedMediaDeleted
+      if (cleanupWarning) {
+        showToast(`The member was deleted, but their R2 media cleanup failed: ${cleanupWarning}`, "error");
+      } else {
+        showToast(managedMediaDeleted
           ? "Member permanently deleted with their managed R2 media."
           : "Member permanently deleted. External or legacy media was left untouched.");
+      }
     } catch (err) {
-      showToast("Delete error: " + err.message);
+      showToast(err?.message || "The member could not be permanently deleted.", "error");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handlePermanentDelete = (memberId) => {
+    if (saving) return;
+    const member = members.find((item) => String(item.id) === String(memberId));
+    setConfirmation({
+      title: "Delete member from every season?",
+      message: `${getMemberName(member)} and their managed profile media will be permanently deleted from all seasons. This action cannot be undone.`,
+      confirmLabel: "Delete completely",
+      tone: "danger",
+      action: () => performPermanentDelete(memberId),
+    });
+  };
+
+  const performPublishSeasons = async (publicStaffSeasons) => {
+    if (!seasonSettings) return;
+    setPublishingSeason(true);
+    try {
+      const updated = await saveClubSettings(supabase, {
+        ...seasonSettings,
+        public_staff_seasons: publicStaffSeasons,
+      });
+      setSeasonSettings(updated);
+      setPublicSeasonDraft(normalizePublishedSeasons(updated));
+      setIsPublicSeasonsModalOpen(false);
+      showToast(publicStaffSeasons.length === 1
+        ? `${publicStaffSeasons[0]} is now the roster shown on the public Team section.`
+        : `${publicStaffSeasons.length} team seasons are now available on the public website.`);
+    } catch (publishError) {
+      showToast(publishError?.message || "The public team seasons could not be changed.", "error");
+    } finally {
+      setPublishingSeason(false);
+    }
+  };
+
+  const openPublicSeasonsModal = () => {
+    if (!seasonSettings) {
+      showToast("Season publishing is not configured. Open Season & publishing settings first.", "error");
+      return;
+    }
+    setPublicSeasonDraft(normalizePublishedSeasons(seasonSettings));
+    setIsPublicSeasonsModalOpen(true);
+  };
+
+  const togglePublicSeasonDraft = (season) => {
+    setPublicSeasonDraft((current) => current.includes(season)
+      ? current.filter((item) => item !== season)
+      : [...current, season].sort((a, b) => b.localeCompare(a)));
+  };
+
+  const requestSavePublicSeasons = (event) => {
+    event.preventDefault();
+    if (!publicSeasonDraft.length) {
+      showToast("Choose at least one season to show on the public website.", "error");
+      return;
+    }
+    const emptySeason = publicSeasonDraft.find((season) => !seasonCounts[season]);
+    if (emptySeason) {
+      showToast(`Add at least one member to ${emptySeason} before showing it publicly.`, "error");
+      return;
+    }
+    const savedSeasons = normalizePublishedSeasons(seasonSettings);
+    if (savedSeasons.join("|") === publicSeasonDraft.join("|")) {
+      setIsPublicSeasonsModalOpen(false);
+      return;
+    }
+    setConfirmation({
+      title: "Update public team seasons?",
+      message: publicSeasonDraft.length === 1
+        ? `${publicSeasonDraft[0]} will be the only roster visible on the public Team section.`
+        : `${publicSeasonDraft.length} season rosters will be visible, with tabs allowing visitors to switch between them.`,
+      confirmLabel: "Save public seasons",
+      action: () => performPublishSeasons(publicSeasonDraft),
+    });
+  };
+
+  const runConfirmedAction = async () => {
+    const action = confirmation?.action;
+    if (!action) return;
+    setConfirmation(null);
+    await action();
   };
 
   // Filtered members by year, search, and ordered by post_order
@@ -541,11 +667,11 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       if (priorityA !== priorityB) return priorityA - priorityB;
       return getMemberName(a).localeCompare(getMemberName(b));
     });
+  const publicStaffSeasons = normalizePublishedSeasons(seasonSettings);
 
   return (
     <div className="admin-tab-content">
-      {/* Toast Notification */}
-      {toastMsg && <div className="admin-toast-bar" role="status">{toastMsg}</div>}
+      <AdminToast toast={toast} onClose={clearToast} />
 
       {/* Page Header */}
       <div className="admin-view-header">
@@ -558,45 +684,43 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
         <div className="admin-header-actions">
           <button type="button" className="btn-secondary" onClick={loadTeamData} disabled={loading}>Refresh staff</button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={openPublicSeasonsModal}
+            disabled={seasonSettingsLoading || publishingSeason}
+          >
+            Public seasons{publicStaffSeasons.length ? ` (${publicStaffSeasons.length})` : ""}
+          </button>
           <button type="button" className="btn-primary" onClick={handleOpenAdd} disabled={Boolean(loadError)}>
             Add staff officer
           </button>
         </div>
       </div>
 
-      {/* Filter Bar: Seasons Pills + Search Input */}
       <div className="member-filters-bar">
         <div className="filter-pills-row">
-          {yearsList.map((yr) => {
-            const count = members.filter((m) => {
-              const mYears = getMemberYears(m);
-              return mYears.includes(yr);
-            }).length;
-
-            return (
-              <button
-                key={yr}
-                type="button"
-                className={`filter-pill-btn ${selectedYear === yr ? "is-active" : ""}`}
-                onClick={() => setSelectedYear(yr)}
-              >
-                <span>{yr}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", marginLeft: "4px", color: "var(--text-muted)" }}>
-                  ({count})
-                </span>
-              </button>
-            );
-          })}
+          {yearsList.map((season) => (
+            <button
+              key={season}
+              type="button"
+              className={`filter-pill-btn ${selectedYear === season ? "is-active" : ""}`}
+              onClick={() => setSelectedYear(season)}
+            >
+              <span>{season}</span>
+              <span className="admin-team-season-count">({seasonCounts[season] || 0})</span>
+            </button>
+          ))}
         </div>
 
-        <div style={{ width: "240px" }}>
+        <div className="admin-team-search-input">
           <input
-            type="text"
+            type="search"
             placeholder="Search member, role, department..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="form-text-input"
-            style={{ padding: "6px 10px", fontSize: "12px" }}
+            aria-label={`Search the ${selectedYear} roster`}
           />
         </div>
       </div>
@@ -1120,6 +1244,80 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
           </div>
         </div>
       )}
+
+      {isPublicSeasonsModalOpen && (
+        <div
+          className="admin-modal-overlay"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !publishingSeason) setIsPublicSeasonsModalOpen(false);
+          }}
+        >
+          <form
+            className="admin-modal-dialog admin-public-seasons-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="public-seasons-title"
+            onSubmit={requestSavePublicSeasons}
+          >
+            <div className="admin-modal-header">
+              <div>
+                <h2 id="public-seasons-title" className="admin-modal-title">Public team seasons</h2>
+                <p>Checked seasons will be available in the public Team section.</p>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close-btn"
+                aria-label="Close public seasons form"
+                disabled={publishingSeason}
+                onClick={() => setIsPublicSeasonsModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="admin-modal-body">
+              <div className="admin-public-seasons-summary">
+                <strong>{publicSeasonDraft.length}</strong>
+                <span>{publicSeasonDraft.length === 1 ? "season selected" : "seasons selected"}</span>
+              </div>
+              <div className="admin-settings-season-checklist admin-public-seasons-grid">
+                {yearsList.map((season) => {
+                  const checked = publicSeasonDraft.includes(season);
+                  const count = seasonCounts[season] || 0;
+                  return (
+                    <label key={season} className={checked ? "is-selected" : ""}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={publishingSeason || (!count && !checked)}
+                        onChange={() => togglePublicSeasonDraft(season)}
+                      />
+                      <span>{season}</span>
+                      <small>{checked ? "Visible" : count ? `${count} members` : "Empty"}</small>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="admin-panel-meta">When several seasons are checked, visitors can switch between them using tabs.</p>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button type="button" className="btn-secondary" disabled={publishingSeason} onClick={() => setIsPublicSeasonsModalOpen(false)}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={publishingSeason || !publicSeasonDraft.length}>
+                {publishingSeason ? "Saving…" : "Save visible seasons"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <AdminConfirmDialog
+        confirmation={confirmation}
+        busy={saving || publishingSeason}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={runConfirmedAction}
+      />
 
     </div>
   );

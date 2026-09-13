@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
-import { decideRegistration } from "../../lib/clubSettings";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
+import { completeRegistrationReview, saveRegistrationInterview } from "../../lib/registrationInterview";
 import { supabase } from "../../lib/supabaseClient";
+import { AdminToast } from "./AdminActionFeedback";
+import AdminInterviewWizard from "./AdminInterviewWizard";
+import { useAdminToast } from "./useAdminToast";
 import "./AdminDashboard.css";
 
 export default function AdminMembers({ initialRegistrations = null, initialSettings = null, onDataChange = () => {} }) {
@@ -11,14 +14,13 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   const [settings, setSettings] = useState(hasInitialData ? initialSettings : null);
   const [loading, setLoading] = useState(!hasInitialData);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [season, setSeason] = useState("all");
-  const [refusing, setRefusing] = useState(null);
-  const [reason, setReason] = useState("");
-  const decisionLock = useRef(false);
+  const [interviewing, setInterviewing] = useState(null);
+  const [interviewBusy, setInterviewBusy] = useState(false);
+  const { toast, showToast, clearToast } = useAdminToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,46 +43,6 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
 
   useEffect(() => { if (!hasInitialData) load(); }, [hasInitialData, load]);
 
-  const flash = (message) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 3500);
-  };
-
-  const accept = async (app) => {
-    if (decisionLock.current || !window.confirm(`Accept ${app.full_name || "this applicant"} as a club member?`)) return;
-    decisionLock.current = true;
-    setBusy(true);
-    try {
-      await decideRegistration(supabase, app.id, "accepted");
-      flash(`${app.full_name || "Applicant"} was accepted.`);
-      await load();
-    } catch (err) {
-      setError(err.message || "The application could not be accepted.");
-    } finally {
-      decisionLock.current = false;
-      setBusy(false);
-    }
-  };
-
-  const refuse = async (event) => {
-    event.preventDefault();
-    if (!refusing || decisionLock.current) return;
-    decisionLock.current = true;
-    setBusy(true);
-    try {
-      await decideRegistration(supabase, refusing.id, "refused", reason);
-      setRefusing(null);
-      setReason("");
-      flash("Application refused and kept in registration history.");
-      await load();
-    } catch (err) {
-      setError(err.message || "The application could not be refused.");
-    } finally {
-      decisionLock.current = false;
-      setBusy(false);
-    }
-  };
-
   const togglePortal = async () => {
     if (!settings?.id || busy) return;
     const nextState = !settings.is_open;
@@ -90,11 +52,49 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
     try {
       const updated = await setRegistrationOpen(supabase, settings, nextState);
       setSettings(updated);
-      flash(`Registration is now ${nextState ? "open" : "closed"}.`);
+      showToast(`Registration is now ${nextState ? "open" : "closed"}.`);
     } catch (err) {
       setError(err.message || "The registration status could not be changed.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const saveInterview = async (answers) => {
+    if (!interviewing || interviewBusy) return;
+    setInterviewBusy(true);
+    try {
+      const updated = await saveRegistrationInterview(supabase, interviewing.id, answers);
+      const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
+      setRegistrations(nextRegistrations);
+      onDataChange(nextRegistrations, settings);
+      setInterviewing(null);
+      showToast(`${interviewing.full_name || "Applicant"}'s interview was saved.`);
+      return updated;
+    } catch (saveError) {
+      showToast(saveError.message || "The interview could not be saved.", "error");
+      throw saveError;
+    } finally {
+      setInterviewBusy(false);
+    }
+  };
+
+  const completeReview = async (answers, decision, refusalReason) => {
+    if (!interviewing || interviewBusy) return;
+    setInterviewBusy(true);
+    try {
+      const updated = await completeRegistrationReview(supabase, interviewing.id, answers, decision, refusalReason);
+      const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
+      setRegistrations(nextRegistrations);
+      onDataChange(nextRegistrations, settings);
+      setInterviewing(null);
+      showToast(`${interviewing.full_name || "Applicant"} was ${decision}.`);
+      return updated;
+    } catch (reviewError) {
+      showToast(reviewError.message || "The application review could not be completed.", "error");
+      throw reviewError;
+    } finally {
+      setInterviewBusy(false);
     }
   };
 
@@ -113,8 +113,8 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   });
 
   return (
-    <div className="admin-tab-content admin-registration-view" aria-busy={busy}>
-      {notice && <div className="admin-toast-bar" role="status">{notice}</div>}
+    <div className="admin-tab-content admin-registration-view" aria-busy={busy || interviewBusy}>
+      <AdminToast toast={toast} onClose={clearToast} />
       <div className="admin-view-header">
         <div><p className="admin-eyebrow">Membership intake</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
         <div className="admin-header-actions">
@@ -163,8 +163,13 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                     <header className="admin-registration-card-head">
                       <div><small>APPLICANT</small><h3>{app.full_name || "Unnamed applicant"}</h3><span>{app.email || "No email"} · {app.phone || "No phone"}</span></div>
                       <div className="admin-registration-card-controls">
-                        <span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span>
-                        {pending ? <div className="admin-decision-actions"><button className="btn-primary" onClick={() => accept(app)} disabled={busy}>Accept</button><button className="btn-secondary btn-danger" onClick={() => { setRefusing(app); setReason(""); }} disabled={busy}>Refuse</button></div> : <span className="admin-processed-label">Decision saved</span>}
+                        <div className="admin-registration-status-stack">
+                          <span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span>
+                          <span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span>
+                        </div>
+                        <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy}>
+                          Review
+                        </button>
                       </div>
                     </header>
                     <div className="admin-registration-card-grid">
@@ -182,15 +187,14 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
         </div>
       </div>
 
-      {refusing && (
-        <div className="admin-modal-overlay admin-refusal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRefusing(null); }}>
-          <form className="admin-modal-dialog" onSubmit={refuse} role="dialog" aria-modal="true" aria-labelledby="refuse-title">
-            <div className="admin-modal-header"><div><p className="admin-eyebrow">Application decision</p><h2 id="refuse-title" className="admin-modal-title">Refuse {refusing.full_name || "applicant"}</h2></div><button type="button" className="admin-modal-close-btn" onClick={() => setRefusing(null)}>×</button></div>
-            <div className="admin-modal-body"><label className="form-field-label" htmlFor="refusal-reason">Reason for refusal</label><textarea id="refusal-reason" className="form-textarea" required minLength="3" maxLength="2000" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Add a clear reason for this decision…" /><small className="admin-reason-count">{reason.length} / 2000</small></div>
-            <div className="admin-modal-footer"><button type="button" className="btn-secondary" onClick={() => setRefusing(null)}>Cancel</button><button type="submit" className="btn-primary btn-danger" disabled={busy}>{busy ? "Saving…" : "Confirm refusal"}</button></div>
-          </form>
-        </div>
-      )}
+      {interviewing && <AdminInterviewWizard
+        key={`${interviewing.id}-${interviewing.interviewed_at || "new"}`}
+        applicant={interviewing}
+        saving={interviewBusy}
+        onCancel={() => { if (!interviewBusy) setInterviewing(null); }}
+        onSave={saveInterview}
+        onDecision={completeReview}
+      />}
     </div>
   );
 }

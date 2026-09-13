@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { publicContent, supabase } from "../lib/supabaseClient";
-import { eventView, parseEventDate as parseStoredEventDate, safeEventUrl } from "../lib/adminEvents";
+import { eventView, safeEventUrl, sortEventsNewestFirst } from "../lib/adminEvents";
 import { withRequestTimeout } from "../lib/requestTimeout";
 
 export interface EventRow {
@@ -30,20 +30,13 @@ const CARD_SIZES = ["medium", "small", "large", "medium", "small"];
 const OFFSETS = ["15px", "-15px", "20px", "-10px", "10px", "-20px"];
 const EVENT_COLUMNS = "id,title,date,image_url,link,created_at";
 
-function parseEventDate(item: EventRow): number {
-  const parsed = parseStoredEventDate(item);
-  if (parsed) return parsed.getTime();
-  const created = item.created_at ? new Date(item.created_at) : null;
-  return created && !Number.isNaN(created.getTime()) ? created.getTime() : 0;
-}
-
 function getEventLink(item: EventRow): string {
   return safeEventUrl(item?.link || "");
 }
 
 function normalizeEvents(rows: EventRow[] | null | undefined): EventRow[] {
-  if (!Array.isArray(rows) || rows.length === 0) return DEFAULT_EVENTS;
-  return rows
+  const source = Array.isArray(rows) && rows.length ? rows : DEFAULT_EVENTS;
+  return sortEventsNewestFirst(source
     .map((row) => {
       const event = eventView(row);
       return {
@@ -54,8 +47,7 @@ function normalizeEvents(rows: EventRow[] | null | undefined): EventRow[] {
         link: event.link,
         created_at: event.created_at,
       };
-    })
-    .sort((a, b) => parseEventDate(b) - parseEventDate(a));
+    }));
 }
 
 export default function EventsList({ onLoaded, initialEvents = null }: EventsListProps) {
@@ -96,7 +88,7 @@ export default function EventsList({ onLoaded, initialEvents = null }: EventsLis
         setEvents(normalizeEvents(data));
       } catch (error) {
         console.warn("Error fetching events from Supabase, using defaults:", error);
-        setEvents(DEFAULT_EVENTS);
+        setEvents(normalizeEvents(DEFAULT_EVENTS));
       } finally {
         setLoading(false);
         window.setTimeout(() => onLoaded?.(), 50);

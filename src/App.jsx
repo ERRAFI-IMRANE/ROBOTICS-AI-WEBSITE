@@ -55,7 +55,7 @@ export default function App() {
     })
       .catch((error) => {
         console.warn("The public preload completed with fallback data:", error);
-        return { team: [], events: [], settings: null, season: "2025-2026" };
+        return { team: [], events: [], settings: null, season: "2025-2026", seasons: ["2025-2026"] };
       })
       .then((dataset) => {
         if (!active) return;
@@ -365,7 +365,7 @@ export default function App() {
           <RAISection />
 
           {/* Team Section */}
-          <TeamSection initialTeam={websiteData.team} initialSeason={websiteData.season} />
+          <TeamSection initialTeam={websiteData.team} initialSeason={websiteData.season} initialSeasons={websiteData.seasons} />
 
           {/* Why Join Us Section */}
           <WhyJoinSection onNavigateRegister={() => navigateTo("register")} />

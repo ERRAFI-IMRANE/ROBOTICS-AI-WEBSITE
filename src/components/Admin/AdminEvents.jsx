@@ -3,6 +3,8 @@ import { supabase, publicContent } from "../../lib/supabaseClient";
 import { withRequestTimeout } from "../../lib/requestTimeout";
 import { deleteEvent, eventPayload, eventView, formatDateForInput, safeEventUrl, saveEvent } from "../../lib/adminEvents";
 import { deleteMediaUrl, uploadMedia, validateImageFile } from "../../lib/mediaStorage";
+import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
+import { useAdminToast } from "./useAdminToast";
 import "./AdminDashboard.css";
 
 const PAGE_SIZE = 12;
@@ -36,7 +38,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   const [events, setEvents] = useState(hasInitialEvents ? initialEvents : []);
   const [loading, setLoading] = useState(!hasInitialEvents);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [confirmation, setConfirmation] = useState(null);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState(null);
@@ -50,6 +52,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   const lock = useRef(false);
   const dialogRef = useRef(null);
   const loadMoreRef = useRef(null);
+  const { toast, showToast, clearToast } = useAdminToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,7 +132,6 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     setValues({ title: view.title, date: inputDate, image_url: view.image_url, link: view.link });
     setFile(null);
     setFormError("");
-    setNotice("");
     setModal(true);
   }, []);
 
@@ -137,8 +139,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     if (!busy) setModal(false);
   }
 
-  async function save(submitEvent) {
-    submitEvent.preventDefault();
+  async function performSave() {
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
@@ -166,23 +167,27 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
 
       setModal(false);
       setFile(null);
-      setNotice(editing ? "Event updated. Its image is synchronized with R2." : "Event added with its R2 image.");
       await load();
+      showToast(editing ? "Event details and media updated." : "Event created successfully.");
     } catch (saveError) {
       if (uploadedUrl && !databaseSaved) {
         try {
           await deleteMediaUrl(supabase, uploadedUrl);
         } catch (cleanupError) {
-          setFormError(`${saveError.message || "The event could not be saved."} The new R2 upload also needs manual cleanup: ${cleanupError.message}`);
+          const message = `${saveError.message || "The event could not be saved."} The new R2 upload also needs manual cleanup: ${cleanupError.message}`;
+          setFormError(message);
+          showToast(message, "error");
           return;
         }
       }
       if (databaseSaved) {
         setModal(false);
         await load();
-        setError(`The event was saved, but its old R2 image could not be cleaned up: ${saveError.message}`);
+        showToast(`The event was saved, but its old R2 image could not be cleaned up: ${saveError.message}`, "error");
       } else {
-        setFormError(saveError.message || "The event could not be saved.");
+        const message = saveError.message || "The event could not be saved.";
+        setFormError(message);
+        showToast(message, "error");
       }
     } finally {
       lock.current = false;
@@ -190,13 +195,35 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     }
   }
 
-  const remove = useCallback(async (row) => {
+  function requestSave(submitEvent) {
+    submitEvent.preventDefault();
+    if (lock.current || busy) return;
+    try {
+      if (!editing && !file) throw new Error("Choose an event cover image.");
+      eventPayload({ ...values, image_url: file ? "/pending-r2-upload" : values.image_url });
+      if (file) validateImageFile(file);
+      setFormError("");
+      setConfirmation({
+        title: editing ? "Save event changes?" : "Create this event?",
+        message: editing
+          ? `Update “${values.title.trim()}” and publish the changes to the website?`
+          : `Add “${values.title.trim()}” to the event archive and publish it on the website?`,
+        confirmLabel: editing ? "Save changes" : "Create event",
+        action: performSave,
+      });
+    } catch (validationError) {
+      const message = validationError.message || "Check the event details before continuing.";
+      setFormError(message);
+      showToast(message, "error");
+    }
+  }
+
+  const performRemove = useCallback(async (row) => {
     const view = eventView(row);
-    if (lock.current || !window.confirm(`Delete “${view.title || "this event"}”? This cannot be undone.`)) return;
+    if (lock.current) return;
     lock.current = true;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await deleteEvent(supabase, row.id);
       let cleanupMessage = "";
@@ -208,15 +235,34 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
         cleanupMessage = cleanupError.message;
       }
       await load();
-      if (cleanupMessage) setError(`The event row was deleted, but its R2 image could not be removed: ${cleanupMessage}`);
-      else setNotice(imageDeleted ? "Event and its managed R2 image were deleted." : "Event deleted. External or legacy media was left untouched.");
+      if (cleanupMessage) showToast(`The event was deleted, but its R2 image could not be removed: ${cleanupMessage}`, "error");
+      else showToast(imageDeleted ? "Event and its managed R2 image were deleted." : "Event deleted. External or legacy media was left untouched.");
     } catch (deleteError) {
-      setError(deleteError.message || "The event could not be deleted.");
+      showToast(deleteError.message || "The event could not be deleted.", "error");
     } finally {
       lock.current = false;
       setBusy(false);
     }
-  }, [load]);
+  }, [load, showToast]);
+
+  const remove = useCallback((row) => {
+    if (lock.current || busy) return;
+    const view = eventView(row);
+    setConfirmation({
+      title: "Delete this event?",
+      message: `“${view.title || "This event"}” and its managed cover image will be permanently deleted. This action cannot be undone.`,
+      confirmLabel: "Delete event",
+      tone: "danger",
+      action: () => performRemove(row),
+    });
+  }, [busy, performRemove]);
+
+  const runConfirmedAction = async () => {
+    const action = confirmation?.action;
+    if (!action) return;
+    setConfirmation(null);
+    await action();
+  };
 
   const field = (name) => ({
     name,
@@ -227,6 +273,8 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
 
   return (
     <div className="admin-tab-content admin-event-manager">
+      <AdminToast toast={toast} onClose={clearToast} />
+
       <div className="admin-view-header">
         <div>
           <p className="admin-eyebrow">Experiences and competitions</p>
@@ -240,7 +288,6 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
       </div>
 
       {error && <div className="admin-inline-error" role="alert">{error}</div>}
-      {notice && <div className="admin-inline-success" role="status">{notice}</div>}
 
       <div className="member-filters-bar admin-event-toolbar">
         <div className="filter-pills-row">
@@ -274,7 +321,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
         onClose={() => setModal(false)}
       >
         {modal && (
-          <form className="admin-event-editor-form" onSubmit={save}>
+          <form className="admin-event-editor-form" onSubmit={requestSave}>
             <header className="admin-event-editor-header">
               <div>
                 <span>{editing ? "Update event" : "New event"}</span>
@@ -314,6 +361,13 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
           </form>
         )}
       </dialog>
+
+      <AdminConfirmDialog
+        confirmation={confirmation}
+        busy={busy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={runConfirmedAction}
+      />
     </div>
   );
 }

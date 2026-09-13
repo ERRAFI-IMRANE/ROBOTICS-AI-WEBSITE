@@ -1,6 +1,6 @@
 import { eventView, safeEventUrl } from "./adminEvents";
 import { ALBUM_PHOTOS } from "../data/albumPhotos";
-import { readClubSettings, normalizeSeason } from "./clubSettings";
+import { normalizePublishedSeasons, readClubSettings } from "./clubSettings";
 import { withRequestTimeout } from "./requestTimeout";
 
 const STATIC_SITE_IMAGES = [
@@ -182,11 +182,14 @@ export async function loadPublicWebsite(client, fallbackClient, onProgress = () 
     tracked(loadSettings(client)),
   ]);
 
+  const publicSeasons = normalizePublishedSeasons(settings);
+  const seasons = publicSeasons.length ? publicSeasons : ["2025-2026"];
   const dataset = {
     team,
     events,
     settings,
-    season: normalizeSeason(settings?.public_staff_season) || "2025-2026",
+    season: seasons[0],
+    seasons,
   };
 
   onProgress({ progress: 55, stage: "Preparing images" });

@@ -29,7 +29,31 @@ function config() {
     throw new Error("Cloudflare R2 server environment variables are incomplete.");
   }
   if (bucket !== "roboticsai-media") throw new Error("R2_BUCKET_NAME must be roboticsai-media.");
-  return { accessKeyId, secretAccessKey, endpoint, bucket, publicUrl: publicUrl.replace(/\/+$/, "") };
+  let endpointUrl;
+  let publicBaseUrl;
+  try {
+    endpointUrl = new URL(endpoint);
+    publicBaseUrl = new URL(publicUrl);
+  } catch {
+    throw new Error("R2_ENDPOINT or R2_PUBLIC_URL is not a valid URL.");
+  }
+  if (
+    endpointUrl.protocol !== "https:"
+    || !endpointUrl.hostname.endsWith(".r2.cloudflarestorage.com")
+    || !["", "/"].includes(endpointUrl.pathname)
+  ) {
+    throw new Error("R2_ENDPOINT must be the Cloudflare S3 API URL: https://<ACCOUNT_ID>.r2.cloudflarestorage.com");
+  }
+  if (publicBaseUrl.protocol !== "https:" || !publicBaseUrl.hostname) {
+    throw new Error("R2_PUBLIC_URL must be a valid HTTPS public bucket or custom-domain URL.");
+  }
+  return {
+    accessKeyId,
+    secretAccessKey,
+    endpoint: endpointUrl.origin,
+    bucket,
+    publicUrl: publicUrl.replace(/\/+$/, ""),
+  };
 }
 
 function client() {

@@ -7,6 +7,7 @@ import ChartPanel from "./overview/ChartPanel";
 import InstagramTrendChart from "./overview/InstagramTrendChart";
 import MetricCard from "./overview/MetricCard";
 import { chartPalette } from "./overview/chartSetup";
+import AdminTikTok from "./AdminTikTok";
 import "./AdminDashboard.css";
 
 const PRIMARY_METRICS = Object.freeze([
@@ -105,7 +106,7 @@ function SectionHeading({ eyebrow, title, detail }) {
   return <div className="admin-instagram-section-heading"><div><p className="admin-eyebrow">{eyebrow}</p><h2>{title}</h2></div>{detail && <span>{detail}</span>}</div>;
 }
 
-export default function AdminSocialMedia() {
+function InstagramDashboard() {
   const [range, setRange] = useState(30);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -159,7 +160,7 @@ export default function AdminSocialMedia() {
   return (
     <div className="admin-tab-content admin-instagram-view" aria-busy={loading || refreshing}>
       <div className="admin-view-header admin-instagram-page-header">
-        <div><p className="admin-eyebrow">Connected channels</p><h1 className="admin-page-title">Social Media</h1><p className="admin-page-desc">Instagram account performance, audience insights and recent content from the official API.</p></div>
+        <div><p className="admin-eyebrow">Connected channels</p><h1 className="admin-page-title">Instagram</h1><p className="admin-page-desc">Instagram account performance, audience insights and recent content from the official API.</p></div>
         <div className="admin-header-actions">
           <label className="admin-instagram-range"><span>Analytics range</span><select value={range} onChange={(event) => setRange(Number(event.target.value))} disabled={loading || refreshing}>{INSTAGRAM_RANGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
           <button className="btn-secondary" type="button" onClick={() => load(true)} disabled={loading || refreshing}>{refreshing ? "Refreshing…" : "Refresh Instagram Data"}</button>
@@ -233,4 +234,31 @@ export default function AdminSocialMedia() {
       </>}
     </div>
   );
+}
+
+export default function AdminSocialMedia() {
+  const [platform, setPlatform] = useState(() => {
+    if (typeof window === "undefined") return "instagram";
+    return new URLSearchParams(window.location.search).get("platform") === "tiktok" ? "tiktok" : "instagram";
+  });
+
+  const choosePlatform = (nextPlatform) => {
+    setPlatform(nextPlatform);
+    const url = new URL(window.location.href);
+    url.searchParams.set("platform", nextPlatform);
+    url.searchParams.set("adminTab", "social_media");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
+  return <div className="admin-social-media-shell">
+    <nav className="admin-social-platform-tabs" aria-label="Social media platform">
+      <button type="button" className={platform === "instagram" ? "is-active" : ""} onClick={() => choosePlatform("instagram")} aria-current={platform === "instagram" ? "page" : undefined}>
+        <span className="is-instagram" aria-hidden="true">◎</span><div><strong>Instagram</strong><small>Account insights & media</small></div>
+      </button>
+      <button type="button" className={platform === "tiktok" ? "is-active" : ""} onClick={() => choosePlatform("tiktok")} aria-current={platform === "tiktok" ? "page" : undefined}>
+        <span className="is-tiktok" aria-hidden="true">♪</span><div><strong>TikTok</strong><small>Profile & public videos</small></div>
+      </button>
+    </nav>
+    {platform === "instagram" ? <InstagramDashboard /> : <AdminTikTok />}
+  </div>;
 }

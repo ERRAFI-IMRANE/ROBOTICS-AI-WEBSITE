@@ -3,7 +3,7 @@ export const ADMIN_PERMISSION_OPTIONS = [
   { id: "team", label: "Team", description: "Add, edit, and remove team profiles." },
   { id: "events", label: "Events", description: "Create, edit, and remove club events." },
   { id: "registrations", label: "Registrations", description: "Review applicants and control intake." },
-  { id: "social_media", label: "Social Media", description: "View connected Instagram analytics and content performance." },
+  { id: "social_media", label: "Social Media", description: "View connected Instagram and TikTok analytics." },
   { id: "users", label: "Admin users", description: "Create admins and change their permissions." },
 ];
 

@@ -8281,6 +8281,210 @@ dialog.admin-interview-dialog::backdrop {
   }
 }
 
+/* Social platform switcher and TikTok Display API workspace */
+.admin-social-media-shell {
+  width: 100%;
+}
+
+.admin-social-platform-tabs {
+  display: grid;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8) 0;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 8px;
+}
+
+.admin-social-platform-tabs button {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 9px 12px;
+  text-align: left;
+  color: #667085;
+  background: #fff;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  cursor: pointer;
+  gap: 10px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.admin-social-platform-tabs button:hover {
+  border-color: #bdc9d9;
+  box-shadow: 0 5px 14px rgba(16, 24, 40, 0.055);
+  transform: translateY(-1px);
+}
+
+.admin-social-platform-tabs button.is-active {
+  color: #173f7b;
+  background: #f8fbff;
+  border-color: #7fa3d2;
+  box-shadow: inset 0 -2px #1d4ed8;
+}
+
+.admin-social-platform-tabs button > span {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  font: 750 17px var(--font-display);
+  background: #172033;
+  border-radius: 6px;
+  place-items: center;
+}
+
+.admin-social-platform-tabs button > span.is-instagram {
+  background: linear-gradient(135deg, #5b51d8, #c13584 52%, #f77737);
+}
+
+.admin-social-platform-tabs button > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.admin-social-platform-tabs strong {
+  color: #243247;
+  font-size: 10px;
+}
+
+.admin-social-platform-tabs small {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-social-media-shell > .admin-tab-content {
+  padding-top: 18px;
+}
+
+.admin-tiktok-connect-card {
+  display: grid;
+  min-height: 370px;
+  padding: clamp(28px, 5vw, 64px);
+  text-align: center;
+  background: #fff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(16, 24, 40, 0.06);
+  place-items: center;
+  place-content: center;
+}
+
+.admin-tiktok-mark {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 18px;
+  color: #fff;
+  font: 750 27px var(--font-display);
+  background: #121821;
+  border: 1px solid #242f3e;
+  border-radius: 9px;
+  box-shadow: 5px 5px 0 #26d4d4, -4px -4px 0 #ef416f;
+  place-items: center;
+}
+
+.admin-tiktok-connect-card.is-error .admin-tiktok-mark {
+  background: #8b1d20;
+  box-shadow: none;
+}
+
+.admin-tiktok-connect-card h2 {
+  max-width: 550px;
+  margin: 8px 0 0;
+  color: #172033;
+  font: 650 clamp(25px, 4vw, 38px)/1.1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.admin-tiktok-connect-card > p:not(.admin-eyebrow) {
+  max-width: 570px;
+  margin: 12px 0 20px;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.admin-tiktok-connect-card small {
+  max-width: 530px;
+  margin-top: 16px;
+  color: #8994a5;
+  font-size: 8px;
+}
+
+.admin-tiktok-profile-card {
+  background: linear-gradient(115deg, #111722, #1c2f4c);
+}
+
+.admin-tiktok-profile-card .admin-instagram-profile-meta strong a {
+  color: #eef5ff;
+  text-decoration: none;
+}
+
+.admin-tiktok-profile-card .admin-instagram-profile-meta strong a:hover {
+  text-decoration: underline;
+}
+
+.admin-instagram-connected.is-connection_error {
+  color: #ffda8a;
+}
+
+.admin-instagram-connected.is-connection_error i {
+  background: #d97706;
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.14);
+}
+
+.admin-tiktok-chart-grid {
+  margin-top: 4px;
+}
+
+.admin-tiktok-ranking-tabs {
+  flex-wrap: wrap;
+}
+
+.admin-tiktok-formula {
+  margin: -4px 0 0;
+  color: #7a8699;
+  font: 8px/1.55 var(--font-mono);
+}
+
+@media (max-width: 760px) {
+  .admin-social-platform-tabs {
+    padding-right: var(--space-5);
+    padding-left: var(--space-5);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-social-platform-tabs button {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-social-platform-tabs {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+    grid-template-columns: 1fr;
+  }
+
+  .admin-tiktok-connect-card {
+    min-height: 320px;
+    padding: 28px 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-social-platform-tabs button {
+    transition: none !important;
+  }
+}
+
 /* Live overview analytics extend the existing dashboard visual language. */
 .admin-analytics-scope {
   display: flex;

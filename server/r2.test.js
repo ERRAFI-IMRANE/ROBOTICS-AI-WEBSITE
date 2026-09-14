@@ -65,3 +65,14 @@ test("Instagram browser code contains no server credentials and uses only the pr
   assert.match(instagramClient, /\/api\/instagram\/dashboard/);
   assert.match(instagramClient, /Authorization: `Bearer \$\{token\}`/);
 });
+
+test("TikTok browser code contains no OAuth credentials or direct TikTok API calls", () => {
+  const tikTokClient = readFileSync(new URL("../src/lib/tiktokApi.js", import.meta.url), "utf8");
+  const tikTokDashboard = readFileSync(new URL("../src/components/Admin/AdminTikTok.jsx", import.meta.url), "utf8");
+  const browserCode = `${tikTokClient}\n${tikTokDashboard}`;
+  assert.doesNotMatch(browserCode, /TIKTOK_(?:CLIENT_KEY|CLIENT_SECRET|REDIRECT_URI|SCOPES)/);
+  assert.doesNotMatch(browserCode, /open\.tiktokapis\.com|\/v2\/oauth\/token/);
+  assert.match(tikTokClient, /\/api\/tiktok\/dashboard/);
+  assert.match(tikTokClient, /\/api\/tiktok\/connect/);
+  assert.match(tikTokClient, /Authorization: `Bearer \$\{token\}`/);
+});

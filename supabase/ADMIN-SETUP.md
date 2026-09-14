@@ -50,6 +50,15 @@ After the existing `interesting boolean` column is present, review and run `migr
 
 Run `migration_cloudflare_r2_events.sql`, configure the server-only variables documented in the repository's `R2-SETUP.md`, and deploy the Vercel API routes. New event covers go to `EVENTS/`, avatars to `AVATARS/`, and full staff photos to `PHOTOS/`. JPG, PNG, and WebP files up to 5 MB are accepted. Existing Supabase Storage or external URLs continue to display, but only URLs owned by the configured R2 public base are eligible for automatic deletion.
 
+## TikTok connection
+
+1. Review and run `migration_tiktok_oauth_connection.sql` once. The table has RLS enabled, grants no access to `anon` or `authenticated`, and is used only by server routes with the Supabase service role.
+2. Add `SUPABASE_SERVICE_ROLE_KEY`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, and `TIKTOK_SCOPES` to Vercel as server-only variables. Never add a `VITE_` prefix.
+3. Register the exact HTTPS `TIKTOK_REDIRECT_URI` in TikTok Developer → Login Kit → Web Redirect URIs. Production should use `https://www.roboticsai-ests.com/api/tiktok/callback`. Local development requires the callback URL of a registered HTTPS tunnel; TikTok Web Login Kit must not use `http://localhost:5173`.
+4. Deploy the Vercel routes, sign in as an administrator with the `social_media` permission, open Social Media → TikTok, and select **Connect TikTok**.
+
+The callback verifies a short-lived HTTP-only CSRF state cookie before exchanging the code. Access and refresh tokens are stored only in the locked server table. The server refreshes access tokens before expiry and replaces rotated refresh tokens. The browser receives only normalized profile/video data and connection status.
+
 ## Verification
 
 - `node --test src/lib/admin.test.js src/lib/registration.test.js`: service validation, RPC arguments, error handling, schema-aware event payloads, and season selection.

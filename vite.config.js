@@ -3,17 +3,10 @@ import react from '@vitejs/plugin-react'
 import deleteMedia from './api/storage/delete.js'
 import uploadMedia from './api/storage/upload.js'
 import instagramDashboard from './api/instagram/dashboard.js'
-import instagramInsights from './api/instagram/insights.js'
-import instagramMedia from './api/instagram/media.js'
-import instagramMediaInsights from './api/instagram/media/[id]/insights.js'
-import instagramProfile from './api/instagram/profile.js'
 import tikTokCallback from './api/tiktok/callback.js'
 import tikTokConnect from './api/tiktok/connect.js'
 import tikTokDashboard from './api/tiktok/dashboard.js'
 import tikTokDisconnect from './api/tiktok/disconnect.js'
-import tikTokProfile from './api/tiktok/profile.js'
-import tikTokStatus from './api/tiktok/status.js'
-import tikTokVideos from './api/tiktok/videos.js'
 
 function localStorageApi() {
   return {
@@ -23,26 +16,18 @@ function localStorageApi() {
       server.middlewares.use(async (request, response, next) => {
         const requestUrl = new URL(request.url || '/', 'http://localhost')
         const pathname = requestUrl.pathname
-        const mediaInsightsMatch = pathname.match(/^\/api\/instagram\/media\/(\d+)\/insights$/)
         const staticHandlers = {
           '/api/storage/upload': uploadMedia,
           '/api/storage/delete': deleteMedia,
           '/api/instagram/dashboard': instagramDashboard,
-          '/api/instagram/profile': instagramProfile,
-          '/api/instagram/insights': instagramInsights,
-          '/api/instagram/media': instagramMedia,
           '/api/tiktok/callback': tikTokCallback,
           '/api/tiktok/connect': tikTokConnect,
           '/api/tiktok/dashboard': tikTokDashboard,
           '/api/tiktok/disconnect': tikTokDisconnect,
-          '/api/tiktok/profile': tikTokProfile,
-          '/api/tiktok/status': tikTokStatus,
-          '/api/tiktok/videos': tikTokVideos,
         }
-        const handler = staticHandlers[pathname] || (mediaInsightsMatch ? instagramMediaInsights : null)
+        const handler = staticHandlers[pathname]
         if (!handler) return next()
         request.query = Object.fromEntries(requestUrl.searchParams.entries())
-        if (mediaInsightsMatch) request.query.id = mediaInsightsMatch[1]
         try {
           await handler(request, response)
         } catch (error) {

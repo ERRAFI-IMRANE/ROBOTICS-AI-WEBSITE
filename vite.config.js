@@ -2,6 +2,11 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import deleteMedia from './api/storage/delete.js'
 import uploadMedia from './api/storage/upload.js'
+import instagramDashboard from './api/instagram/dashboard.js'
+import instagramInsights from './api/instagram/insights.js'
+import instagramMedia from './api/instagram/media.js'
+import instagramMediaInsights from './api/instagram/media/[id]/insights.js'
+import instagramProfile from './api/instagram/profile.js'
 
 function localStorageApi() {
   return {
@@ -9,13 +14,21 @@ function localStorageApi() {
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        const pathname = new URL(request.url || '/', 'http://localhost').pathname
-        const handler = pathname === '/api/storage/upload'
-          ? uploadMedia
-          : pathname === '/api/storage/delete'
-            ? deleteMedia
-            : null
+        const requestUrl = new URL(request.url || '/', 'http://localhost')
+        const pathname = requestUrl.pathname
+        const mediaInsightsMatch = pathname.match(/^\/api\/instagram\/media\/(\d+)\/insights$/)
+        const staticHandlers = {
+          '/api/storage/upload': uploadMedia,
+          '/api/storage/delete': deleteMedia,
+          '/api/instagram/dashboard': instagramDashboard,
+          '/api/instagram/profile': instagramProfile,
+          '/api/instagram/insights': instagramInsights,
+          '/api/instagram/media': instagramMedia,
+        }
+        const handler = staticHandlers[pathname] || (mediaInsightsMatch ? instagramMediaInsights : null)
         if (!handler) return next()
+        request.query = Object.fromEntries(requestUrl.searchParams.entries())
+        if (mediaInsightsMatch) request.query.id = mediaInsightsMatch[1]
         try {
           await handler(request, response)
         } catch (error) {
@@ -39,6 +52,11 @@ export default defineConfig(({ command, mode }) => {
     'SUPABASE_ANON_KEY',
     'VITE_SUPABASE_URL',
     'VITE_SUPABASE_ANON_KEY',
+    'INSTAGRAM_ACCESS_TOKEN',
+    'INSTAGRAM_USER_ID',
+    'INSTAGRAM_APP_ID',
+    'INSTAGRAM_APP_SECRET',
+    'INSTAGRAM_API_VERSION',
   ]
   serverEnvironmentKeys.forEach((key) => {
     // During local development, prefer the current .env value so a Vite

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "test": "node --test src/lib/admin.test.js src/lib/registration.test.js server/r2.test.js",
+    "test": "node --test src/lib/admin.test.js src/lib/registration.test.js server/r2.test.js server/instagram.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

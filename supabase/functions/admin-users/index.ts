@@ -7,7 +7,7 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const permissionIds = ["overview", "team", "events", "registrations", "users"] as const;
+const permissionIds = ["overview", "team", "events", "registrations", "social_media", "users"] as const;
 const validPermissions = new Set<string>(permissionIds);
 
 function response(body: Record<string, unknown>, status = 200) {

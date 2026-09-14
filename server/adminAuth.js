@@ -59,6 +59,26 @@ export async function requireMediaAdmin(request, folder) {
   return user;
 }
 
+export function assertClubPermission(user, permission) {
+  const metadata = user?.app_metadata || {};
+  const storedPermissions = metadata.club_permissions;
+  const isAuthorized = metadata.club_admin === true && (
+    metadata.club_role === "owner"
+    || !Array.isArray(storedPermissions)
+    || storedPermissions.includes(permission)
+  );
+  if (!isAuthorized) {
+    const error = new Error(`The ${permission} permission is required.`);
+    error.statusCode = 403;
+    throw error;
+  }
+  return user;
+}
+
+export async function requireClubPermission(request, permission) {
+  return assertClubPermission(await requireClubAdmin(request), permission);
+}
+
 export function assertMediaPermission(user, folder) {
   const requiredPermission = requiredPermissionForFolder(folder);
   if (!requiredPermission) {

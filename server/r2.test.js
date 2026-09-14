@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { assertMediaPermission } from "./adminAuth.js";
+import { assertClubPermission, assertMediaPermission } from "./adminAuth.js";
 import { buildPublicUrl, matchesImageSignature, publicUrlToObjectKey } from "./r2.js";
 
 const TEST_ENV = {
@@ -29,6 +29,15 @@ test("media authorization follows granular admin permissions", () => {
   assert.throws(() => assertMediaPermission(teamOfficer, "OTHER"), /Only EVENTS/);
 });
 
+test("Instagram analytics follows the granular social media permission", () => {
+  const owner = { app_metadata: { club_admin: true, club_role: "owner", club_permissions: [] } };
+  const socialOfficer = { app_metadata: { club_admin: true, club_permissions: ["social_media"] } };
+  const eventsOfficer = { app_metadata: { club_admin: true, club_permissions: ["events"] } };
+  assert.doesNotThrow(() => assertClubPermission(owner, "social_media"));
+  assert.doesNotThrow(() => assertClubPermission(socialOfficer, "social_media"));
+  assert.throws(() => assertClubPermission(eventsOfficer, "social_media"), /social_media permission/);
+});
+
 test("declared image types must match their file signatures", () => {
   assert.equal(matchesImageSignature(Buffer.from([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg"), true);
   assert.equal(matchesImageSignature(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png"), true);
@@ -45,4 +54,14 @@ test("browser code contains no R2 credentials or Supabase Storage writes", () =>
   assert.doesNotMatch(browserCode, /supabase\.storage|\.getPublicUrl\(/);
   assert.match(mediaClient, /\/api\/storage\/upload/);
   assert.match(mediaClient, /\/api\/storage\/delete/);
+});
+
+test("Instagram browser code contains no server credentials and uses only the protected local API", () => {
+  const instagramClient = readFileSync(new URL("../src/lib/instagramApi.js", import.meta.url), "utf8");
+  const instagramDashboard = readFileSync(new URL("../src/components/Admin/AdminSocialMedia.jsx", import.meta.url), "utf8");
+  const browserCode = `${instagramClient}\n${instagramDashboard}`;
+  assert.doesNotMatch(browserCode, /INSTAGRAM_(?:ACCESS_TOKEN|APP_SECRET|APP_ID|USER_ID)/);
+  assert.doesNotMatch(browserCode, /graph\.instagram\.com/);
+  assert.match(instagramClient, /\/api\/instagram\/dashboard/);
+  assert.match(instagramClient, /Authorization: `Bearer \$\{token\}`/);
 });

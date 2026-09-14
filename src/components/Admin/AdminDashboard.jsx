@@ -3,6 +3,7 @@ import AdminAnalytics from "./AdminAnalytics";
 import AdminEvents from "./AdminEvents";
 import AdminTeam from "./AdminTeam";
 import AdminMembers from "./AdminMembers";
+import AdminSocialMedia from "./AdminSocialMedia";
 import AdminUsers from "./AdminUsers";
 import SiteLoader from "../common/SiteLoader";
 import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "../FullNavMenu/navigationGallery";
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { id: "team", permission: "team", label: "Team", caption: "Profiles & roles", icon: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-2a6 6 0 0 1 12 0v2" /><path d="M17 4a4 4 0 0 1 0 8M19 15a5 5 0 0 1 2 4v2" /></> },
   { id: "events", permission: "events", label: "Events", caption: "Club experiences", icon: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></> },
   { id: "registrations", permission: "registrations", label: "Registrations", caption: "Review & intake", icon: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m17 11 2 2 4-4" /></> },
+  { id: "social_media", permission: "social_media", label: "Social Media", caption: "Instagram insights", icon: <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></> },
   { id: "users", permission: "users", label: "Admin users", caption: "Access & permissions", icon: <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 11.5 19 10l3 1.5v3.2c0 2.2-1.3 4.2-3 5.3-1.7-1.1-3-3.1-3-5.3z" /></> },
 ];
 
@@ -428,6 +430,9 @@ export default function AdminDashboard({ onClose }) {
         </section>}
         {activeTab === "registrations" && hasAdminPermission(adminUser, "registrations") && <section className="admin-section-panel">
           <AdminErrorBoundary><AdminMembers initialRegistrations={workspace.registrations} initialSettings={workspace.settings} onDataChange={syncRegistrations} /></AdminErrorBoundary>
+        </section>}
+        {activeTab === "social_media" && hasAdminPermission(adminUser, "social_media") && <section className="admin-section-panel">
+          <AdminErrorBoundary><AdminSocialMedia /></AdminErrorBoundary>
         </section>}
         {activeTab === "users" && hasAdminPermission(adminUser, "users") && <section className="admin-section-panel">
           <AdminErrorBoundary><AdminUsers currentUser={adminUser} /></AdminErrorBoundary>

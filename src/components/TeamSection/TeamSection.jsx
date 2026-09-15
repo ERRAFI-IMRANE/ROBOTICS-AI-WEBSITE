@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { publicContent, supabase } from "../../lib/supabaseClient";
-import { normalizePublishedSeasons, readClubSettings } from "../../lib/clubSettings";
+import { readClubSettings } from "../../lib/clubSettings";
+import { publicTeamSeasons, teamMembersForSeason } from "../../lib/publicTeam";
 import {
   DEFAULT_TEAM_SEASON,
-  TEAM_SEASONS,
   getEquivalentTeamSeasonKeys,
   normalizeTeamSeason,
 } from "../../constants/teamPosts";
@@ -82,22 +82,6 @@ const DEFAULT_TEAM_MEMBERS = [
 // and displayed values use the shared YYYY-YYYY format.
 const getEquivalentSeasonKeys = getEquivalentTeamSeasonKeys;
 
-// Helper to extract years array from member record
-const getMemberYears = (m) => {
-  let years = [];
-  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    years = m.team_seasons.map((ts) => ts.season);
-  } else if (m?.season_roles && typeof m.season_roles === "object" && Object.keys(m.season_roles).length > 0) {
-    years = Object.keys(m.season_roles);
-  } else {
-    const rawYears = m?.years || m?.data?.years;
-    if (Array.isArray(rawYears)) years = rawYears;
-    else if (typeof rawYears === "string") years = rawYears.split(",");
-  }
-  const normalized = years.map(normalizeTeamSeason).filter(Boolean);
-  return normalized.length ? [...new Set(normalized)] : [DEFAULT_TEAM_SEASON];
-};
-
 // Helper to extract role for a season
 const getMemberRoleForYear = (m, year) => {
   const equivKeys = getEquivalentSeasonKeys(year);
@@ -153,41 +137,16 @@ const mapMemberRecord = (m, year) => ({
 });
 
 function resolveTeamRecords(rawData, targetSeason = DEFAULT_TEAM_SEASON) {
-  let resolvedSeason = normalizeTeamSeason(targetSeason) || DEFAULT_TEAM_SEASON;
+  const resolvedSeason = normalizeTeamSeason(targetSeason) || DEFAULT_TEAM_SEASON;
   let resolvedMembers = [];
 
   if (rawData.length > 0) {
-    const equivKeys = getEquivalentSeasonKeys(targetSeason);
-    let matching = rawData.filter((member) => {
-      const memberYears = getMemberYears(member);
-      return equivKeys.some((key) => memberYears.includes(key));
-    });
-
-    if (matching.length === 0) {
-      const candidateSeasons = TEAM_SEASONS;
-      for (const candidate of candidateSeasons) {
-        const candidateKeys = getEquivalentSeasonKeys(candidate);
-        const candidateMembers = rawData.filter((member) => {
-          const memberYears = getMemberYears(member);
-          return candidateKeys.some((key) => memberYears.includes(key));
-        });
-        if (candidateMembers.length > 0) {
-          matching = candidateMembers;
-          resolvedSeason = candidate;
-          break;
-        }
-      }
-    }
-
-    if (matching.length === 0) matching = rawData;
+    const matching = teamMembersForSeason(rawData, resolvedSeason);
     resolvedMembers = matching.map((member) => mapMemberRecord(member, resolvedSeason));
     resolvedMembers.sort((a, b) => {
       if (a.orderPostVal !== b.orderPostVal) return a.orderPostVal - b.orderPostVal;
       return (a.name || "").localeCompare(b.name || "");
     });
-  } else {
-    resolvedMembers = DEFAULT_TEAM_MEMBERS;
-    resolvedSeason = DEFAULT_TEAM_SEASON;
   }
 
   return { members: resolvedMembers, season: resolvedSeason };
@@ -195,7 +154,7 @@ function resolveTeamRecords(rawData, targetSeason = DEFAULT_TEAM_SEASON) {
 
 export default function TeamSection({ initialTeam = null, initialSeason = DEFAULT_TEAM_SEASON, initialSeasons = null }) {
   const hasInitialTeam = Array.isArray(initialTeam);
-  const initialPublishedSeasons = useMemo(() => normalizePublishedSeasons({
+  const initialPublishedSeasons = useMemo(() => publicTeamSeasons({
     public_staff_seasons: initialSeasons,
     public_staff_season: initialSeason,
   }), [initialSeason, initialSeasons]);
@@ -227,14 +186,13 @@ export default function TeamSection({ initialTeam = null, initialSeason = DEFAUL
         setLoading(true);
 
         // 1. Determine published season from club_settings
-        let targetSeasons = [DEFAULT_TEAM_SEASON];
+        let targetSeasons = publicTeamSeasons(null);
         try {
           const client = publicContent || supabase;
           const settings = await withRequestTimeout(readClubSettings(client), "Club settings", 4000);
-          const configuredSeasons = normalizePublishedSeasons(settings);
-          if (configuredSeasons.length) targetSeasons = configuredSeasons;
+          targetSeasons = publicTeamSeasons(settings);
         } catch {
-          targetSeasons = [DEFAULT_TEAM_SEASON];
+          targetSeasons = publicTeamSeasons(null);
         }
 
         // 2. Fetch all staff members using session-independent publicContent client

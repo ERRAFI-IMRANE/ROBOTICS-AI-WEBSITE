@@ -7,6 +7,7 @@ import { saveStaff, deleteStaff } from "./adminStaff.js";
 import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
+import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { getAdminPermissions, hasAdminPermission } from "./adminPermissions.js";
 import { createAdminUser, updateAdminUser } from "./adminUsers.js";
 import {
@@ -37,6 +38,26 @@ import {
 } from "./adminAnalytics.js";
 
 const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
+
+test("public team year tabs always include both requested archive seasons", () => {
+  assert.deepEqual(publicTeamSeasons(null), ["2025-2026", "2024-2025"]);
+  assert.deepEqual(publicTeamSeasons({ public_staff_season: "25-26" }), ["2025-2026", "2024-2025"]);
+  assert.deepEqual(publicTeamSeasons({ public_staff_seasons: ["2026-2027", "24/25", "2025-2026"] }), ["2026-2027", "2025-2026", "2024-2025"]);
+});
+
+test("public team switching keeps rosters separate and never substitutes another season", () => {
+  const members = [
+    { id: 1, team_seasons: [{ season: "24-25" }] },
+    { id: 2, team_seasons: [{ season: "2025-2026" }] },
+    { id: 3, team_seasons: [{ season: "2024-2025" }, { season: "25/26" }] },
+    { id: 4, season_roles: { "24/25": "President" } },
+    { id: 5, years: "24-25,25-26" },
+  ];
+  assert.deepEqual(teamMembersForSeason(members, "2024-2025").map((m) => m.id), [1, 3, 4, 5]);
+  assert.deepEqual(teamMembersForSeason(members, "2025-2026").map((m) => m.id), [2, 3, 5]);
+  assert.deepEqual(teamMembersForSeason(members, "2026-2027"), []);
+  assert.deepEqual(teamMembersForSeason([], "2024-2025"), []);
+});
 
 test("album manifest includes every folder image and selects seven unique cards", () => {
   const files = readdirSync(new URL("../../public/album/", import.meta.url))

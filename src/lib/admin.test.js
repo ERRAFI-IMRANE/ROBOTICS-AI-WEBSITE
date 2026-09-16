@@ -7,6 +7,7 @@ import { saveStaff, deleteStaff } from "./adminStaff.js";
 import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
+import { latestAdminNotifications, searchAdminSections } from "./adminHeader.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
 import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
@@ -39,6 +40,47 @@ import {
 } from "./adminAnalytics.js";
 
 const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
+
+test("header search matches section labels and captions, including accents", () => {
+  const sections = [
+    { id: "events", label: "Events", caption: "Club experiences" },
+    { id: "social_media", label: "Social Media", caption: "Instagram & TikTok" },
+  ];
+  assert.deepEqual(searchAdminSections(sections, "  ÉVENTS "), [sections[0]]);
+  assert.deepEqual(searchAdminSections(sections, "social tiktok"), [sections[1]]);
+  assert.deepEqual(searchAdminSections(sections, "team"), []);
+  assert.deepEqual(searchAdminSections(sections, ""), sections);
+});
+
+test("header notifications use real timestamps, rank newest first, and respect section access", () => {
+  const workspace = {
+    registrations: [
+      { id: 1, full_name: "Applicant", created_at: "2026-09-10T09:00:00Z", interview_completed: true, interviewed_at: "2026-09-12T10:00:00Z" },
+      { id: 2, full_name: "Not interviewed", created_at: "invalid", interview_completed: false, interviewed_at: "2026-09-13T10:00:00Z" },
+    ],
+    events: [{ id: 3, title: "Robotics day", created_at: "2026-09-11T09:00:00Z" }, { id: 4, title: "Undated", created_at: null }],
+  };
+  assert.deepEqual(latestAdminNotifications(workspace, ["registrations", "events"]).map((row) => row.id), ["interview-1", "event-3", "application-1"]);
+  assert.deepEqual(latestAdminNotifications(workspace, ["events"]).map((row) => row.detail), ["Robotics day"]);
+  assert.deepEqual(latestAdminNotifications(workspace, ["overview"]), []);
+  assert.equal(latestAdminNotifications(workspace, ["registrations", "events"], 1).length, 1);
+  assert.deepEqual(latestAdminNotifications(null, ["registrations", "events"]), []);
+});
+
+test("header actions live in the sidebar while topbar tools reuse the workspace without new queries", () => {
+  const sidebar = readFileSync(new URL("../components/Admin/AdminSidebar.jsx", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
+  const tools = readFileSync(new URL("../components/Admin/AdminTopbarTools.jsx", import.meta.url), "utf8");
+  assert.match(sidebar, /admin-sidebar-bottom-actions/);
+  assert.match(sidebar, /label: "Public site"/);
+  assert.match(sidebar, /label: "Sign out"/);
+  assert.match(dashboard, /<AdminTopbarTools items=\{visibleNavItems\} workspace=\{workspace\}/);
+  assert.doesNotMatch(dashboard, /className="topbar-view-site-btn"|className="admin-signout-btn"/);
+  assert.match(tools, /role="combobox"/);
+  assert.match(tools, /aria-activedescendant/);
+  assert.match(tools, /Latest notifications/);
+  assert.doesNotMatch(tools, /supabase|\.from\(|fetch\(/);
+});
 
 test("public team year tabs always include both requested archive seasons", () => {
   assert.deepEqual(publicTeamSeasons(null), ["2025-2026", "2024-2025"]);

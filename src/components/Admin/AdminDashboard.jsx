@@ -6,6 +6,7 @@ import AdminMembers from "./AdminMembers";
 import AdminSocialMedia from "./AdminSocialMedia";
 import AdminUsers from "./AdminUsers";
 import AdminSidebar from "./AdminSidebar";
+import AdminTopbarTools from "./AdminTopbarTools";
 import SiteLoader from "../common/SiteLoader";
 import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "../FullNavMenu/navigationGallery";
 import { loadAdminWorkspace } from "../../lib/adminWorkspace";
@@ -418,7 +419,7 @@ export default function AdminDashboard({ onClose }) {
 
   return (
     <div className={`admin-root-layout admin-command-shell admin-content-ready admin-sidebar-dynamic ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
-      <AdminSidebar items={visibleNavItems} activeTab={activeTab} collapsed={sidebarCollapsed} mobileOpen={mobileNavOpen} onToggle={() => setSidebarCollapsed((value) => !value)} onCloseMobile={closeMobileNav} onNavigate={navigate} />
+      <AdminSidebar items={visibleNavItems} activeTab={activeTab} collapsed={sidebarCollapsed} mobileOpen={mobileNavOpen} onToggle={() => setSidebarCollapsed((value) => !value)} onCloseMobile={closeMobileNav} onNavigate={navigate} onViewSite={onClose} onSignOut={handleLogout} />
       {mobileNavOpen && <button className="admin-command-scrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <main ref={mainViewportRef} className="admin-main-viewport admin-command-main">
         <header className="admin-topbar admin-command-topbar">
@@ -427,8 +428,7 @@ export default function AdminDashboard({ onClose }) {
             <span className="admin-command-breadcrumb">RAI control room <b>/</b> <strong>{current.label}</strong></span>
           </div>
           <div className="admin-topbar-right">
-            <button type="button" className="topbar-view-site-btn" onClick={onClose}>Public site ↗</button>
-            <button type="button" className="admin-signout-btn" onClick={handleLogout}>Sign out</button>
+            <AdminTopbarTools items={visibleNavItems} workspace={workspace} onNavigate={navigate} />
           </div>
         </header>
         {activeTab === "overview" && <section className="admin-section-panel">

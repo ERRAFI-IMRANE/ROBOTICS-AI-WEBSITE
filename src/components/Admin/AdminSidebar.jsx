@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export default function AdminSidebar({ items, activeTab, collapsed, mobileOpen, onToggle, onCloseMobile, onNavigate }) {
+export default function AdminSidebar({ items, activeTab, collapsed, mobileOpen, onToggle, onCloseMobile, onNavigate, onViewSite, onSignOut }) {
   const sidebarRef = useRef(null);
   const closeRef = useRef(null);
   const [tooltip, setTooltip] = useState(null);
@@ -62,6 +62,15 @@ export default function AdminSidebar({ items, activeTab, collapsed, mobileOpen, 
           </button>
         ))}
       </nav>
+      <div className="admin-sidebar-bottom-actions" aria-label="Website and session actions">
+        {[
+          { id: "public-site", label: "Public site", caption: "Return to the club website", onClick: onViewSite, path: "M14 3h7v7M21 3l-9 9M10 3H3v18h18v-7" },
+          { id: "sign-out", label: "Sign out", caption: "End your officer session", onClick: onSignOut, path: "M9 3H3v18h6M14 7l5 5-5 5M7 12h12" },
+        ].map((item) => <button key={item.id} type="button" onClick={item.onClick} aria-label={item.label} aria-describedby={tooltip?.id === item.id ? "admin-sidebar-tooltip" : undefined} onMouseEnter={(event) => showTooltip(event, item)} onMouseLeave={() => setTooltip(null)} onFocus={(event) => showTooltip(event, item)} onBlur={() => setTooltip(null)} onKeyDown={(event) => { if (event.key === "Escape") setTooltip(null); }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d={item.path} /></svg>
+          <span className="admin-sidebar-action-label">{item.label}</span>
+        </button>)}
+      </div>
       <div className="admin-command-sidebar-foot" aria-label="Database connected. Authenticated session." title={collapsed ? "Database connected · Authenticated session" : undefined}><span className="admin-live-dot" /><span className="admin-command-status-copy"><strong>Database connected</strong><small>Authenticated session</small></span></div>
       {tooltip && <div id="admin-sidebar-tooltip" className="admin-sidebar-tooltip" role="tooltip" style={{ left: tooltip.left, top: tooltip.top }}><strong>{tooltip.label}</strong><span>{tooltip.caption}</span></div>}
     </aside>

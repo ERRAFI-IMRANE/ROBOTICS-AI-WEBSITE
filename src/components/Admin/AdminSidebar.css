@@ -88,6 +88,35 @@
   border-color: #e1e7ef;
 }
 
+.admin-sidebar-bottom-actions {
+  display: grid;
+  flex-shrink: 0;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #e5eaf1;
+}
+
+.admin-sidebar-bottom-actions button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: #475467;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: 500 12px var(--font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: color 170ms ease, background-color 170ms ease;
+}
+
+.admin-sidebar-bottom-actions button:hover { color: #174ea6; background: #edf4ff; }
+.admin-sidebar-bottom-actions button:last-child:hover { color: #b42318; background: #fff1f0; }
+.admin-sidebar-bottom-actions svg { flex-shrink: 0; width: 20px; height: 20px; }
+.admin-sidebar-action-label { overflow: hidden; white-space: nowrap; }
+
 .admin-sidebar-collapse-toggle,
 .admin-sidebar-mobile-close {
   display: grid;
@@ -192,6 +221,9 @@
     display: none;
   }
 
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-sidebar-action-label { display: none; }
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-sidebar-bottom-actions button { justify-content: center; padding: 12px 0; }
+
   .admin-command-shell.admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-nav button {
     grid-template-columns: 24px;
     justify-content: center;
@@ -242,4 +274,6 @@
     animation: none;
     transition: none;
   }
+
+  .admin-sidebar-bottom-actions button { transition: none; }
 }

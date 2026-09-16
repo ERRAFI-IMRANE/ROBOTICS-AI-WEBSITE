@@ -8,6 +8,7 @@ import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { latestAdminNotifications, searchAdminSections } from "./adminHeader.js";
+import { adminLoginActivity } from "./adminLoginActivity.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
 import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
@@ -40,6 +41,34 @@ import {
 } from "./adminAnalytics.js";
 
 const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
+
+test("admin login activity ranks real last sign-ins and handles accounts that never signed in", () => {
+  const users = [
+    { id: 1, display_name: "Never", last_sign_in_at: null },
+    { id: 2, last_sign_in_at: "2026-09-15T14:00:00Z" },
+    { id: 3, last_sign_in_at: "2026-09-16T10:00:00Z" },
+    { id: 4, display_name: "Invalid", last_sign_in_at: "invalid" },
+  ];
+  const activity = adminLoginActivity(users);
+  assert.deepEqual(activity.map((row) => row.user.id), [3, 2, 4, 1]);
+  assert.equal(activity[0].lastLogin, "2026-09-16T10:00:00.000Z");
+  assert.equal(activity[3].lastLogin, null);
+  assert.deepEqual(adminLoginActivity([]), []);
+  assert.equal(users[0].id, 1, "source data must not be reordered");
+});
+
+test("review choices have an isolated bounded viewport and login activity reuses the admin dataset", () => {
+  const styles = readFileSync(new URL("../components/Admin/AdminRegistrations.css", import.meta.url), "utf8");
+  const activity = readFileSync(new URL("../components/Admin/AdminLoginActivity.jsx", import.meta.url), "utf8");
+  const users = readFileSync(new URL("../components/Admin/AdminUsers.jsx", import.meta.url), "utf8");
+  assert.match(styles, /\.admin-interview-dialog \.admin-interview-viewport \{[^}]*overflow: hidden;/);
+  assert.match(styles, /\.admin-interview-dialog \.admin-interview-options \{[^}]*min-height: 0;[^}]*overflow-y: auto;/);
+  assert.match(styles, /\.admin-interview-dialog \.admin-interview-track \{\s+height: 100%;/);
+  assert.match(users, /<AdminLoginActivity users=\{visibleUsers\}/);
+  assert.match(users, /<LastLoginTime value=\{user\.last_sign_in_at\}/);
+  assert.match(activity, /Never signed in/);
+  assert.doesNotMatch(activity, /supabase|\.from\(|fetch\(/);
+});
 
 test("header search matches section labels and captions, including accents", () => {
   const sections = [

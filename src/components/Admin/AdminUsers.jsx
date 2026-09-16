@@ -4,6 +4,7 @@ import { createAdminUser, deleteAdminUser, listAdminUsers, teamAdminCredentials,
 import { supabase } from "../../lib/supabaseClient";
 import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
 import { useAdminToast } from "./useAdminToast";
+import AdminLoginActivity, { LastLoginTime } from "./AdminLoginActivity";
 
 const DEFAULT_PERMISSIONS = ["overview", "team", "events", "registrations"];
 
@@ -45,6 +46,7 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [confirmation, setConfirmation] = useState(null);
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
@@ -69,10 +71,12 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setLoadError("");
     try {
       setUsers(await listAdminUsers(supabase));
     } catch (loadError) {
       setError(loadError.message || "Admin accounts could not be loaded.");
+      setLoadError(loadError.message || "Admin accounts could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -225,6 +229,8 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
         />
       </div>
 
+      <AdminLoginActivity users={visibleUsers} loading={loading} error={loadError} />
+
       <div className="admin-panel admin-users-table-wrap">
         <table className="admin-users-table">
           <thead><tr><th>Administrator</th><th>Permissions</th><th>Created</th><th>Last sign in</th><th><span className="sr-only">Actions</span></th></tr></thead>
@@ -250,7 +256,7 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
                     {user.legacy_full_access && <small className="admin-user-legacy-note">Legacy full access</small>}
                   </td>
                   <td data-label="Created">{formatDate(user.created_at, "Unknown")}</td>
-                  <td data-label="Last sign in">{formatDate(user.last_sign_in_at)}</td>
+                  <td data-label="Last sign in"><LastLoginTime value={user.last_sign_in_at} /></td>
                   <td className="admin-users-action-cell">
                     <div className="admin-user-account-actions">
                     <button

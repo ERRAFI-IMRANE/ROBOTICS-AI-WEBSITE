@@ -1,0 +1,27 @@
+.admin-users-page .admin-login-panel { padding: 0; overflow: hidden; }
+.admin-login-heading { padding: 20px 22px; border-bottom: 1px solid #e5eaf1; }
+.admin-login-heading h2 { margin: 0; color: #172033; font: 600 18px var(--font-body); }
+.admin-login-heading p { margin: 6px 0 0; color: #667085; font: 400 12px/1.6 var(--font-body); }
+.admin-login-list { max-height: 310px; overflow-y: auto; margin: 0; padding: 0; list-style: none; overscroll-behavior: contain; }
+.admin-login-list li { display: flex; align-items: center; gap: 14px; padding: 15px 22px; transition: background-color 170ms ease; }
+.admin-login-list li + li { border-top: 1px solid #eef1f6; }
+.admin-login-list li:hover { background: #f8fafc; }
+.admin-login-indicator { flex-shrink: 0; width: 8px; height: 8px; background: #cbd5e1; }
+.admin-login-indicator.has-login { background: #2563eb; }
+.admin-login-identity { display: grid; flex: 1; min-width: 0; gap: 4px; }
+.admin-login-identity strong { color: #172033; font: 600 12px var(--font-body); overflow-wrap: anywhere; }
+.admin-login-identity small { color: #667085; font: 400 11px var(--font-body); overflow-wrap: anywhere; }
+.admin-users-page .admin-login-time { display: grid; gap: 4px; color: #344054; font: 400 12px var(--font-body); }
+.admin-login-list .admin-login-time { text-align: right; }
+.admin-users-page .admin-login-time strong { font-weight: 500; }
+.admin-users-page .admin-login-time small { color: #667085; font-size: 11px; }
+.admin-login-never { color: #667085; font: 400 12px var(--font-body); }
+.admin-login-caption { margin: 0; padding: 12px 22px; border-top: 1px solid #e5eaf1; color: #667085; background: #f8fafc; font: 400 11px/1.6 var(--font-body); }
+.admin-login-empty { margin: 0; padding: 25px 22px; color: #667085; font: 400 12px var(--font-body); }
+@media (max-width: 500px) {
+  .admin-login-heading, .admin-login-list li, .admin-login-caption { padding-left: 16px; padding-right: 16px; }
+  .admin-login-list li { flex-wrap: wrap; gap: 10px; }
+  .admin-login-identity { flex-basis: calc(100% - 25px); }
+  .admin-login-list .admin-login-time, .admin-login-list .admin-login-never { margin-left: 18px; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { .admin-login-list li { transition: none; } }

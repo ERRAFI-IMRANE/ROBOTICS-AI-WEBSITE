@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
-import { completeRegistrationReview, saveRegistrationInterview, setRegistrationInteresting } from "../../lib/registrationInterview";
+import { completeRegistrationReview } from "../../lib/registrationInterview";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminToast } from "./AdminActionFeedback";
 import AdminInterviewWizard from "./AdminInterviewWizard";
@@ -23,7 +23,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   const [season, setSeason] = useState("all");
   const [interviewing, setInterviewing] = useState(null);
   const [interviewBusy, setInterviewBusy] = useState(false);
-  const [interestingBusy, setInterestingBusy] = useState(false);
+  const reviewLock = useRef(false);
   const { toast, showToast, clearToast } = useAdminToast();
 
   const load = useCallback(async () => {
@@ -64,61 +64,25 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
     }
   };
 
-  const saveInterview = async (answers) => {
-    if (!interviewing || interviewBusy) return;
+  const completeReview = async (answers, decision, refusalReason, interesting) => {
+    if (!interviewing || interviewBusy || reviewLock.current) return;
+    reviewLock.current = true;
     setInterviewBusy(true);
     try {
-      const updated = await saveRegistrationInterview(supabase, interviewing.id, answers);
-      const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
-      setRegistrations(nextRegistrations);
-      onDataChange(nextRegistrations, settings);
-      setInterviewing(null);
-      showToast(`${interviewing.full_name || "Applicant"}'s interview was saved.`);
-      return updated;
-    } catch (saveError) {
-      showToast(saveError.message || "The interview could not be saved.", "error");
-      throw saveError;
-    } finally {
-      setInterviewBusy(false);
-    }
-  };
-
-  const completeReview = async (answers, decision, refusalReason) => {
-    if (!interviewing || interviewBusy) return;
-    setInterviewBusy(true);
-    try {
-      const updated = await completeRegistrationReview(supabase, interviewing.id, answers, decision, refusalReason);
+      const updated = await completeRegistrationReview(supabase, interviewing.id, answers, decision, refusalReason, interesting, interviewing.status || "pending");
       const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
       setRegistrations(nextRegistrations);
       onDataChange(nextRegistrations, settings);
       setInterviewing(null);
       showToast(`${interviewing.full_name || "Applicant"} was ${decision}.`);
+      await load();
       return updated;
     } catch (reviewError) {
       showToast(reviewError.message || "The application review could not be completed.", "error");
       throw reviewError;
     } finally {
+      reviewLock.current = false;
       setInterviewBusy(false);
-    }
-  };
-
-  const toggleInteresting = async () => {
-    if (!interviewing || interestingBusy) return;
-    const nextValue = interviewing.interesting !== true;
-    setInterestingBusy(true);
-    try {
-      const updated = await setRegistrationInteresting(supabase, interviewing.id, nextValue);
-      const nextRegistrations = registrations.map((row) => String(row.id) === String(updated.id) ? { ...row, ...updated } : row);
-      setRegistrations(nextRegistrations);
-      setInterviewing((current) => current && String(current.id) === String(updated.id) ? { ...current, ...updated } : current);
-      onDataChange(nextRegistrations, settings);
-      showToast(`${interviewing.full_name || "Applicant"} ${nextValue ? "marked as Interesting" : "removed from Interesting candidates"}.`);
-      return updated;
-    } catch (flagError) {
-      showToast(flagError.message || "The Interesting flag could not be updated.", "error");
-      throw flagError;
-    } finally {
-      setInterestingBusy(false);
     }
   };
 
@@ -142,7 +106,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   });
 
   return (
-    <div className="admin-tab-content admin-registration-view" aria-busy={busy || interviewBusy || interestingBusy}>
+    <div className="admin-tab-content admin-registration-view" aria-busy={busy || interviewBusy}>
       <AdminToast toast={toast} onClose={clearToast} />
       <div className="admin-view-header">
         <div><p className="admin-eyebrow">Membership intake</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
@@ -206,7 +170,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                       <td data-label="Application"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></td>
                       <td data-label="Interview"><span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></td>
                       <td data-label="Received"><time dateTime={app.created_at || undefined}>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</time><small className="admin-applicant-received-time">{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small></td>
-                      <td data-label="Review"><button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy || interestingBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button></td>
+                      <td data-label="Review"><button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button></td>
                     </tr>
                     <tr className="admin-applicant-notes-row"><td colSpan="7"><details className="admin-applicant-notes"><summary>Application message<span>{app.message ? String(app.message).slice(0, 90) : "No message provided"}</span></summary><p>{app.message || "No message provided."}</p></details>{appStatus === "refused" && <div className="admin-applicant-refusal"><strong>Refusal reason</strong><p>{app.refusal_reason || "No refusal reason recorded"}</p></div>}</td></tr>
                   </React.Fragment>
@@ -221,11 +185,8 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
         key={`${interviewing.id}-${interviewing.interviewed_at || "new"}`}
         applicant={interviewing}
         saving={interviewBusy}
-        interestingSaving={interestingBusy}
-        onCancel={() => { if (!interviewBusy && !interestingBusy) setInterviewing(null); }}
-        onSave={saveInterview}
+        onCancel={() => { if (!interviewBusy) setInterviewing(null); }}
         onDecision={completeReview}
-        onToggleInteresting={toggleInteresting}
       />}
     </div>
   );

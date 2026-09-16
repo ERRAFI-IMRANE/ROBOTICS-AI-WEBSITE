@@ -188,17 +188,58 @@ test("interview saving updates one registration through the protected RPC", asyn
   assert.equal(client.calls[0].args.p_registration_id, 18);
   assert.deepEqual(client.calls[0].args.p_interest_type, completeInterview.interest_type);
 });
-test("completed review saves interview and decision through one atomic RPC", async () => {
-  const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, status: "refused", refusal_reason: "Limited places" }, error: null });
-  await completeRegistrationReview(client, 18, completeInterview, "refused", "  Limited places  ");
+test("completed review saves interview, decision, and draft Interesting choice through one atomic RPC", async () => {
+  const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, status: "refused", refusal_reason: "Limited places", interesting: true }, error: null });
+  await completeRegistrationReview(client, 18, completeInterview, "refused", "  Limited places  ", true);
   assert.equal(client.calls.length, 1);
   assert.deepEqual({
     name: client.calls[0].name,
     decision: client.calls[0].args.p_decision,
     reason: client.calls[0].args.p_reason,
-  }, { name: "complete_registration_review", decision: "refused", reason: "Limited places" });
+  }, { name: "complete_registration_review_with_flag", decision: "refused", reason: "Limited places" });
+  assert.equal(client.calls[0].args.p_interesting, true);
+  assert.equal(client.calls[0].args.p_expected_status, "pending");
   await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "refused", " "), /refusal reason/);
   assert.equal(client.calls.length, 1);
+});
+
+test("explicit re-review can accept a processed applicant and unmark Interesting", async () => {
+  const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, status: "accepted", refusal_reason: null, interesting: false }, error: null });
+  await completeRegistrationReview(client, 18, completeInterview, "accepted", "Previous refusal", false, "refused");
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0].args.p_reason, null);
+  assert.equal(client.calls[0].args.p_expected_status, "refused");
+  assert.equal(client.calls[0].args.p_interesting, false);
+});
+
+test("review validates the draft and requires flag confirmation from Supabase", async () => {
+  const client = rpcMock({ data: { id: 18, interview_completed: true, status: "accepted", interesting: false }, error: null });
+  await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "accepted", "", "yes"), /valid Interesting/);
+  await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "accepted", "", true, "unknown"), /Refresh the applicant/);
+  assert.equal(client.calls.length, 0);
+  await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "accepted", "", true), /not confirmed/);
+  assert.equal(client.calls.length, 1);
+  const missing = rpcMock({ data: null, error: { code: "PGRST202" } });
+  await assert.rejects(completeRegistrationReview(missing, 18, completeInterview, "accepted", "", false), /migration_registration_review_decision\.sql/);
+});
+
+test("review wizard defers Interesting persistence until a confirmed final decision", () => {
+  const wizard = readFileSync(new URL("../components/Admin/AdminInterviewWizard.jsx", import.meta.url), "utf8");
+  const members = readFileSync(new URL("../components/Admin/AdminMembers.jsx", import.meta.url), "utf8");
+  const migration = readFileSync(new URL("../../supabase/migration_registration_review_decision.sql", import.meta.url), "utf8");
+  assert.match(wizard, /useState\(applicant\.interesting === true\)/);
+  assert.match(wizard, /onClick=\{\(\) => setIsInteresting/);
+  assert.match(wizard, /onDecision\(answers, decision, refusalReason, isInteresting\)/);
+  assert.match(wizard, /AdminConfirmDialog confirmation=\{confirmation\}/);
+  assert.doesNotMatch(wizard, /Save Interview|onSave|onToggleInteresting/);
+  assert.doesNotMatch(members, /setRegistrationInteresting|saveRegistrationInterview/);
+  assert.match(migration, /public\.has_club_permission\('registrations'\)/);
+  assert.match(migration, /FOR UPDATE;/);
+  assert.match(migration, /status IS DISTINCT FROM p_expected_status/);
+  assert.match(migration, /PERFORM public\.save_registration_interview[\s\S]*SET status = p_decision,[\s\S]*interesting = p_interesting/);
+  assert.match(migration, /'interesting', registration_record\.interesting/);
+  assert.match(migration, /REVOKE EXECUTE[\s\S]*FROM PUBLIC, anon/);
+  assert.doesNotMatch(migration, /ALTER TABLE|DELETE FROM|INSERT INTO/);
 });
 test("Interesting candidate flag uses its independent permission-checked RPC", async () => {
   const client = rpcMock({ data: { id: 18, interesting: true }, error: null });

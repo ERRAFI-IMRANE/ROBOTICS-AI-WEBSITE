@@ -120,13 +120,16 @@ export async function saveRegistrationInterview(client, registrationId, answers)
   return data;
 }
 
-export async function completeRegistrationReview(client, registrationId, answers, decision, refusalReason = "") {
+export async function completeRegistrationReview(client, registrationId, answers, decision, refusalReason = "", interesting = false, expectedStatus = "pending") {
   if (!registrationId || !["accepted", "refused"].includes(decision)) throw new Error("Choose a valid applicant decision.");
   const reason = String(refusalReason || "").trim();
   if (decision === "refused" && reason.length < 3) throw new Error("Enter a clear refusal reason before confirming.");
   if (reason.length > 2000) throw new Error("Keep the refusal reason under 2,000 characters.");
+  if (typeof interesting !== "boolean") throw new Error("Choose a valid Interesting flag value.");
+  const expected = String(expectedStatus || "").trim().toLowerCase();
+  if (!["pending", "accepted", "refused"].includes(expected)) throw new Error("Refresh the applicant before reviewing this application.");
   const payload = validateInterviewAnswers(answers);
-  const { data, error } = await client.rpc("complete_registration_review", {
+  const { data, error } = await client.rpc("complete_registration_review_with_flag", {
     p_registration_id: registrationId,
     p_interest_type: payload.interest_type,
     p_team_role_style: payload.team_role_style,
@@ -135,12 +138,14 @@ export async function completeRegistrationReview(client, registrationId, answers
     p_preferred_activity: payload.preferred_activity,
     p_decision: decision,
     p_reason: decision === "refused" ? reason : null,
+    p_interesting: interesting,
+    p_expected_status: expected,
   });
   if (error) {
-    if (error.code === "PGRST202") throw new Error("Run the updated supabase/migration_registration_interviews.sql to enable final interview decisions.");
+    if (error.code === "PGRST202") throw new Error("Run supabase/migration_registration_review_decision.sql to save the decision and Interesting choice together.");
     throw new Error(error.message || "The application review could not be completed.");
   }
-  if (!data || String(data.id) !== String(registrationId) || data.status !== decision || data.interview_completed !== true) {
+  if (!data || String(data.id) !== String(registrationId) || data.status !== decision || data.interview_completed !== true || data.interesting !== interesting) {
     throw new Error("The completed review was not confirmed. Keep this form open and try again.");
   }
   return data;

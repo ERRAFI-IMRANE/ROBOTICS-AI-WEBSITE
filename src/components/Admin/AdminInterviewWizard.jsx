@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { INTERVIEW_QUESTIONS, interviewAnswersFromRegistration } from "../../lib/registrationInterview";
+import { AdminConfirmDialog } from "./AdminActionFeedback";
 import "./AdminRegistrations.css";
 
 const REVIEW_STEP = INTERVIEW_QUESTIONS.length;
@@ -15,19 +16,21 @@ function AnswerList({ question, answer, onEdit }) {
   );
 }
 
-export default function AdminInterviewWizard({ applicant, saving, interestingSaving = false, onCancel, onSave, onDecision, onToggleInteresting }) {
+export default function AdminInterviewWizard({ applicant, saving, onCancel, onDecision }) {
   const dialogRef = useRef(null);
+  const decisionLock = useRef(false);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState(() => interviewAnswersFromRegistration(applicant));
   const [error, setError] = useState("");
   const [refusalOpen, setRefusalOpen] = useState(false);
-  const [refusalReason, setRefusalReason] = useState("");
+  const [refusalReason, setRefusalReason] = useState(applicant.refusal_reason || "");
+  const [isInteresting, setIsInteresting] = useState(applicant.interesting === true);
+  const [confirmation, setConfirmation] = useState(null);
   const currentQuestion = INTERVIEW_QUESTIONS[step];
   const progress = step === REVIEW_STEP ? 100 : ((step + 1) / INTERVIEW_QUESTIONS.length) * 100;
   const appStatus = String(applicant.status || "pending").toLowerCase();
   const pendingDecision = appStatus === "pending";
-  const isInteresting = applicant.interesting === true;
-  const interactionBusy = saving || interestingSaving;
+  const interactionBusy = saving;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -69,18 +72,8 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
     setStep((current) => Math.max(0, current - 1));
   };
 
-  const submit = async () => {
-    if (interactionBusy) return;
-    setError("");
-    try {
-      await onSave(answers);
-    } catch (saveError) {
-      setError(saveError.message || "The interview could not be saved. Your answers are still here.");
-    }
-  };
-
-  const decide = async (decision) => {
-    if (interactionBusy || !onDecision) return;
+  const decide = (decision) => {
+    if (interactionBusy || decisionLock.current || confirmation || !onDecision) return;
     if (decision === "refused" && !refusalOpen) {
       setRefusalOpen(true);
       setError("");
@@ -91,24 +84,32 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
       return;
     }
     setError("");
-    try {
-      await onDecision(answers, decision, refusalReason);
-    } catch (decisionError) {
-      setError(decisionError.message || "The final decision could not be saved. Your answers are still here.");
-    }
+    setConfirmation({
+      title: decision === "accepted" ? "Accept this applicant?" : "Refuse this applicant?",
+      message: `${applicant.full_name || "This applicant"} will be ${decision}. Interview answers and the ${isInteresting ? "Interesting" : "not Interesting"} choice will be saved together.${pendingDecision ? "" : " This updates the existing application decision."}`,
+      confirmLabel: decision === "accepted" ? "Accept applicant" : "Confirm refusal",
+      tone: decision === "refused" ? "danger" : "primary",
+      decision,
+    });
   };
 
-  const toggleInteresting = async () => {
-    if (interactionBusy || !onToggleInteresting) return;
+  const runConfirmedDecision = async () => {
+    if (!confirmation || interactionBusy || decisionLock.current) return;
+    const decision = confirmation.decision;
+    decisionLock.current = true;
+    setConfirmation(null);
     setError("");
     try {
-      await onToggleInteresting();
-    } catch (flagError) {
-      setError(flagError.message || "The Interesting flag could not be updated.");
+      await onDecision(answers, decision, refusalReason, isInteresting);
+    } catch (decisionError) {
+      setError(decisionError.message || "The final decision could not be saved. Your answers are still here.");
+    } finally {
+      decisionLock.current = false;
     }
   };
 
   return (
+    <>
     <dialog
       ref={dialogRef}
       className="admin-interview-dialog"
@@ -120,8 +121,8 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
           <div className="admin-interview-heading-row">
             <div><p className="admin-eyebrow">Applicant interview</p><h2 id="admin-interview-title">{applicant.full_name || "Unnamed applicant"}</h2><p className="admin-interview-contact">{applicant.email || "No email"} <span aria-hidden="true">·</span> {applicant.phone || "No phone"}</p></div>
             <div className="admin-interview-heading-actions">
-              <button type="button" className={`admin-interesting-toggle ${isInteresting ? "is-active" : ""}`} onClick={toggleInteresting} disabled={interactionBusy} aria-pressed={isInteresting}>
-                {interestingSaving ? "Saving…" : isInteresting ? "★ Interesting" : "☆ Mark as Interesting"}
+              <button type="button" className={`admin-interesting-toggle ${isInteresting ? "is-active" : ""}`} onClick={() => setIsInteresting((value) => !value)} disabled={interactionBusy} aria-pressed={isInteresting} title="Saved only when you confirm Accept or Refuse">
+                {isInteresting ? "★ Interesting" : "☆ Mark as Interesting"}
               </button>
               <button type="button" className="admin-modal-close-btn" onClick={onCancel} disabled={interactionBusy} aria-label="Close interview">×</button>
             </div>
@@ -165,14 +166,14 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
               <div className="admin-interview-review-list">
                 {INTERVIEW_QUESTIONS.map((question, index) => <AnswerList key={question.field} question={question} answer={answers[question.field]} onEdit={() => setStep(index)} />)}
               </div>
-              {pendingDecision && <div className="admin-interview-decision-panel">
-                <div><small>Final decision</small><h4>Accept or refuse this application</h4><p>The interview and decision will be saved together.</p></div>
+              <div className="admin-interview-decision-panel">
+                <div><small>Final decision</small><h4>Accept or refuse this application</h4><p>Interview answers, the decision, and the Interesting choice are saved together only after confirmation.</p><p>{isInteresting ? "★ Marked as Interesting" : "Not marked as Interesting"}</p>{!pendingDecision && <p>This application is currently {appStatus}. Confirming a decision updates it.</p>}</div>
                 {refusalOpen && <label htmlFor="interview-refusal-reason">
                   <span>Reason for refusal</span>
                   <textarea id="interview-refusal-reason" required minLength="3" maxLength="2000" value={refusalReason} onChange={(event) => { setRefusalReason(event.target.value); setError(""); }} placeholder="Add a clear reason for refusing this application…" autoFocus disabled={interactionBusy} />
                   <small>{refusalReason.length} / 2000</small>
                 </label>}
-              </div>}
+              </div>
             </section>
           </div>
         </div>
@@ -183,15 +184,15 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
             <button type="button" className="btn-secondary" onClick={back} disabled={interactionBusy || step === 0}>Back</button>
             {step < REVIEW_STEP
               ? <button type="button" className="btn-primary" onClick={next} disabled={interactionBusy}>Next</button>
-              : pendingDecision
-                ? <>
+              : <>
                     <button type="button" className="btn-secondary btn-danger" onClick={() => decide("refused")} disabled={interactionBusy}>{saving ? "Saving…" : refusalOpen ? "Confirm refusal" : "Refuse"}</button>
                     <button type="button" className="btn-primary" onClick={() => decide("accepted")} disabled={interactionBusy}>{saving ? "Saving…" : "Accept"}</button>
-                  </>
-                : <button type="button" className="btn-primary" onClick={submit} disabled={interactionBusy}>{saving ? "Saving interview…" : "Save Interview"}</button>}
+                  </>}
           </div>
         </footer>
       </div>
     </dialog>
+    <AdminConfirmDialog confirmation={confirmation} busy={interactionBusy} onCancel={() => setConfirmation(null)} onConfirm={runConfirmedDecision} />
+    </>
   );
 }

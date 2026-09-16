@@ -48,6 +48,8 @@ After the existing interview columns are present, review and run `migration_regi
 
 After the existing `interesting boolean` column is present, review and run `migration_registration_interesting.sql`. It locks the public insert value to `false` and adds the permission-checked toggle used by the review wizard. It does not alter application decisions or remove registration history.
 
+For the current wizard, run `migration_registration_review_decision.sql` after both interview migrations. The final step always offers **Accept / Refuse**, including when explicitly reviewing a processed application. The Interesting control now changes only the open form's draft; canceling discards it. Confirming a decision saves the answers, status, refusal reason (required for refusal), and Interesting flag in one transaction. A row lock and expected-status check prevent a stale pending review from overwriting a decision made by another officer. The original interview timestamp is preserved. The registration list is refreshed after success. No Edge Function redeployment is needed for this RPC update.
+
 ## Controls
 
 - **Registrations:** The interview wizard updates the existing application through permission-checked RPCs. The gold Interesting flag remains independent from Accept/Refuse, which updates `public.registrations.status` in place and requires a reason for refusals. Processed applications remain in the same table as history.

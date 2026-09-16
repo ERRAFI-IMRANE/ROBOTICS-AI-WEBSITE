@@ -12,7 +12,7 @@ const EVENT_COLUMNS = "id,title,date,image_url,link,created_at";
 const FALLBACK_IMAGE = "/events/workshop.png";
 const EMPTY = { title: "", date: "", image_url: "", link: "" };
 
-const EventRow = React.memo(function EventRow({ record, busy, onEdit, onDelete }) {
+const EventRow = React.memo(function EventRow({ record, busy, onEdit, onDelete, onView }) {
   const { row, event, imageUrl, linkUrl } = record;
   return (
     <article className="admin-event-row">
@@ -26,7 +26,8 @@ const EventRow = React.memo(function EventRow({ record, busy, onEdit, onDelete }
       </div>
       <div className="admin-event-row-actions">
         <button type="button" className="btn-primary" onClick={() => onEdit(row)} disabled={busy}>Edit</button>
-        {linkUrl && <a className="btn-secondary" href={linkUrl} target="_blank" rel="noopener noreferrer">View</a>}
+        {linkUrl ? <a className="btn-secondary" href={linkUrl} target="_blank" rel="noopener noreferrer">View</a>
+          : <button type="button" className="btn-secondary" onClick={() => onView(record)} disabled={busy} aria-label={`View ${event.title || "event"}`}>View</button>}
         <button type="button" className="btn-secondary btn-danger" onClick={() => onDelete(row)} disabled={busy} aria-label={`Delete ${event.title}`}>Delete</button>
       </div>
     </article>
@@ -42,6 +43,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [legacyDate, setLegacyDate] = useState("");
   const [modal, setModal] = useState(false);
   const [values, setValues] = useState(EMPTY);
@@ -51,6 +53,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
   const [formError, setFormError] = useState("");
   const lock = useRef(false);
   const dialogRef = useRef(null);
+  const viewDialogRef = useRef(null);
   const loadMoreRef = useRef(null);
   const { toast, showToast, clearToast } = useAdminToast();
 
@@ -89,6 +92,12 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
     if (modal && !dialogRef.current?.open) dialogRef.current?.showModal();
     if (!modal && dialogRef.current?.open) dialogRef.current.close();
   }, [modal]);
+
+  useEffect(() => {
+    const dialog = viewDialogRef.current;
+    if (viewing && !dialog?.open) dialog?.showModal();
+    if (!viewing && dialog?.open) dialog.close();
+  }, [viewing]);
 
   useEffect(() => setVisibleCount(PAGE_SIZE), [query]);
 
@@ -304,7 +313,7 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
           </div>
         ))}
         {!loading && visibleEvents.map((record) => (
-          <EventRow key={record.row.id} record={record} busy={busy} onEdit={open} onDelete={remove} />
+          <EventRow key={record.row.id} record={record} busy={busy} onEdit={open} onDelete={remove} onView={setViewing} />
         ))}
         {!loading && !error && !filtered.length && (
           <div className="admin-empty-state">{query ? "No events match your search." : "No events yet. Add your first club event."}</div>
@@ -360,6 +369,14 @@ export default function AdminEvents({ initialEvents = null, onDataChange = () =>
             </footer>
           </form>
         )}
+      </dialog>
+
+      <dialog ref={viewDialogRef} className="admin-event-dialog admin-event-view-dialog" aria-labelledby="event-view-title" onCancel={() => setViewing(null)} onClose={() => setViewing(null)}>
+        {viewing && <>
+          <header className="admin-modal-header"><div><h2 id="event-view-title" className="admin-modal-title">{viewing.event.title || "Untitled event"}</h2><p>{viewing.event.date || "Date not set"}</p></div><button type="button" className="admin-modal-close-btn" aria-label="Close event preview" onClick={() => setViewing(null)}>×</button></header>
+          <div className="admin-event-view-body"><img src={viewing.imageUrl} alt={viewing.event.title || "Event cover"} decoding="async" /><p>No external event link has been added. You can still view this event’s cover and details here.</p></div>
+          <footer className="admin-modal-footer"><button type="button" className="btn-secondary" onClick={() => setViewing(null)}>Close preview</button></footer>
+        </>}
       </dialog>
 
       <AdminConfirmDialog

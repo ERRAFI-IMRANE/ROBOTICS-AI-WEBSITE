@@ -1,4 +1,4 @@
-export { initialTeamPassword } from "../../supabase/functions/admin-users/policy.js";
+export { initialTeamPassword, teamAdminCredentials } from "../../supabase/functions/admin-users/policy.js";
 
 export async function invokeAdminUsers(client, action, values = {}) {
   const { data, error } = await client.functions.invoke("admin-users", {

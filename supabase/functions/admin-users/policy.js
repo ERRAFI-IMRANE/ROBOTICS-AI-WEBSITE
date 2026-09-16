@@ -26,6 +26,19 @@ export function initialTeamPassword(fullName, year = new Date().getFullYear()) {
   return password;
 }
 
+export function teamAdminCredentials(fullName, year = new Date().getFullYear()) {
+  const password = initialTeamPassword(fullName, year);
+  const name = password.slice(0, password.lastIndexOf("//"));
+  const [firstName, lastName] = name.split("@");
+  const gmailPart = (value) => value.replace(/[^a-z0-9]/g, "");
+  const first = gmailPart(firstName);
+  const last = gmailPart(lastName);
+  if (!first || !last) throw new Error("The Team profile needs a Latin-letter first and last name to generate the Gmail login.");
+  const localPart = `${first}.${last}`;
+  if (localPart.length > 64) throw new Error("The Team profile name is too long for a generated email address.");
+  return { email: `${localPart}@gmail.com`, password };
+}
+
 export function assertManageableAccount(caller, target) {
   if (!isRootAdmin(caller)) throw new Error("Only the root administrator can manage admin accounts.");
   if (!target || target.app_metadata?.club_admin !== true) throw new Error("Admin account not found.");

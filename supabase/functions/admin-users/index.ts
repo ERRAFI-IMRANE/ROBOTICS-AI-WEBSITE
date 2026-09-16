@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { assertManageableAccount, initialTeamPassword, isRootAdmin, normalizePermissions, permissionIds } from "./policy.js";
+import { assertManageableAccount, isRootAdmin, normalizePermissions, permissionIds, teamAdminCredentials } from "./policy.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,9 +99,7 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === "create") {
-      const email = String(body.email || "").trim().toLowerCase();
       const permissions = normalizePermissions(body.permissions);
-      if (!/^\S+@\S+\.\S+$/.test(email)) return response({ ok: false, error: "Enter a valid email address." }, 400);
       const teamId = String(body.teamId || "").trim();
       if (!teamId) return response({ ok: false, error: "Choose a Team profile." }, 400);
       const { data: profile, error: profileError } = await adminClient.from("team")
@@ -109,7 +107,7 @@ Deno.serve(async (request) => {
       if (profileError) throw profileError;
       if (!profile) return response({ ok: false, error: "The selected Team profile no longer exists." }, 400);
       const displayName = String(profile.full_name || "").trim().slice(0, 120);
-      const password = initialTeamPassword(profile.full_name);
+      const { email, password } = teamAdminCredentials(profile.full_name);
 
       const { data, error } = await adminClient.auth.admin.createUser({
         email,

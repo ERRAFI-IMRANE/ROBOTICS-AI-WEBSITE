@@ -9,7 +9,7 @@ import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
-import { createAdminUser, deleteAdminUser, initialTeamPassword, updateAdminUser } from "./adminUsers.js";
+import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
 import { assertManageableAccount, normalizePermissions, permissionIds } from "../../supabase/functions/admin-users/policy.js";
 import {
   TEAM_POSTS,
@@ -350,6 +350,30 @@ test("Team initial passwords use the stored name order and supplied current year
   assert.throws(() => initialTeamPassword("", 2026), /first name and last name/);
 });
 
+test("admin login email and password are both generated from the Team profile", () => {
+  assert.deepEqual(teamAdminCredentials(" KACHBAL Ilham ", 2026), {
+    email: "kachbal.ilham@gmail.com", password: "kachbal@ilham//2026",
+  });
+  assert.deepEqual(teamAdminCredentials("Émile El Amrani", 2027), {
+    email: "emile.elamrani@gmail.com", password: "emile@el-amrani//2027",
+  });
+  assert.deepEqual(teamAdminCredentials("Kachbal Ilham"), {
+    email: "kachbal.ilham@gmail.com", password: `kachbal@ilham//${new Date().getFullYear()}`,
+  });
+  assert.throws(() => teamAdminCredentials("Ilham"), /first name and last name/);
+  assert.throws(() => teamAdminCredentials("عمر علي"), /Latin-letter/);
+  assert.throws(() => teamAdminCredentials(`${"a".repeat(40)} ${"b".repeat(40)}`), /too long.*email/);
+});
+
+test("events without an external link retain an accessible View preview action", () => {
+  const source = readFileSync(new URL("../components/Admin/AdminEvents.jsx", import.meta.url), "utf8");
+  assert.match(source, /linkUrl \? <a/);
+  assert.match(source, /onClick=\{\(\) => onView\(record\)\}/);
+  assert.match(source, /onView=\{setViewing\}/);
+  assert.match(source, /className="admin-event-dialog admin-event-view-dialog"/);
+  assert.match(source, /aria-labelledby="event-view-title"/);
+});
+
 test("only root can manage officers and current or root accounts remain protected", () => {
   const root = { id: "root", app_metadata: { club_admin: true, club_role: "owner", club_permissions: [] } };
   const officer = { id: "officer", app_metadata: { club_admin: true, club_permissions: ["users"] } };
@@ -378,10 +402,11 @@ test("admin user calls go through the protected Edge Function", async () => {
     calls.push({ name, body: options.body });
     return { data: { ok: true, user: { id: "admin-id" } }, error: null };
   } } };
-  await createAdminUser(client, { email: "admin@example.com", password: "password123", permissions: ["events"] });
+  await createAdminUser(client, { teamId: "team-profile-id", permissions: ["events", "social_media"] });
   await updateAdminUser(client, "admin-id", { permissions: ["team"] });
   assert.deepEqual(calls.map((call) => call.name), ["admin-users", "admin-users"]);
   assert.deepEqual(calls.map((call) => call.body.action), ["create", "update"]);
+  assert.deepEqual(calls[0].body, { action: "create", teamId: "team-profile-id", permissions: ["events", "social_media"] });
 });
 test("granular permission migration protects writes and the service key remains server-side", () => {
   const migration = readFileSync(new URL("../../supabase/migration_admin_user_permissions.sql", import.meta.url), "utf8");
@@ -396,7 +421,9 @@ test("granular permission migration protects writes and the service key remains 
   assert.match(edgeFunction, /adminClient\.auth\.admin\.deleteUser\(userId\)/);
   assert.match(edgeFunction, /assertManageableAccount\(caller, target\)/);
   assert.match(edgeFunction, /\.select\("id,full_name"\)\.eq\("id", teamId\)/);
-  assert.match(edgeFunction, /initialTeamPassword\(profile\.full_name\)/);
+  assert.match(edgeFunction, /teamAdminCredentials\(profile\.full_name\)/);
+  const creationSource = edgeFunction.slice(edgeFunction.indexOf('if (body.action === "create")'), edgeFunction.indexOf('if (body.action === "update"'));
+  assert.doesNotMatch(creationSource, /body\.(email|password|displayName)/);
   assert.doesNotMatch(edgeFunction, /body\.(?:password|displayName).*\n.*const permissions/);
   assert.ok(edgeFunction.indexOf("body = await request.json()") < edgeFunction.indexOf('["create", "update", "delete"]'));
   assert.doesNotMatch(browserClient, /SERVICE_ROLE/);

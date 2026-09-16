@@ -6540,8 +6540,41 @@ dialog.admin-event-dialog {
   min-width: 112px;
 }
 
-.admin-users-action-cell .btn-secondary + .btn-secondary {
-  margin-left: 8px;
+.admin-user-account-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-users-page .admin-user-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.admin-users-page .admin-user-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.admin-users-page .admin-user-action-btn:hover:not(:disabled) {
+  box-shadow: 0 3px 8px rgb(21 32 56 / 8%);
+}
+
+.admin-user-action-icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
 }
 
 .admin-users-table .is-loading td {
@@ -6578,6 +6611,56 @@ dialog.admin-event-dialog {
   color: var(--text-muted);
   font-size: 10px;
   line-height: 1.5;
+}
+
+.admin-user-editor-fields.is-create {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-user-generated-credentials {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--accent-subtle);
+}
+
+.admin-user-credentials-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.admin-user-credentials-heading,
+.admin-user-generated-credentials > small,
+.admin-user-generated-credentials > .admin-inline-error {
+  grid-column: 1 / -1;
+}
+
+.admin-user-credentials-heading > span {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.admin-user-password-control {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-user-password-control input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+
+.admin-user-password-control button {
+  flex: 0 0 auto;
 }
 
 .admin-permission-fieldset {
@@ -6728,9 +6811,12 @@ dialog.admin-event-dialog {
     width: 100%;
   }
 
-  .admin-users-action-cell .btn-secondary + .btn-secondary {
-    margin-top: 8px;
-    margin-left: 0;
+  .admin-user-account-actions {
+    flex-direction: column;
+  }
+
+  .admin-user-generated-credentials {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .admin-users-table .is-loading {
@@ -6875,6 +6961,38 @@ dialog.admin-event-dialog {
   min-height: 32px;
   padding: 0 10px;
   font-size: 10px;
+}
+
+dialog.admin-event-dialog.admin-event-view-dialog[open] {
+  overflow-y: auto;
+  width: min(700px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+}
+
+.admin-event-view-body {
+  padding: 20px;
+}
+
+.admin-event-view-body img {
+  display: block;
+  width: 100%;
+  max-height: 54dvh;
+  object-fit: contain;
+}
+
+.admin-event-view-body p {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-users-page .admin-user-action-btn,
+  dialog.admin-event-view-dialog {
+    animation: none;
+    transition: none;
+  }
 }
 
 .admin-events-scroll-sentinel {

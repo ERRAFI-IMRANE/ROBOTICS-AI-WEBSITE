@@ -1,11 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ADMIN_PERMISSION_OPTIONS, isRootAdmin } from "../../lib/adminPermissions";
-import { createAdminUser, deleteAdminUser, initialTeamPassword, listAdminUsers, updateAdminUser } from "../../lib/adminUsers";
+import { createAdminUser, deleteAdminUser, listAdminUsers, teamAdminCredentials, updateAdminUser } from "../../lib/adminUsers";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
 import { useAdminToast } from "./useAdminToast";
 
 const DEFAULT_PERMISSIONS = ["overview", "team", "events", "registrations"];
+
+function ActionIcon({ name }) {
+  const paths = {
+    add: "M12 5v14M5 12h14",
+    refresh: "M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1",
+    edit: "m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15v5Z",
+    delete: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7",
+    lock: "M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3",
+    eye: "M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+    check: "m5 12 4 4L19 6",
+  };
+  return <svg className="admin-user-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.check} /></svg>;
+}
 
 function formatDate(value, fallback = "Never") {
   if (!value) return fallback;
@@ -44,12 +57,12 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
   const sortedProfiles = useMemo(() => [...teamProfiles].sort((a, b) =>
     String(a.full_name || a.name || "").localeCompare(String(b.full_name || b.name || ""))), [teamProfiles]);
   const selectedProfile = teamProfiles.find((profile) => String(profile.id) === teamId);
-  const passwordPreview = useMemo(() => {
-    if (!selectedProfile) return { value: "", error: "" };
+  const credentialsPreview = useMemo(() => {
+    if (!selectedProfile) return { email: "", password: "", error: "" };
     try {
-      return { value: initialTeamPassword(selectedProfile.full_name || selectedProfile.name), error: "" };
+      return { ...teamAdminCredentials(selectedProfile.full_name || selectedProfile.name), error: "" };
     } catch (error) {
-      return { value: "", error: error.message };
+      return { email: "", password: "", error: error.message };
     }
   }, [selectedProfile]);
 
@@ -107,7 +120,7 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
     setError("");
     try {
       if (editor.mode === "create") {
-        await createAdminUser(supabase, { teamId, email, permissions });
+        await createAdminUser(supabase, { teamId, permissions });
         showToast("Admin account created. The officer can now sign in with the temporary password.");
       } else {
         await updateAdminUser(supabase, editor.user.id, { displayName, permissions });
@@ -131,8 +144,8 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
     event.preventDefault();
     if (busy || confirmation || !editor || !canManage) return;
     const isCreate = editor.mode === "create";
-    if (isCreate && (!selectedProfile || passwordPreview.error)) {
-      setError(passwordPreview.error || "Choose a Team profile.");
+    if (isCreate && (!selectedProfile || credentialsPreview.error)) {
+      setError(credentialsPreview.error || "Choose a Team profile.");
       return;
     }
     setConfirmation({
@@ -189,8 +202,8 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
           <p className="admin-page-desc">Control who can enter the officer workspace and what each account can manage.</p>
         </div>
         <div className="admin-header-actions">
-          <button type="button" className="btn-secondary" onClick={load} disabled={loading || busy}>Refresh users</button>
-          {canManage && <button type="button" className="btn-primary" onClick={openCreate} disabled={loading || busy}>Add admin user</button>}
+          <button type="button" className="btn-secondary admin-user-action-btn" onClick={load} disabled={loading || busy}><ActionIcon name="refresh" />Refresh users</button>
+          {canManage && <button type="button" className="btn-primary admin-user-action-btn" onClick={openCreate} disabled={loading || busy}><ActionIcon name="add" />Add admin user</button>}
         </div>
       </div>
 
@@ -239,16 +252,19 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
                   <td data-label="Created">{formatDate(user.created_at, "Unknown")}</td>
                   <td data-label="Last sign in">{formatDate(user.last_sign_in_at)}</td>
                   <td className="admin-users-action-cell">
+                    <div className="admin-user-account-actions">
                     <button
                       type="button"
-                      className="btn-secondary"
+                      className="btn-secondary admin-user-action-btn"
                       onClick={() => openEdit(user)}
                       disabled={isProtected || busy || !canManage}
                       title={isProtected ? "Root and current accounts are protected." : "Edit permissions"}
                     >
+                      <ActionIcon name={isProtected ? "lock" : "edit"} />
                       {isCurrent ? "Current account" : isProtected ? "Protected account" : "Edit permissions"}
                     </button>
-                    {canManage && !isProtected && <button type="button" className="btn-secondary btn-danger" onClick={() => requestDelete(user)} disabled={busy}>Delete</button>}
+                    {canManage && !isProtected && <button type="button" className="btn-secondary btn-danger admin-user-action-btn" onClick={() => requestDelete(user)} disabled={busy}><ActionIcon name="delete" />Delete</button>}
+                    </div>
                   </td>
                 </tr>
               );
@@ -264,12 +280,12 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
         <div className="admin-modal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setEditor(null); }}>
           <form className="admin-modal-dialog admin-user-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-user-editor-title" onSubmit={save}>
             <div className="admin-modal-header">
-              <div><h2 id="admin-user-editor-title" className="admin-modal-title">{editor.mode === "create" ? "Add admin user" : "Edit admin permissions"}</h2><p>{editor.mode === "create" ? "Create a secure officer account." : editor.user.email}</p></div>
+              <div><h2 id="admin-user-editor-title" className="admin-modal-title">{editor.mode === "create" ? "Add admin user" : "Edit admin permissions"}</h2><p>{editor.mode === "create" ? "Choose a Team member and their workspace permissions." : editor.user.email}</p></div>
               <button type="button" className="admin-modal-close-btn" aria-label="Close" disabled={busy} onClick={() => setEditor(null)}>×</button>
             </div>
             <div className="admin-modal-body">
               {error && <div className="admin-inline-error" role="alert">{error}</div>}
-              <div className="admin-user-editor-fields">
+              <div className={`admin-user-editor-fields ${editor.mode === "create" ? "is-create" : ""}`}>
                 {editor.mode === "create" ? (
                   <label className="form-field-group"><span className="form-field-label">Team profile</span>
                     <select className="form-text-input" required value={teamId} disabled={busy} onChange={(event) => {
@@ -277,7 +293,6 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
                       const profile = teamProfiles.find((item) => String(item.id) === id);
                       setTeamId(id);
                       setDisplayName(profile?.full_name || profile?.name || "");
-                      setEmail(profile?.email || "");
                       setShowPassword(false);
                     }}>
                       <option value="">Choose a Team member</option>
@@ -286,8 +301,14 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
                     {!sortedProfiles.length && <small>Add a Team profile before creating an admin account.</small>}
                   </label>
                 ) : <label className="form-field-group"><span className="form-field-label">Display name</span><input className="form-text-input" value={displayName} disabled={busy} onChange={(event) => setDisplayName(event.target.value)} maxLength="120" placeholder="Officer name" /></label>}
-                <label className="form-field-group"><span className="form-field-label">Email address</span><input className="form-text-input" type="email" required disabled={busy} readOnly={editor.mode === "edit"} value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="off" /></label>
-                {editor.mode === "create" && <div className="form-field-group"><label className="form-field-label" htmlFor="admin-initial-password">Initial password</label><input id="admin-initial-password" className="form-text-input" type={showPassword ? "text" : "password"} readOnly value={passwordPreview.value} autoComplete="off" /><button type="button" className="btn-secondary" disabled={busy || !passwordPreview.value} onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide password" : "Show password"}</button><small>Generated from the Team name in its stored order: first@lastname//currentyear. This is predictable; share privately and ask the admin to change it immediately.</small>{passwordPreview.error && <small role="alert">{passwordPreview.error}</small>}</div>}
+                {editor.mode === "edit" && <label className="form-field-group"><span className="form-field-label">Email address</span><input className="form-text-input" type="email" readOnly value={email} autoComplete="off" /></label>}
+                {editor.mode === "create" && <section className="admin-user-generated-credentials" aria-label="Automatically generated login">
+                  <div className="admin-user-credentials-heading"><ActionIcon name="lock" /><strong>Generated login</strong><span>Automatic</span></div>
+                  <label className="form-field-group"><span className="form-field-label">Email address</span><input className="form-text-input" type="email" readOnly value={credentialsPreview.email} placeholder="Select a Team member above" autoComplete="off" /></label>
+                  <div className="form-field-group"><label className="form-field-label" htmlFor="admin-initial-password">Initial password</label><div className="admin-user-password-control"><input id="admin-initial-password" className="form-text-input" type={showPassword ? "text" : "password"} readOnly value={credentialsPreview.password} placeholder="Generated from the Team name" autoComplete="off" /><button type="button" className="btn-secondary admin-user-action-btn" aria-pressed={showPassword} disabled={busy || !credentialsPreview.password} onClick={() => setShowPassword((value) => !value)}><ActionIcon name="eye" />{showPassword ? "Hide" : "Show"}</button></div></div>
+                  <small>This is a login identifier, not a new Gmail inbox. Share credentials privately and ask the admin to change this predictable password immediately.</small>
+                  {credentialsPreview.error && <div className="admin-inline-error" role="alert">{credentialsPreview.error}</div>}
+                </section>}
               </div>
 
               <fieldset className="admin-permission-fieldset">
@@ -308,8 +329,8 @@ export default function AdminUsers({ currentUser, teamProfiles = [] }) {
               </fieldset>
             </div>
             <div className="admin-modal-footer">
-              <button type="button" className="btn-secondary" onClick={() => setEditor(null)} disabled={busy}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={busy || !!confirmation || (editor.mode === "create" && (!passwordPreview.value || !!passwordPreview.error))}>{busy ? "Saving…" : editor.mode === "create" ? "Create admin" : "Save permissions"}</button>
+              <button type="button" className="btn-secondary admin-user-action-btn" onClick={() => setEditor(null)} disabled={busy}>Cancel</button>
+              <button type="submit" className="btn-primary admin-user-action-btn" disabled={busy || !!confirmation || (editor.mode === "create" && (!credentialsPreview.password || !!credentialsPreview.error))}><ActionIcon name={editor.mode === "create" ? "add" : "check"} />{busy ? "Saving…" : editor.mode === "create" ? "Create admin" : "Save permissions"}</button>
             </div>
           </form>
         </div>

@@ -5,6 +5,7 @@ import AdminTeam from "./AdminTeam";
 import AdminMembers from "./AdminMembers";
 import AdminSocialMedia from "./AdminSocialMedia";
 import AdminUsers from "./AdminUsers";
+import AdminSidebar from "./AdminSidebar";
 import SiteLoader from "../common/SiteLoader";
 import { NAV_GALLERY_COLUMN_ONE, NAV_GALLERY_COLUMN_TWO } from "../FullNavMenu/navigationGallery";
 import { loadAdminWorkspace } from "../../lib/adminWorkspace";
@@ -12,6 +13,7 @@ import { getAdminPermissions, hasAdminPermission } from "../../lib/adminPermissi
 import { publicContent, supabase } from "../../lib/supabaseClient";
 import "../FullNavMenu/FullNavMenu.css";
 import "./AdminDashboard.css";
+import "./AdminSidebar.css";
 
 class AdminErrorBoundary extends Component {
   constructor(props) {
@@ -184,6 +186,10 @@ export default function AdminDashboard({ onClose }) {
     return new URLSearchParams(window.location.search).get("adminTab") === "social_media" ? "social_media" : "overview";
   });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem("rai-admin-sidebar-collapsed") === "true"; }
+    catch { return false; }
+  });
   const [workspace, setWorkspace] = useState(null);
   const [workspaceError, setWorkspaceError] = useState("");
   const [loadStage, setLoadStage] = useState("Verifying your secure session");
@@ -192,6 +198,20 @@ export default function AdminDashboard({ onClose }) {
   const [loaderVisible, setLoaderVisible] = useState(true);
   const mainViewportRef = useRef(null);
   const preloadLockRef = useRef(false);
+
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+
+  useEffect(() => {
+    try { window.localStorage.setItem("rai-admin-sidebar-collapsed", String(sidebarCollapsed)); }
+    catch { /* Sidebar preferences are optional when storage is unavailable. */ }
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 920px)");
+    const handleResize = () => { if (!query.matches) setMobileNavOpen(false); };
+    query.addEventListener("change", handleResize);
+    return () => query.removeEventListener("change", handleResize);
+  }, []);
 
   const reportLoadStage = useCallback((stage) => {
     setLoadStage(stage);
@@ -397,28 +417,13 @@ export default function AdminDashboard({ onClose }) {
   };
 
   return (
-    <div className="admin-root-layout admin-command-shell admin-content-ready">
-      <aside className={`admin-command-sidebar ${mobileNavOpen ? "is-open" : ""}`}>
-        <button className="admin-command-brand" type="button" onClick={() => navigate("overview")}>
-          <span className="admin-command-logo-glow"><img src="/RAI/club-icon-light.png" alt="Robotics & AI Club" /></span>
-          <span><strong>RAI Club</strong><small>Officer console</small></span>
-        </button>
-        <nav className="admin-command-nav" aria-label="Admin sections">
-          <span className="admin-command-nav-label">Manage club</span>
-          {visibleNavItems.map((item) => (
-            <button key={item.id} className={activeTab === item.id ? "is-active" : ""} type="button" onClick={() => navigate(item.id)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">{item.icon}</svg>
-              <span className="admin-command-nav-copy"><strong>{item.label}</strong><small>{item.caption}</small></span>
-            </button>
-          ))}
-        </nav>
-        <div className="admin-command-sidebar-foot"><span className="admin-live-dot" /><span><strong>Database connected</strong><small>Authenticated session</small></span></div>
-      </aside>
+    <div className={`admin-root-layout admin-command-shell admin-content-ready admin-sidebar-dynamic ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
+      <AdminSidebar items={visibleNavItems} activeTab={activeTab} collapsed={sidebarCollapsed} mobileOpen={mobileNavOpen} onToggle={() => setSidebarCollapsed((value) => !value)} onCloseMobile={closeMobileNav} onNavigate={navigate} />
       {mobileNavOpen && <button className="admin-command-scrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <main ref={mainViewportRef} className="admin-main-viewport admin-command-main">
         <header className="admin-topbar admin-command-topbar">
           <div className="admin-topbar-left">
-            <button type="button" className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} aria-label="Open admin navigation">☰</button>
+            <button type="button" className="admin-mobile-nav-trigger" onClick={() => setMobileNavOpen(true)} aria-expanded={mobileNavOpen} aria-controls="admin-sidebar-navigation" aria-label="Open admin navigation">☰</button>
             <span className="admin-command-breadcrumb">RAI control room <b>/</b> <strong>{current.label}</strong></span>
           </div>
           <div className="admin-topbar-right">

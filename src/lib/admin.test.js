@@ -374,6 +374,25 @@ test("events without an external link retain an accessible View preview action",
   assert.match(source, /aria-labelledby="event-view-title"/);
 });
 
+test("dynamic sidebar preserves labeled navigation and accessible mobile controls", () => {
+  const sidebar = readFileSync(new URL("../components/Admin/AdminSidebar.jsx", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("../components/Admin/AdminSidebar.css", import.meta.url), "utf8");
+  assert.match(sidebar, /src="\/RAI\/club-icon-light\.png"/);
+  assert.match(sidebar, /aria-expanded=\{!collapsed\}/);
+  assert.match(sidebar, /aria-label=\{item\.label\}/);
+  assert.match(sidebar, /aria-current=\{activeTab === item\.id \? "page"/);
+  assert.match(sidebar, /role="tooltip"/);
+  assert.match(sidebar, /event\.key === "Escape"/);
+  assert.match(sidebar, /previousFocus\.focus\(\)/);
+  assert.match(dashboard, /NAV_ITEMS\.filter\(\(item\) => hasAdminPermission/);
+  assert.match(dashboard, /localStorage\.setItem\("rai-admin-sidebar-collapsed"/);
+  assert.match(styles, /--admin-sidebar-width: 84px/);
+  assert.match(styles, /@media \(max-width: 920px\)/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(sidebar, /supabase|\.from\(/);
+});
+
 test("only root can manage officers and current or root accounts remain protected", () => {
   const root = { id: "root", app_metadata: { club_admin: true, club_role: "owner", club_permissions: [] } };
   const officer = { id: "officer", app_metadata: { club_admin: true, club_permissions: ["users"] } };

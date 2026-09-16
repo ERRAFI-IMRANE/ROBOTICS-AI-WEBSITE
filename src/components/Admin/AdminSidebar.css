@@ -1,0 +1,228 @@
+/* Same officer navigation, with a compact desktop rail and mobile drawer. */
+.admin-command-shell.admin-sidebar-dynamic {
+  --admin-sidebar-width: 270px;
+}
+
+.admin-command-shell.admin-sidebar-dynamic .admin-command-sidebar {
+  flex: 0 0 var(--admin-sidebar-width);
+  min-width: var(--admin-sidebar-width);
+  height: 100dvh;
+  overflow: visible;
+  background: #0b1830;
+  box-shadow: 8px 0 24px rgb(11 24 48 / 5%);
+  transition: flex-basis 220ms ease, min-width 220ms ease, padding 220ms ease;
+}
+
+.admin-sidebar-dynamic .admin-command-sidebar::after {
+  display: none;
+}
+
+.admin-sidebar-dynamic .admin-command-brand {
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.admin-sidebar-dynamic .admin-command-brand-copy {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.admin-command-shell.admin-sidebar-dynamic .admin-command-nav {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0 -4px;
+  padding: 24px 4px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: #294264 transparent;
+}
+
+.admin-command-shell.admin-sidebar-dynamic .admin-command-nav button {
+  position: relative;
+  flex-shrink: 0;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 58px;
+  padding: 11px 12px;
+  color: #a8b5ca;
+  border-radius: 0;
+  transition: color 170ms ease, background-color 170ms ease, border-color 170ms ease;
+}
+
+.admin-command-shell.admin-sidebar-dynamic .admin-command-nav button:hover {
+  color: #f6f8fc;
+  background: #13243f;
+  transform: none;
+}
+
+.admin-command-shell.admin-sidebar-dynamic .admin-command-nav button.is-active {
+  color: #ffffff;
+  background: #172b4c;
+  border-color: #294264;
+}
+
+.admin-sidebar-dynamic .admin-command-nav-copy {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.admin-sidebar-dynamic .admin-command-sidebar-foot {
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.admin-sidebar-collapse-toggle,
+.admin-sidebar-mobile-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: #d5e3f7;
+  background: #172b4c;
+  border: 1px solid #294264;
+  border-radius: 0;
+  cursor: pointer;
+  transition: color 170ms ease, background-color 170ms ease;
+}
+
+.admin-sidebar-collapse-toggle {
+  position: absolute;
+  top: 43px;
+  right: -15px;
+  z-index: 2;
+  box-shadow: 0 3px 9px rgb(11 24 48 / 12%);
+}
+
+.admin-sidebar-collapse-toggle svg,
+.admin-sidebar-mobile-close svg {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-sidebar-collapse-toggle:hover,
+.admin-sidebar-mobile-close:hover {
+  color: #ffffff;
+  background: #234269;
+}
+
+.admin-sidebar-dynamic .admin-command-sidebar button:focus-visible {
+  outline: 2px solid #5aa7ff;
+  outline-offset: 3px;
+}
+
+.admin-sidebar-mobile-close {
+  display: none;
+}
+
+.admin-sidebar-tooltip {
+  position: fixed;
+  z-index: 230;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 14px;
+  color: #f6f8fc;
+  background: #13243f;
+  border: 1px solid #294264;
+  box-shadow: 0 8px 20px rgb(11 24 48 / 15%);
+  pointer-events: none;
+  animation: admin-sidebar-tooltip-in 140ms ease;
+}
+
+.admin-sidebar-tooltip strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-sidebar-tooltip span {
+  color: #a8b5ca;
+  font-size: 10px;
+}
+
+@keyframes admin-sidebar-tooltip-in {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (min-width: 921px) and (max-width: 1180px) {
+  .admin-command-shell.admin-sidebar-dynamic {
+    --admin-sidebar-width: 238px;
+  }
+}
+
+@media (min-width: 921px) {
+  .admin-command-shell.admin-sidebar-dynamic.is-sidebar-collapsed {
+    --admin-sidebar-width: 84px;
+  }
+
+  .admin-command-shell.admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-sidebar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-brand {
+    justify-content: center;
+    gap: 0;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-brand-copy,
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-nav-copy,
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-nav-label,
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-status-copy {
+    display: none;
+  }
+
+  .admin-command-shell.admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-nav button {
+    grid-template-columns: 24px;
+    justify-content: center;
+    gap: 0;
+    min-height: 52px;
+    padding: 12px 0;
+  }
+
+  .admin-sidebar-dynamic.is-sidebar-collapsed .admin-command-sidebar-foot {
+    justify-content: center;
+    padding: 12px 0;
+  }
+}
+
+@media (max-width: 920px) {
+  .admin-command-shell.admin-sidebar-dynamic .admin-command-sidebar {
+    width: min(84vw, 280px);
+    min-width: 0;
+    padding: 24px 18px 18px;
+    visibility: hidden;
+    transition: transform 190ms ease, visibility 190ms;
+  }
+
+  .admin-command-shell.admin-sidebar-dynamic .admin-command-sidebar.is-open {
+    visibility: visible;
+  }
+
+  .admin-sidebar-collapse-toggle,
+  .admin-sidebar-tooltip {
+    display: none;
+  }
+
+  .admin-sidebar-mobile-close {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    z-index: 2;
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-command-shell.admin-sidebar-dynamic .admin-command-sidebar,
+  .admin-command-shell.admin-sidebar-dynamic .admin-command-nav button,
+  .admin-sidebar-collapse-toggle,
+  .admin-sidebar-mobile-close,
+  .admin-sidebar-tooltip {
+    animation: none;
+    transition: none;
+  }
+}

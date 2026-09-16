@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
-import { completeRegistrationReview } from "../../lib/registrationInterview";
+import { canReviewRegistration, completeRegistrationReview } from "../../lib/registrationInterview";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminToast } from "./AdminActionFeedback";
 import AdminInterviewWizard from "./AdminInterviewWizard";
@@ -66,6 +66,10 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
 
   const completeReview = async (answers, decision, refusalReason, interesting) => {
     if (!interviewing || interviewBusy || reviewLock.current) return;
+    const currentApplicant = registrations.find((row) => String(row.id) === String(interviewing.id));
+    if (!canReviewRegistration(currentApplicant) || !canReviewRegistration(interviewing)) {
+      throw new Error("Only pending registrations can be reviewed. Refresh the registration list.");
+    }
     reviewLock.current = true;
     setInterviewBusy(true);
     try {
@@ -160,7 +164,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
               {!loading && filtered.length === 0 && <tr><td colSpan="7"><div className="admin-empty-state">No registrations match this view.</div></td></tr>}
               {!loading && filtered.map((app) => {
                 const appStatus = String(app.status || "pending").toLowerCase();
-                const pending = appStatus === "pending";
+                const pending = canReviewRegistration(app);
                 return (
                   <React.Fragment key={app.id}>
                     <tr className="admin-applicant-row">
@@ -170,7 +174,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                       <td data-label="Application"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></td>
                       <td data-label="Interview"><span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></td>
                       <td data-label="Received"><time dateTime={app.created_at || undefined}>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</time><small className="admin-applicant-received-time">{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small></td>
-                      <td data-label="Review"><button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button></td>
+                      <td data-label="Review">{pending ? <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button> : <span className="admin-registration-history-label">Decision recorded</span>}</td>
                     </tr>
                     <tr className="admin-applicant-notes-row"><td colSpan="7"><details className="admin-applicant-notes"><summary>Application message<span>{app.message ? String(app.message).slice(0, 90) : "No message provided"}</span></summary><p>{app.message || "No message provided."}</p></details>{appStatus === "refused" && <div className="admin-applicant-refusal"><strong>Refusal reason</strong><p>{app.refusal_reason || "No refusal reason recorded"}</p></div>}</td></tr>
                   </React.Fragment>
@@ -181,7 +185,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
         </div>
       </div>
 
-      {interviewing && <AdminInterviewWizard
+      {interviewing && canReviewRegistration(interviewing) && <AdminInterviewWizard
         key={`${interviewing.id}-${interviewing.interviewed_at || "new"}`}
         applicant={interviewing}
         saving={interviewBusy}

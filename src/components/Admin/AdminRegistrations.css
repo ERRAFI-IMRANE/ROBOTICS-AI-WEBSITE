@@ -1,4 +1,5 @@
 /* Readable applicant records and an explicitly light, square interview wizard. */
+.admin-registration-history-label { color: #667085; font-size: 11px; }
 .admin-registration-view .admin-registration-summary {
   color: #172033;
   background: #ffffff;

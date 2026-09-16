@@ -21,6 +21,7 @@ import {
 } from "../constants/teamPosts.js";
 import { ALBUM_PHOTOS, pickRandomAlbumPhotos } from "../data/albumPhotos.js";
 import {
+  canReviewRegistration,
   completeRegistrationReview,
   interviewAnswersFromRegistration,
   saveRegistrationInterview,
@@ -274,13 +275,20 @@ test("completed review saves interview, decision, and draft Interesting choice t
   assert.equal(client.calls.length, 1);
 });
 
-test("explicit re-review can accept a processed applicant and unmark Interesting", async () => {
+test("only pending applicants can open review, and processed reviews never reach Supabase", async () => {
   const client = rpcMock({ data: { id: 18, ...completeInterview, interview_completed: true, status: "accepted", refusal_reason: null, interesting: false }, error: null });
-  await completeRegistrationReview(client, 18, completeInterview, "accepted", "Previous refusal", false, "refused");
-  assert.equal(client.calls.length, 1);
-  assert.equal(client.calls[0].args.p_reason, null);
-  assert.equal(client.calls[0].args.p_expected_status, "refused");
-  assert.equal(client.calls[0].args.p_interesting, false);
+  assert.equal(canReviewRegistration({ status: "pending" }), true);
+  assert.equal(canReviewRegistration({ status: " PENDING " }), true);
+  for (const status of ["accepted", "refused", "unknown", null]) {
+    assert.equal(canReviewRegistration({ status }), false);
+    await assert.rejects(completeRegistrationReview(client, 18, completeInterview, "accepted", "", false, status), /Only pending registrations/);
+  }
+  assert.equal(canReviewRegistration(null), false);
+  assert.equal(client.calls.length, 0);
+  const members = readFileSync(new URL("../components/Admin/AdminMembers.jsx", import.meta.url), "utf8");
+  assert.match(members, /const pending = canReviewRegistration\(app\)/);
+  assert.match(members, /\{pending \? <button[^>]*className="btn-secondary admin-interview-action"/);
+  assert.match(members, /interviewing && canReviewRegistration\(interviewing\) && <AdminInterviewWizard/);
 });
 
 test("review validates the draft and requires flag confirmation from Supabase", async () => {

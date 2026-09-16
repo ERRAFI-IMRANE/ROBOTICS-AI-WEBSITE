@@ -73,7 +73,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onDe
   };
 
   const decide = (decision) => {
-    if (interactionBusy || decisionLock.current || confirmation || !onDecision) return;
+    if (!pendingDecision || interactionBusy || decisionLock.current || confirmation || !onDecision) return;
     if (decision === "refused" && !refusalOpen) {
       setRefusalOpen(true);
       setError("");
@@ -94,7 +94,7 @@ export default function AdminInterviewWizard({ applicant, saving, onCancel, onDe
   };
 
   const runConfirmedDecision = async () => {
-    if (!confirmation || interactionBusy || decisionLock.current) return;
+    if (!pendingDecision || !confirmation || interactionBusy || decisionLock.current) return;
     const decision = confirmation.decision;
     decisionLock.current = true;
     setConfirmation(null);

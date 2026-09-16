@@ -120,6 +120,10 @@ export async function saveRegistrationInterview(client, registrationId, answers)
   return data;
 }
 
+export function canReviewRegistration(registration) {
+  return String(registration?.status || "").trim().toLowerCase() === "pending";
+}
+
 export async function completeRegistrationReview(client, registrationId, answers, decision, refusalReason = "", interesting = false, expectedStatus = "pending") {
   if (!registrationId || !["accepted", "refused"].includes(decision)) throw new Error("Choose a valid applicant decision.");
   const reason = String(refusalReason || "").trim();
@@ -127,7 +131,7 @@ export async function completeRegistrationReview(client, registrationId, answers
   if (reason.length > 2000) throw new Error("Keep the refusal reason under 2,000 characters.");
   if (typeof interesting !== "boolean") throw new Error("Choose a valid Interesting flag value.");
   const expected = String(expectedStatus || "").trim().toLowerCase();
-  if (!["pending", "accepted", "refused"].includes(expected)) throw new Error("Refresh the applicant before reviewing this application.");
+  if (expected !== "pending") throw new Error("Refresh the applicant. Only pending registrations can be reviewed.");
   const payload = validateInterviewAnswers(answers);
   const { data, error } = await client.rpc("complete_registration_review_with_flag", {
     p_registration_id: registrationId,

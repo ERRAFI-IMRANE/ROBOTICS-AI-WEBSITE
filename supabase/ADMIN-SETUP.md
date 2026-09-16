@@ -30,7 +30,15 @@ After the base dashboard migration is active:
 2. Deploy the protected function with `supabase functions deploy admin-users`. Hosted Supabase projects provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions automatically.
 3. Sign out and back in after an account's permissions change so its refreshed JWT contains the new app metadata.
 
-The browser only invokes the `admin-users` function with the signed-in administrator's access token. The service-role key remains inside the Edge Function and must never be added to a `VITE_` environment variable. Administrators cannot edit their own permissions while signed in, preventing accidental self-lockout. New accounts receive a temporary password, confirmed email, `club_admin: true`, and only the permissions selected in the form.
+The browser only invokes the `admin-users` function with the signed-in administrator's access token. The service-role key remains inside the Edge Function and must never be added to a `VITE_` environment variable.
+
+Redeploy `admin-users` after updating the dashboard (`supabase functions deploy admin-users`). No new database migration is needed for Team-linked accounts: the selected profile ID is stored as `club_team_id` in app metadata. The server reads the name from `public.team`, rather than trusting a submitted display name. New accounts receive a confirmed email, `club_admin: true`, and the selected permissions, including **Social Media** for Instagram/TikTok access.
+
+Only root administrators can create, update, or delete admin accounts. Root means `club_role: "owner"` in **app metadata**, or an existing legacy `club_admin: true` account without a `club_permissions` array. Accounts with just the `users` permission can view the list but cannot mutate it. Owners always have all dashboard permissions even if their stored array is incomplete. Root and signed-in accounts cannot be edited or deleted by this page; this prevents self-lockout and root removal.
+
+The creation form requires an existing Team profile and a login email. Initial passwords use the name's stored order, lowercased and accent-normalized: `Kachbal Ilham` becomes `kachbal@ilham//2026`. Names after the first word are joined with hyphens; the year is generated on the server. Passwords are not saved in public tables or metadata. This requested scheme is predictable and should be replaced by the recipient immediately; the dashboard does not enforce a first-login password change.
+
+Deletion is explicitly confirmed and permanently deletes the Supabase Auth account, not the Team profile. Supabase may block deletion when the user owns Storage objects; the UI reports the error without deleting those objects. Auth foreign-key cascades still apply. Existing stateless access tokens may remain valid until expiry; deleting an account prevents future sign-ins and refreshes, but is not instantaneous JWT revocation.
 
 ## Registration interviews
 

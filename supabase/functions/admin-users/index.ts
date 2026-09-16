@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { assertManageableAccount, initialTeamPassword, isRootAdmin, normalizePermissions, permissionIds } from "./policy.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +8,6 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-const permissionIds = ["overview", "team", "events", "registrations", "social_media", "users"] as const;
 const validPermissions = new Set<string>(permissionIds);
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -15,6 +15,7 @@ function response(body: Record<string, unknown>, status = 200) {
 }
 
 function permissionsFor(metadata: Record<string, unknown> | null | undefined) {
+  if (isRootAdmin({ app_metadata: metadata })) return [...permissionIds];
   const stored = metadata?.club_permissions;
   if (!Array.isArray(stored)) return [...permissionIds];
   return [...new Set(["overview", ...stored.filter((item): item is string => typeof item === "string" && validPermissions.has(item))])];
@@ -35,15 +36,12 @@ function sanitizeUser(user: any) {
     display_name: user.user_metadata?.display_name || user.user_metadata?.name || "",
     permissions: permissionsFor(user.app_metadata),
     role: user.app_metadata?.club_role || "officer",
+    is_root: isRootAdmin(user),
+    team_id: user.app_metadata?.club_team_id || null,
     legacy_full_access: !Array.isArray(user.app_metadata?.club_permissions),
     created_at: user.created_at,
     last_sign_in_at: user.last_sign_in_at,
   };
-}
-
-function normalizePermissions(input: unknown) {
-  if (!Array.isArray(input)) return ["overview"];
-  return [...new Set(["overview", ...input.filter((item): item is string => typeof item === "string" && validPermissions.has(item))])];
 }
 
 Deno.serve(async (request) => {
@@ -96,13 +94,22 @@ Deno.serve(async (request) => {
       });
     }
 
+    if (["create", "update", "delete"].includes(String(body.action)) && !isRootAdmin(caller)) {
+      return response({ ok: false, error: "Only the root administrator can manage admin accounts." }, 403);
+    }
+
     if (body.action === "create") {
       const email = String(body.email || "").trim().toLowerCase();
-      const password = String(body.password || "");
-      const displayName = String(body.displayName || "").trim().slice(0, 120);
       const permissions = normalizePermissions(body.permissions);
       if (!/^\S+@\S+\.\S+$/.test(email)) return response({ ok: false, error: "Enter a valid email address." }, 400);
-      if (password.length < 8 || password.length > 200) return response({ ok: false, error: "The temporary password must contain 8 to 200 characters." }, 400);
+      const teamId = String(body.teamId || "").trim();
+      if (!teamId) return response({ ok: false, error: "Choose a Team profile." }, 400);
+      const { data: profile, error: profileError } = await adminClient.from("team")
+        .select("id,full_name").eq("id", teamId).maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile) return response({ ok: false, error: "The selected Team profile no longer exists." }, 400);
+      const displayName = String(profile.full_name || "").trim().slice(0, 120);
+      const password = initialTeamPassword(profile.full_name);
 
       const { data, error } = await adminClient.auth.admin.createUser({
         email,
@@ -112,6 +119,7 @@ Deno.serve(async (request) => {
         app_metadata: {
           club_admin: true,
           club_role: "officer",
+          club_team_id: profile.id,
           club_permissions: permissions,
         },
       });
@@ -119,7 +127,7 @@ Deno.serve(async (request) => {
       return response({ ok: true, user: sanitizeUser(data.user) }, 201);
     }
 
-    if (body.action === "update") {
+    if (body.action === "update" || body.action === "delete") {
       const userId = String(body.userId || "");
       if (!/^[0-9a-f-]{36}$/i.test(userId)) return response({ ok: false, error: "Choose a valid admin account." }, 400);
       if (userId === caller.id) return response({ ok: false, error: "You cannot change your own permissions while signed in." }, 400);
@@ -128,6 +136,13 @@ Deno.serve(async (request) => {
       if (targetError) throw targetError;
       const target = targetData.user;
       if (!target || target.app_metadata?.club_admin !== true) return response({ ok: false, error: "Admin account not found." }, 404);
+      assertManageableAccount(caller, target);
+
+      if (body.action === "delete") {
+        const { error } = await adminClient.auth.admin.deleteUser(userId);
+        if (error) throw error;
+        return response({ ok: true, deletedUserId: userId });
+      }
 
       const permissions = normalizePermissions(body.permissions);
       const displayName = String(body.displayName || "").trim().slice(0, 120);

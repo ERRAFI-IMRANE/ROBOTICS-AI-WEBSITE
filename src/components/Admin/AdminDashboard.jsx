@@ -442,7 +442,7 @@ export default function AdminDashboard({ onClose }) {
           <AdminErrorBoundary><AdminSocialMedia /></AdminErrorBoundary>
         </section>}
         {activeTab === "users" && hasAdminPermission(adminUser, "users") && <section className="admin-section-panel">
-          <AdminErrorBoundary><AdminUsers currentUser={adminUser} /></AdminErrorBoundary>
+          <AdminErrorBoundary><AdminUsers currentUser={adminUser} teamProfiles={workspace.team} /></AdminErrorBoundary>
         </section>}
       </main>
     </div>

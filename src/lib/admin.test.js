@@ -8,8 +8,9 @@ import { readRegistrationSettings } from "./registration.js";
 import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
-import { getAdminPermissions, hasAdminPermission } from "./adminPermissions.js";
-import { createAdminUser, updateAdminUser } from "./adminUsers.js";
+import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
+import { createAdminUser, deleteAdminUser, initialTeamPassword, updateAdminUser } from "./adminUsers.js";
+import { assertManageableAccount, normalizePermissions, permissionIds } from "../../supabase/functions/admin-users/policy.js";
 import {
   TEAM_POSTS,
   TEAM_SEASONS,
@@ -326,6 +327,51 @@ test("admin permission helpers preserve legacy access and restrict granular acco
   assert.equal(hasAdminPermission(eventsOfficer, "team"), false);
   assert.deepEqual(getAdminPermissions({ app_metadata: {} }), []);
 });
+
+test("root and Social Media permissions match between the UI and account service", () => {
+  const root = { id: "root", app_metadata: { club_admin: true, club_role: "owner", club_permissions: ["overview"] } };
+  assert.equal(isRootAdmin(root), true);
+  assert.deepEqual(getAdminPermissions(root), permissionIds);
+  assert.deepEqual(ADMIN_PERMISSION_OPTIONS.map((option) => option.id), permissionIds);
+  assert.equal(hasAdminPermission(root, "users"), true);
+  assert.equal(hasAdminPermission(root, "social_media"), true);
+  const social = { app_metadata: { club_admin: true, club_permissions: ["social_media"] } };
+  assert.equal(isRootAdmin(social), false);
+  assert.equal(hasAdminPermission(social, "social_media"), true);
+  assert.equal(hasAdminPermission(social, "events"), false);
+  assert.deepEqual(normalizePermissions(["social_media", "social_media", "owner", null]), ["overview", "social_media"]);
+});
+
+test("Team initial passwords use the stored name order and supplied current year", () => {
+  assert.equal(initialTeamPassword(" KACHBAL Ilham ", 2026), "kachbal@ilham//2026");
+  assert.equal(initialTeamPassword("Émile El Amrani", 2027), "emile@el-amrani//2027");
+  assert.equal(initialTeamPassword("Kachbal Ilham"), `kachbal@ilham//${new Date().getFullYear()}`);
+  assert.throws(() => initialTeamPassword("Ilham", 2026), /first name and last name/);
+  assert.throws(() => initialTeamPassword("", 2026), /first name and last name/);
+});
+
+test("only root can manage officers and current or root accounts remain protected", () => {
+  const root = { id: "root", app_metadata: { club_admin: true, club_role: "owner", club_permissions: [] } };
+  const officer = { id: "officer", app_metadata: { club_admin: true, club_permissions: ["users"] } };
+  assert.doesNotThrow(() => assertManageableAccount(root, officer));
+  assert.throws(() => assertManageableAccount(officer, root), /Only the root/);
+  assert.throws(() => assertManageableAccount(root, root), /own admin account/);
+  assert.throws(() => assertManageableAccount(root, { ...root, id: "another-root" }), /protected/);
+  assert.throws(() => assertManageableAccount(root, { id: "legacy", app_metadata: { club_admin: true } }), /protected/);
+  assert.throws(() => assertManageableAccount(root, { id: "student", app_metadata: {} }), /not found/);
+});
+
+test("admin deletion requires the server to confirm the exact deleted account", async () => {
+  const calls = [];
+  const client = { functions: { async invoke(name, options) {
+    calls.push({ name, body: options.body });
+    return { data: { ok: true, deletedUserId: options.body.userId }, error: null };
+  } } };
+  assert.equal(await deleteAdminUser(client, "officer-id"), "officer-id");
+  assert.deepEqual(calls, [{ name: "admin-users", body: { action: "delete", userId: "officer-id" } }]);
+  const unconfirmed = { functions: { async invoke() { return { data: { ok: true, deletedUserId: "different-id" }, error: null }; } } };
+  await assert.rejects(deleteAdminUser(unconfirmed, "officer-id"), /not confirmed/);
+});
 test("admin user calls go through the protected Edge Function", async () => {
   const calls = [];
   const client = { functions: { async invoke(name, options) {
@@ -347,6 +393,12 @@ test("granular permission migration protects writes and the service key remains 
   assert.match(edgeFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(edgeFunction, /userClient\.auth\.getUser\(\)/);
   assert.match(edgeFunction, /adminClient\.auth\.admin\.(?:listUsers|createUser|updateUserById)/);
+  assert.match(edgeFunction, /adminClient\.auth\.admin\.deleteUser\(userId\)/);
+  assert.match(edgeFunction, /assertManageableAccount\(caller, target\)/);
+  assert.match(edgeFunction, /\.select\("id,full_name"\)\.eq\("id", teamId\)/);
+  assert.match(edgeFunction, /initialTeamPassword\(profile\.full_name\)/);
+  assert.doesNotMatch(edgeFunction, /body\.(?:password|displayName).*\n.*const permissions/);
+  assert.ok(edgeFunction.indexOf("body = await request.json()") < edgeFunction.indexOf('["create", "update", "delete"]'));
   assert.doesNotMatch(browserClient, /SERVICE_ROLE/);
 });
 test("flat event views ignore removed legacy fields", () => {

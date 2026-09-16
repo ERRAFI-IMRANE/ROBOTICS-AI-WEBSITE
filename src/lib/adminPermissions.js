@@ -1,16 +1,20 @@
+import { isRootAdmin } from "../../supabase/functions/admin-users/policy.js";
+export { isRootAdmin } from "../../supabase/functions/admin-users/policy.js";
+
 export const ADMIN_PERMISSION_OPTIONS = [
   { id: "overview", label: "Overview", description: "View dashboard metrics and activity." },
   { id: "team", label: "Team", description: "Add, edit, and remove team profiles." },
   { id: "events", label: "Events", description: "Create, edit, and remove club events." },
   { id: "registrations", label: "Registrations", description: "Review applicants and control intake." },
   { id: "social_media", label: "Social Media", description: "View connected Instagram and TikTok analytics." },
-  { id: "users", label: "Admin users", description: "Create admins and change their permissions." },
+  { id: "users", label: "Admin users", description: "View admin accounts. Only the root admin can create, edit, or delete them." },
 ];
 
 const VALID_PERMISSIONS = new Set(ADMIN_PERMISSION_OPTIONS.map((item) => item.id));
 
 export function getAdminPermissions(user) {
   if (user?.app_metadata?.club_admin !== true) return [];
+  if (isRootAdmin(user)) return ADMIN_PERMISSION_OPTIONS.map((item) => item.id);
   const stored = user.app_metadata.club_permissions;
   if (!Array.isArray(stored)) return ADMIN_PERMISSION_OPTIONS.map((item) => item.id);
   return [...new Set(["overview", ...stored.filter((permission) => VALID_PERMISSIONS.has(permission))])];

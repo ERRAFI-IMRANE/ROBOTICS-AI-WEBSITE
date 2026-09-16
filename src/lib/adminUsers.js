@@ -1,3 +1,5 @@
+export { initialTeamPassword } from "../../supabase/functions/admin-users/policy.js";
+
 export async function invokeAdminUsers(client, action, values = {}) {
   const { data, error } = await client.functions.invoke("admin-users", {
     body: { action, ...values },
@@ -36,4 +38,10 @@ export async function updateAdminUser(client, userId, values) {
   const result = await invokeAdminUsers(client, "update", { userId, ...values });
   if (!result.user?.id) throw new Error("The admin permissions update was not confirmed.");
   return result.user;
+}
+
+export async function deleteAdminUser(client, userId) {
+  const result = await invokeAdminUsers(client, "delete", { userId });
+  if (result.deletedUserId !== userId) throw new Error("The admin account deletion was not confirmed.");
+  return result.deletedUserId;
 }

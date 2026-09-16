@@ -6540,6 +6540,10 @@ dialog.admin-event-dialog {
   min-width: 112px;
 }
 
+.admin-users-action-cell .btn-secondary + .btn-secondary {
+  margin-left: 8px;
+}
+
 .admin-users-table .is-loading td {
   height: 66px;
 }
@@ -6722,6 +6726,11 @@ dialog.admin-event-dialog {
 
   .admin-users-action-cell .btn-secondary {
     width: 100%;
+  }
+
+  .admin-users-action-cell .btn-secondary + .btn-secondary {
+    margin-top: 8px;
+    margin-left: 0;
   }
 
   .admin-users-table .is-loading {

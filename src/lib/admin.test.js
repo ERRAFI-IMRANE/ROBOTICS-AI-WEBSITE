@@ -393,6 +393,24 @@ test("dynamic sidebar preserves labeled navigation and accessible mobile control
   assert.doesNotMatch(sidebar, /supabase|\.from\(/);
 });
 
+test("light registration UI keeps readable answers, square corners, and independent statuses", () => {
+  const styles = readFileSync(new URL("../components/Admin/AdminRegistrations.css", import.meta.url), "utf8");
+  const sidebarStyles = readFileSync(new URL("../components/Admin/AdminSidebar.css", import.meta.url), "utf8");
+  const members = readFileSync(new URL("../components/Admin/AdminMembers.jsx", import.meta.url), "utf8");
+  const interview = readFileSync(new URL("../components/Admin/AdminInterviewWizard.jsx", import.meta.url), "utf8");
+  assert.match(sidebarStyles, /color: #172033;\s+background: #ffffff;/);
+  assert.match(styles, /dialog\.admin-interview-dialog \*\s*\{\s*border-radius: 0 !important/);
+  assert.match(styles, /label \.admin-interview-option-text\s*\{\s*color: #344054/);
+  assert.match(styles, /label\.is-selected \.admin-interview-option-text\s*\{\s*color: #174ea6/);
+  assert.match(members, /<table className="admin-applicant-table"/);
+  assert.match(members, /data-label="Application"/);
+  assert.match(members, /data-label="Interview"/);
+  assert.match(members, /<details className="admin-applicant-notes"/);
+  assert.match(members, /app\.refusal_reason/);
+  assert.match(interview, /aria-label="Interview stages"/);
+  assert.match(interview, /className="admin-interview-track"/);
+});
+
 test("only root can manage officers and current or root accounts remain protected", () => {
   const root = { id: "root", app_metadata: { club_admin: true, club_role: "owner", club_permissions: [] } };
   const officer = { id: "officer", app_metadata: { club_admin: true, club_permissions: ["users"] } };

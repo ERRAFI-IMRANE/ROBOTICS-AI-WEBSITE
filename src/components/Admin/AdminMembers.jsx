@@ -7,6 +7,7 @@ import { AdminToast } from "./AdminActionFeedback";
 import AdminInterviewWizard from "./AdminInterviewWizard";
 import { useAdminToast } from "./useAdminToast";
 import "./AdminDashboard.css";
+import "./AdminRegistrations.css";
 
 export default function AdminMembers({ initialRegistrations = null, initialSettings = null, onDataChange = () => {} }) {
   const hasInitialData = Array.isArray(initialRegistrations) && initialSettings;
@@ -186,38 +187,33 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
 
       <div className="admin-panel admin-registration-list-panel">
         <div className="admin-panel-header"><div><h2 className="admin-panel-heading">Applicant queue</h2><p className="admin-panel-meta">{filtered.length} visible application{filtered.length === 1 ? "" : "s"}</p></div></div>
-        <div className="admin-registration-card-list">
-              {loading && [1, 2, 3].map((item) => <div key={item} className="admin-registration-card is-loading"><div className="skeleton-shimmer skeleton-line" /></div>)}
-              {!loading && filtered.length === 0 && <div className="admin-empty-state">No registrations match this view.</div>}
+        <div className="admin-applicant-table-wrap">
+          <table className="admin-applicant-table">
+            <caption className="sr-only">Registration applications, academic information, and independent application and interview statuses</caption>
+            <thead><tr><th scope="col">Applicant</th><th scope="col">Studies</th><th scope="col">Season</th><th scope="col">Application</th><th scope="col">Interview</th><th scope="col">Received</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              {loading && [1, 2, 3].map((item) => <tr key={item} className="is-loading"><td colSpan="7"><div className="skeleton-shimmer skeleton-line" /></td></tr>)}
+              {!loading && filtered.length === 0 && <tr><td colSpan="7"><div className="admin-empty-state">No registrations match this view.</div></td></tr>}
               {!loading && filtered.map((app) => {
                 const appStatus = String(app.status || "pending").toLowerCase();
                 const pending = appStatus === "pending";
                 return (
-                  <article className="admin-registration-card" key={app.id}>
-                    <header className="admin-registration-card-head">
-                      <div><small>APPLICANT</small><div className="admin-registration-name-row"><h3>{app.full_name || "Unnamed applicant"}</h3>{app.interesting === true && <span className="admin-interesting-badge" title="Interesting candidate">★ Interesting</span>}</div><span>{app.email || "No email"} · {app.phone || "No phone"}</span></div>
-                      <div className="admin-registration-card-controls">
-                        <div className="admin-registration-status-stack">
-                          <span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span>
-                          <span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span>
-                        </div>
-                        <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy}>
-                          Review
-                        </button>
-                      </div>
-                    </header>
-                    <div className="admin-registration-card-grid">
-                      <div><small>DEPARTMENT</small><strong>{app.department || "Not specified"}</strong></div>
-                      <div><small>FILIÈRE</small><strong>{app.filiere || "Not specified"}</strong></div>
-                      <div><small>STUDY YEAR</small><strong>{getYearOfStudyLabel(app.years_of_study) || app.years_of_study || "Not specified"}</strong></div>
-                      <div><small>SEASON</small><strong>{app.registration_season || "—"}</strong></div>
-                      <div><small>CREATED</small><strong>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</strong><span>{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span></div>
-                    </div>
-                    <div className="admin-registration-card-note"><small>MESSAGE</small><p>{app.message || "No message provided."}</p></div>
-                    {appStatus === "refused" && <div className="admin-registration-card-note is-refusal"><small>REFUSAL REASON</small><p>{app.refusal_reason || "No refusal reason recorded"}</p></div>}
-                  </article>
+                  <React.Fragment key={app.id}>
+                    <tr className="admin-applicant-row">
+                      <td data-label="Applicant"><div className="admin-applicant-identity"><span className="admin-applicant-avatar" aria-hidden="true">{(app.full_name || "?").trim().slice(0, 1).toUpperCase()}</span><div><div className="admin-applicant-name"><strong>{app.full_name || "Unnamed applicant"}</strong>{app.interesting === true && <span className="admin-applicant-star" title="Interesting candidate" aria-label="Interesting candidate">★</span>}</div><span>{app.email || "No email"}</span><span>{app.phone || "No phone"}</span></div></div></td>
+                      <td data-label="Studies"><div className="admin-applicant-studies"><strong>{app.department || "Not specified"}</strong><span>{app.filiere || "Filière not specified"}</span><small>{getYearOfStudyLabel(app.years_of_study) || app.years_of_study || "Study year not specified"}</small></div></td>
+                      <td data-label="Season">{app.registration_season || "—"}</td>
+                      <td data-label="Application"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></td>
+                      <td data-label="Interview"><span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></td>
+                      <td data-label="Received"><time dateTime={app.created_at || undefined}>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</time><small className="admin-applicant-received-time">{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small></td>
+                      <td data-label="Review"><button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy || interestingBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button></td>
+                    </tr>
+                    <tr className="admin-applicant-notes-row"><td colSpan="7"><details className="admin-applicant-notes"><summary>Application message<span>{app.message ? String(app.message).slice(0, 90) : "No message provided"}</span></summary><p>{app.message || "No message provided."}</p></details>{appStatus === "refused" && <div className="admin-applicant-refusal"><strong>Refusal reason</strong><p>{app.refusal_reason || "No refusal reason recorded"}</p></div>}</td></tr>
+                  </React.Fragment>
                 );
               })}
+            </tbody>
+          </table>
         </div>
       </div>
 

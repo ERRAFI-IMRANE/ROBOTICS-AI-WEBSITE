@@ -1,0 +1,454 @@
+/* Readable applicant records and an explicitly light, square interview wizard. */
+.admin-registration-view .admin-registration-summary {
+  color: #172033;
+  background: #ffffff;
+  border: 1px solid #dfe5ee;
+  box-shadow: none;
+}
+
+.admin-registration-view .admin-registration-summary small,
+.admin-registration-view .admin-registration-summary span {
+  color: #667085;
+}
+
+.admin-registration-view .admin-registration-summary strong {
+  color: #172033;
+}
+
+.admin-registration-view .admin-registration-summary > div {
+  color: #172033;
+}
+
+.admin-registration-view .admin-registration-summary > div::after {
+  background: #e5eaf1;
+}
+
+.admin-applicant-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-registration-view .admin-applicant-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  color: #344054;
+  background: #ffffff;
+  text-align: left;
+  font-size: 12px;
+}
+
+.admin-applicant-table th {
+  padding: 13px 18px;
+  color: #475467;
+  background: #f8fafc;
+  border-bottom: 1px solid #dfe5ee;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-applicant-table td {
+  padding: 17px 18px;
+  vertical-align: top;
+}
+
+.admin-applicant-row:hover {
+  background: #f8fbff;
+}
+
+.admin-applicant-identity {
+  display: flex;
+  gap: 11px;
+  min-width: 230px;
+  max-width: 320px;
+}
+
+.admin-applicant-avatar {
+  display: grid;
+  flex: 0 0 34px;
+  height: 34px;
+  place-items: center;
+  color: #174ea6;
+  background: #edf4ff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-applicant-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.admin-applicant-name strong,
+.admin-applicant-studies strong {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-applicant-identity > div,
+.admin-applicant-studies {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-applicant-identity > div > span,
+.admin-applicant-studies span,
+.admin-applicant-studies small,
+.admin-applicant-received-time {
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.admin-applicant-studies {
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.admin-applicant-star {
+  color: #9b6800;
+  font-size: 16px;
+}
+
+.admin-applicant-received-time {
+  display: block;
+  margin-top: 4px;
+}
+
+.admin-applicant-table .status-chip,
+.admin-applicant-table .admin-interview-status {
+  padding: 5px 8px;
+  border-radius: 0;
+  font-size: 10px;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+
+.admin-applicant-table .admin-interview-status {
+  color: #475467;
+  background: #f1f4f8;
+}
+
+.admin-applicant-table .admin-interview-status.is-complete {
+  color: #096346;
+  background: #eaf7f0;
+}
+
+.admin-applicant-table .admin-interview-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 6px 11px;
+  color: #174ea6;
+  border-color: #c9dcf7;
+  background: #f5f9ff;
+  font-size: 11px;
+}
+
+.admin-applicant-notes-row td {
+  padding: 0 18px 13px 63px;
+  border-bottom: 1px solid #e5eaf1;
+}
+
+.admin-applicant-notes summary {
+  color: #475467;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-applicant-notes summary span {
+  display: inline-block;
+  max-width: 65ch;
+  margin-left: 12px;
+  overflow: hidden;
+  color: #667085;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.admin-applicant-notes[open] summary span {
+  display: none;
+}
+
+.admin-applicant-notes p,
+.admin-applicant-refusal p {
+  max-width: 85ch;
+  margin: 9px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-applicant-refusal {
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: #9c271d;
+  background: #fff4f2;
+  border-left: 2px solid #c24b3f;
+}
+
+.admin-applicant-refusal strong {
+  font-size: 11px;
+}
+
+dialog.admin-interview-dialog,
+dialog.admin-interview-dialog * {
+  border-radius: 0 !important;
+}
+
+dialog.admin-interview-dialog {
+  color: #172033;
+  background: #ffffff;
+  font-family: var(--font-body);
+}
+
+.admin-interview-dialog .admin-interview-header,
+.admin-interview-dialog .admin-interview-footer {
+  color: #172033;
+  background: #ffffff;
+}
+
+.admin-interview-dialog .admin-interview-heading-row h2 {
+  color: #172033;
+  line-height: 1.25;
+}
+
+.admin-interview-contact {
+  margin: 7px 0 0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.admin-interview-dialog .admin-eyebrow,
+.admin-interview-dialog .admin-interview-applicant small,
+.admin-interview-dialog .admin-interview-review-group small,
+.admin-interview-dialog .admin-interview-progress-copy,
+.admin-interview-dialog .admin-interview-decision-panel label > small {
+  color: #475467;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-interview-dialog .admin-interview-applicant strong {
+  color: #172033;
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-interview-state-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.admin-interview-state-row .admin-interview-status {
+  padding: 5px 8px;
+  color: #475467;
+  background: #f1f4f8;
+  font-size: 11px;
+}
+
+.admin-interview-state-row .admin-interview-status.is-complete {
+  color: #096346;
+  background: #eaf7f0;
+}
+
+.admin-interview-step-indicator {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-interview-step-indicator li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 0;
+  color: #667085;
+  border-bottom: 2px solid #e5eaf1;
+}
+
+.admin-interview-step-indicator li > span {
+  display: grid;
+  flex: 0 0 21px;
+  height: 21px;
+  place-items: center;
+  color: #475467;
+  background: #f1f4f8;
+  font-size: 10px;
+}
+
+.admin-interview-step-indicator strong {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.admin-interview-step-indicator li.is-current {
+  color: #174ea6;
+  border-color: #2563eb;
+}
+
+.admin-interview-step-indicator li.is-current > span,
+.admin-interview-step-indicator li.is-done > span {
+  color: #174ea6;
+  background: #edf4ff;
+}
+
+.admin-interview-dialog .admin-interview-question-copy small {
+  color: #174ea6;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-interview-dialog .admin-interview-question-copy p,
+.admin-interview-dialog .admin-interview-decision-panel p {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.admin-interview-dialog .admin-interview-options label {
+  min-height: 60px;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.admin-interview-dialog .admin-interview-options label .admin-interview-option-text {
+  color: #344054;
+}
+
+.admin-interview-dialog .admin-interview-options label.is-selected {
+  background: #edf4ff;
+  border-color: #2563eb;
+}
+
+.admin-interview-dialog .admin-interview-options label.is-selected .admin-interview-option-text {
+  color: #174ea6;
+  font-weight: 600;
+}
+
+.admin-interview-dialog .admin-interview-options label i {
+  color: #475467;
+}
+
+.admin-interview-dialog .admin-interview-options label.is-selected i {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.admin-interview-dialog .admin-interview-review-group ul {
+  color: #344054;
+  font-size: 12px;
+}
+
+.admin-interview-dialog .admin-interview-review-group button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.admin-interview-dialog .admin-interview-decision-panel h4 {
+  color: #172033;
+  font-size: 15px;
+}
+
+.admin-interview-dialog .admin-interview-decision-panel textarea,
+.admin-interview-dialog .admin-interview-decision-panel label > span {
+  color: #344054;
+  font-size: 12px;
+}
+
+.admin-interview-dialog .admin-interview-decision-panel textarea::placeholder {
+  color: #667085;
+}
+
+.admin-interview-dialog .admin-interesting-toggle,
+.admin-interview-dialog .admin-interview-error {
+  font-size: 12px;
+}
+
+.admin-interview-dialog .admin-interview-actions button {
+  min-height: 38px;
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+.admin-interview-dialog .admin-interview-error:empty {
+  display: none;
+}
+
+.admin-applicant-notes summary:focus-visible,
+.admin-applicant-table button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+
+@media (max-width: 920px) {
+  .admin-registration-view .admin-applicant-table {
+    display: block;
+    min-width: 0;
+  }
+  .admin-applicant-table thead { display: none; }
+  .admin-applicant-table tbody { display: block; }
+  .admin-applicant-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 16px;
+    gap: 14px;
+  }
+  .admin-applicant-row td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+    padding: 0;
+  }
+  .admin-applicant-row td::before {
+    content: attr(data-label);
+    color: #667085;
+    font-size: 10px;
+  }
+  .admin-applicant-row td:first-child { grid-column: 1 / -1; }
+  .admin-applicant-row td:first-child::before { display: none; }
+  .admin-applicant-identity,
+  .admin-applicant-studies { min-width: 0; max-width: none; }
+  .admin-applicant-notes-row,
+  .admin-applicant-notes-row td { display: block; }
+  .admin-applicant-notes-row td { padding: 0 16px 16px; }
+  .admin-applicant-notes summary span { display: none; }
+  .admin-applicant-table .is-loading,
+  .admin-applicant-table .is-loading td { display: block; }
+}
+
+@media (max-width: 620px) {
+  .admin-interview-heading-row { flex-wrap: wrap; gap: 12px; }
+  .admin-interview-heading-actions { margin-left: auto; }
+  .admin-interview-step-indicator { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 9px; }
+  .admin-interview-dialog .admin-interview-header { padding: 16px; max-height: 40dvh; overflow-y: auto; flex-shrink: 0; }
+  .admin-interview-dialog .admin-interview-applicant { margin-top: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-interview-dialog .admin-interview-viewport { min-height: 0; }
+  .admin-interview-dialog .admin-interview-footer { flex-shrink: 0; }
+  .admin-interview-dialog .admin-interview-question-copy h3 { font-size: 22px; }
+}

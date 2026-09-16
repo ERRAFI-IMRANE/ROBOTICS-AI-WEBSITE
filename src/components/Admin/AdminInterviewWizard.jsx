@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { INTERVIEW_QUESTIONS, interviewAnswersFromRegistration } from "../../lib/registrationInterview";
+import "./AdminRegistrations.css";
 
 const REVIEW_STEP = INTERVIEW_QUESTIONS.length;
 
@@ -117,7 +118,7 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
       <div className="admin-interview-shell" aria-busy={interactionBusy}>
         <header className="admin-interview-header">
           <div className="admin-interview-heading-row">
-            <div><p className="admin-eyebrow">Applicant interview</p><h2 id="admin-interview-title">{applicant.full_name || "Unnamed applicant"}</h2></div>
+            <div><p className="admin-eyebrow">Applicant interview</p><h2 id="admin-interview-title">{applicant.full_name || "Unnamed applicant"}</h2><p className="admin-interview-contact">{applicant.email || "No email"} <span aria-hidden="true">·</span> {applicant.phone || "No phone"}</p></div>
             <div className="admin-interview-heading-actions">
               <button type="button" className={`admin-interesting-toggle ${isInteresting ? "is-active" : ""}`} onClick={toggleInteresting} disabled={interactionBusy} aria-pressed={isInteresting}>
                 {interestingSaving ? "Saving…" : isInteresting ? "★ Interesting" : "☆ Mark as Interesting"}
@@ -129,8 +130,10 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
             <span><small>Department</small><strong>{applicant.department || "Not specified"}</strong></span>
             <span><small>Filière</small><strong>{applicant.filiere || "Not specified"}</strong></span>
             <span><small>Study year</small><strong>{getYearOfStudyLabel(applicant.years_of_study) || applicant.years_of_study || "Not specified"}</strong></span>
-            <span><small>Status</small><strong className={`is-${appStatus}`}>{appStatus}</strong></span>
+            <span><small>Season</small><strong>{applicant.registration_season || "Not specified"}</strong></span>
           </div>
+          <div className="admin-interview-state-row"><span className={`status-chip status-chip-${pendingDecision ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}>Application: {appStatus}</span><span className={`admin-interview-status ${applicant.interview_completed === true ? "is-complete" : ""}`}>{applicant.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></div>
+          <ol className="admin-interview-step-indicator" aria-label="Interview stages">{[...INTERVIEW_QUESTIONS.map((question) => question.eyebrow), "Review"].map((label, index) => <li key={label} className={step === index ? "is-current" : step > index ? "is-done" : ""} aria-current={step === index ? "step" : undefined}><span>{step > index ? "✓" : index + 1}</span><strong>{label}</strong></li>)}</ol>
           <div className="admin-interview-progress-copy"><span>{step === REVIEW_STEP ? "Final review" : `Question ${step + 1} of ${INTERVIEW_QUESTIONS.length}`}</span><b>{Math.round(progress)}%</b></div>
           <div className="admin-interview-progress" aria-hidden="true"><i style={{ width: `${progress}%` }} /></div>
         </header>
@@ -149,7 +152,7 @@ export default function AdminInterviewWizard({ applicant, saving, interestingSav
                       <label key={option} className={selected ? "is-selected" : ""}>
                         <input type={question.multiple ? "checkbox" : "radio"} name={question.field} checked={selected} onChange={() => choose(question, option)} disabled={interactionBusy} />
                         <i aria-hidden="true">{selected ? "✓" : ""}</i>
-                        <span>{option}</span>
+                        <span className="admin-interview-option-text">{option}</span>
                       </label>
                     );
                   })}

@@ -9,7 +9,7 @@ import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { latestAdminNotifications, searchAdminSections } from "./adminHeader.js";
 import { adminLoginActivity } from "./adminLoginActivity.js";
-import { formSlug, validateFormDraft, validatePublicAnswers } from "./dynamicForms.js";
+import { formSlug, newFormField, validateFormDraft, validatePublicAnswers } from "./dynamicForms.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
 import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
@@ -58,6 +58,13 @@ test("dynamic forms normalize public URLs and validate configurable questions", 
     { id: "name", required: true, field_type: "short_text" },
     { id: "email", required: false, field_type: "email" },
   ], { name: "", email: "not-an-email" }), { name: "This question is required.", email: "Enter a valid email address." });
+});
+
+test("new form questions always receive a valid stable field type", () => {
+  assert.equal(newFormField("email").field_type, "email");
+  assert.equal(newFormField("").field_type, "short_text");
+  assert.equal(newFormField("unsupported").field_type, "short_text");
+  assert.deepEqual(newFormField("checkboxes").options, ["Option 1"]);
 });
 
 test("dynamic form migration keeps responses private and validates public submissions through RPC", () => {

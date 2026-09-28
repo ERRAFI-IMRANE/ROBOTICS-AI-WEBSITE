@@ -20,9 +20,10 @@ export function formSlug(value) {
 }
 
 export function newFormField(type = "short_text") {
+  const fieldType = typeIds.has(type) ? type : "short_text";
   return {
-    id: crypto.randomUUID(), field_type: type, label: "Untitled question", description: "",
-    placeholder: "", required: false, options: isChoiceField(type) ? ["Option 1"] : [],
+    id: crypto.randomUUID(), field_type: fieldType, label: "Untitled question", description: "",
+    placeholder: "", required: false, options: isChoiceField(fieldType) ? ["Option 1"] : [],
   };
 }
 

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { assertClubPermission, assertMediaPermission } from "./adminAuth.js";
-import { buildPublicUrl, matchesImageSignature, publicUrlToObjectKey } from "./r2.js";
+import { buildPublicUrl, matchesImageSignature, normalizeR2Error, publicUrlToObjectKey } from "./r2.js";
 
 const TEST_ENV = {
   R2_ACCESS_KEY_ID: "test-access",
@@ -43,6 +43,16 @@ test("declared image types must match their file signatures", () => {
   assert.equal(matchesImageSignature(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png"), true);
   assert.equal(matchesImageSignature(Buffer.from("RIFF1234WEBP"), "image/webp"), true);
   assert.equal(matchesImageSignature(Buffer.from("not an image"), "image/png"), false);
+});
+
+test("R2 failures are converted to actionable errors without leaking credentials", () => {
+  const denied = normalizeR2Error({ name: "AccessDenied", message: "secret provider response" });
+  assert.equal(denied.statusCode, 502);
+  assert.match(denied.message, /Object Read & Write/);
+  assert.doesNotMatch(denied.message, /secret provider response/);
+
+  const missingBucket = normalizeR2Error({ name: "NoSuchBucket" });
+  assert.match(missingBucket.message, /R2_ENDPOINT/);
 });
 
 test("browser code contains no R2 credentials or Supabase Storage writes", () => {

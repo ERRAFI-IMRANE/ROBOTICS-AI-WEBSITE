@@ -12,7 +12,14 @@ async function accessToken(client) {
 async function readResponse(response, fallback) {
   let result;
   try { result = await response.json(); } catch { result = null; }
-  if (!response.ok || !result?.success) throw new Error(result?.error || fallback);
+  if (!response.ok || !result?.success) {
+    let message = result?.error;
+    if (!message && response.status === 413) message = "The image is too large for the upload server. Choose an image smaller than 5 MB.";
+    if (!message && response.status >= 500) {
+      message = "The image upload service failed before returning an R2 response. Verify the five R2 environment variables in Vercel, then redeploy.";
+    }
+    throw new Error(message || `${fallback} (HTTP ${response.status})`);
+  }
   return result;
 }
 

@@ -9,6 +9,7 @@ import { loadAdminOverview } from "./adminOverview.js";
 import { withRequestTimeout } from "./requestTimeout.js";
 import { latestAdminNotifications, searchAdminSections } from "./adminHeader.js";
 import { adminLoginActivity } from "./adminLoginActivity.js";
+import { formSlug, validateFormDraft, validatePublicAnswers } from "./dynamicForms.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
 import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
@@ -42,6 +43,40 @@ import {
 } from "./adminAnalytics.js";
 
 const form = { title: " Robotics day ", date: "2026-06-13", image_url: "https://media.example.com/EVENTS/event.webp", link: "https://example.com/event" };
+
+test("dynamic forms normalize public URLs and validate configurable questions", () => {
+  assert.equal(formSlug("  AI Workshop 2026! "), "ai-workshop-2026");
+  const draft = validateFormDraft(
+    { title: " Survey ", slug: "survey", status: "draft" },
+    [{ id: "field-1", field_type: "radio", label: " Track ", required: true, options: ["AI", "AI", " Robotics "] }],
+  );
+  assert.equal(draft.form.title, "Survey");
+  assert.deepEqual(draft.fields[0].options, ["AI", "Robotics"]);
+  assert.throws(() => validateFormDraft({ title: "Test", slug: "test" }, []), /at least one question/);
+  assert.throws(() => validateFormDraft({ title: "Test", slug: "test" }, [{ field_type: "select", label: "Choice", options: [] }]), /Add an option/);
+  assert.deepEqual(validatePublicAnswers([
+    { id: "name", required: true, field_type: "short_text" },
+    { id: "email", required: false, field_type: "email" },
+  ], { name: "", email: "not-an-email" }), { name: "This question is required.", email: "Enter a valid email address." });
+});
+
+test("dynamic form migration keeps responses private and validates public submissions through RPC", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_dynamic_forms.sql", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
+  const permissions = readFileSync(new URL("../../supabase/functions/admin-users/policy.js", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.forms/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.form_fields/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.form_submissions/);
+  assert.match(migration, /dynamic_forms_public_read[\s\S]*TO anon USING \(status = 'published'\)/);
+  assert.match(migration, /dynamic_forms_authenticated_read[\s\S]*status = 'published' OR public\.has_club_permission\('forms'\)/);
+  assert.match(migration, /REVOKE SELECT, INSERT, UPDATE, DELETE ON public\.form_submissions FROM anon/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.submit_public_form/);
+  assert.match(migration, /unknown field/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.submit_public_form/);
+  assert.match(app, /\^\\\/forms\\\/\(\[a-z0-9-\]\+\)/);
+  assert.match(app, /<DynamicFormPage/);
+  assert.match(permissions, /"registrations", "forms", "social_media"/);
+});
 
 test("admin login activity ranks real last sign-ins and handles accounts that never signed in", () => {
   const users = [

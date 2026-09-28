@@ -6,6 +6,7 @@ export const ADMIN_PERMISSION_OPTIONS = [
   { id: "team", label: "Team", description: "Add, edit, and remove team profiles." },
   { id: "events", label: "Events", description: "Create, edit, and remove club events." },
   { id: "registrations", label: "Registrations", description: "Review applicants and control intake." },
+  { id: "forms", label: "Forms", description: "Create forms, publish them, and read responses." },
   { id: "social_media", label: "Social Media", description: "View connected Instagram and TikTok analytics." },
   { id: "users", label: "Admin users", description: "View admin accounts. Only the root admin can create, edit, or delete them." },
 ];

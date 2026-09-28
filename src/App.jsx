@@ -16,6 +16,7 @@ import { AmbientTicker } from "./components/common/TextAnimations";
 import SiteLoader from "./components/common/SiteLoader";
 import AdminDashboard from "./components/Admin/AdminDashboard";
 import RegistrationPage from "./components/RegistrationPage/RegistrationPage";
+import DynamicFormPage from "./components/DynamicFormPage/DynamicFormPage";
 import { publicContent, supabase } from "./lib/supabaseClient";
 import { loadPublicWebsite } from "./lib/publicWorkspace";
 import { SpeedInsights } from "@vercel/speed-insights/react";
@@ -25,12 +26,15 @@ gsap.registerPlugin(ScrollTrigger);
 export default function App() {
   const [currentView, setCurrentView] = useState(() => {
     if (typeof window === "undefined") return "home";
+    const formMatch = window.location.pathname.match(/^\/forms\/([a-z0-9-]+)\/?$/i);
+    if (formMatch) return "form";
     const hash = (window.location.hash || "").toLowerCase();
     const search = (window.location.search || "").toLowerCase();
     if (hash === "#admin" || search.includes("view=admin")) return "admin";
     if (hash === "#register" || hash === "#join" || hash === "#join-us" || search.includes("view=register")) return "register";
     return "home";
   });
+  const [formSlug, setFormSlug] = useState(() => window.location.pathname.match(/^\/forms\/([a-z0-9-]+)\/?$/i)?.[1]?.toLowerCase() || "");
   const [websiteData, setWebsiteData] = useState(null);
   const [heroReady, setHeroReady] = useState(false);
   const [siteLoad, setSiteLoad] = useState(() => ({
@@ -98,6 +102,7 @@ export default function App() {
   const navigateTo = (view) => {
     // A query route must not override the next hash route or the return-home action.
     const url = new URL(window.location.href);
+    if (url.pathname.startsWith("/forms/")) url.pathname = "/";
     url.searchParams.delete("view");
     url.hash = view === "home" ? "" : view;
     window.history.pushState(null, "", url.pathname + url.search + url.hash);
@@ -109,8 +114,12 @@ export default function App() {
     const handleRouteCheck = () => {
       const hash = (window.location.hash || "").toLowerCase();
       const search = (window.location.search || "").toLowerCase();
+      const formMatch = window.location.pathname.match(/^\/forms\/([a-z0-9-]+)\/?$/i);
 
-      if (hash === "#admin" || search.includes("view=admin")) {
+      if (formMatch) {
+        setFormSlug(formMatch[1].toLowerCase());
+        setCurrentView("form");
+      } else if (hash === "#admin" || search.includes("view=admin")) {
         setCurrentView("admin");
       } else if (hash === "#register" || hash === "#join" || hash === "#join-us" || search.includes("view=register")) {
         setCurrentView("register");
@@ -296,6 +305,15 @@ export default function App() {
             navigateTo("home");
           }}
           onOpenAdmin={() => navigateTo("admin")}
+        />
+      )}
+
+      {currentView === "form" && (
+        <DynamicFormPage
+          slug={formSlug}
+          onBack={() => navigateTo("home")}
+          onOpenAdmin={() => navigateTo("admin")}
+          onNavigateRegister={() => navigateTo("register")}
         />
       )}
 

@@ -7,6 +7,7 @@ import tikTokCallback from './api/tiktok/callback.js'
 import tikTokConnect from './api/tiktok/connect.js'
 import tikTokDashboard from './api/tiktok/dashboard.js'
 import tikTokDisconnect from './api/tiktok/disconnect.js'
+import attendanceActions from './api/attendance/actions.js'
 
 function localStorageApi() {
   return {
@@ -24,6 +25,7 @@ function localStorageApi() {
           '/api/tiktok/connect': tikTokConnect,
           '/api/tiktok/dashboard': tikTokDashboard,
           '/api/tiktok/disconnect': tikTokDisconnect,
+          '/api/attendance/actions': attendanceActions,
         }
         const handler = staticHandlers[pathname]
         if (!handler) return next()
@@ -61,6 +63,12 @@ export default defineConfig(({ command, mode }) => {
     'TIKTOK_CLIENT_SECRET',
     'TIKTOK_REDIRECT_URI',
     'TIKTOK_SCOPES',
+    'WHATSAPP_ACCESS_TOKEN',
+    'WHATSAPP_PHONE_NUMBER_ID',
+    'WHATSAPP_GROUP_ID',
+    'WHATSAPP_API_VERSION',
+    'WHATSAPP_WARNING_TEMPLATE',
+    'WHATSAPP_TEMPLATE_LANGUAGE',
   ]
   serverEnvironmentKeys.forEach((key) => {
     // During local development, prefer the current .env value so a Vite

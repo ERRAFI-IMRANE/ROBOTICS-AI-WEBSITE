@@ -82,7 +82,7 @@ test("dynamic form migration keeps responses private and validates public submis
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.submit_public_form/);
   assert.match(app, /\^\\\/forms\\\/\(\[a-z0-9-\]\+\)/);
   assert.match(app, /<DynamicFormPage/);
-  assert.match(permissions, /"registrations", "forms", "social_media"/);
+  assert.match(permissions, /"registrations", "forms", "absence", "social_media"/);
 });
 
 test("admin login activity ranks real last sign-ins and handles accounts that never signed in", () => {
@@ -502,6 +502,22 @@ test("root and Social Media permissions match between the UI and account service
   assert.equal(hasAdminPermission(social, "social_media"), true);
   assert.equal(hasAdminPermission(social, "events"), false);
   assert.deepEqual(normalizePermissions(["social_media", "social_media", "owner", null]), ["overview", "social_media"]);
+});
+
+test("attendance workflow protects bureau members and keeps WhatsApp credentials server-side", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_attendance.sql", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
+  const browserService = readFileSync(new URL("./attendance.js", import.meta.url), "utf8");
+  const serverService = readFileSync(new URL("../../server/attendance.js", import.meta.url), "utf8");
+  assert.match(migration, /NOT IN \('SUP', 'CO-SUP', 'ADV'\)/);
+  assert.match(migration, /status = 'refused'[\s\S]*5 consecutive absences/);
+  assert.match(migration, /participant\.participant_type = 'team'[\s\S]*'team_warning'/);
+  assert.match(migration, /participant\.participant_type = 'registration'[\s\S]*'warning_message'/);
+  assert.doesNotMatch(migration, /public\.members/);
+  assert.match(dashboard, /id: "absence", permission: "absence"/);
+  assert.doesNotMatch(browserService, /WHATSAPP_ACCESS_TOKEN|graph\.facebook\.com/);
+  assert.match(serverService, /WHATSAPP_ACCESS_TOKEN/);
+  assert.match(serverService, /requireClubPermission\(request, "absence"\)/);
 });
 
 test("Team initial passwords use the stored name order and supplied current year", () => {

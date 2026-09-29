@@ -13,9 +13,19 @@ function getSupabaseConfig() {
   return { url, anonKey };
 }
 
-function bearerToken(request) {
+export function bearerToken(request) {
   const authorization = request.headers.authorization || "";
   return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+}
+
+export function createAuthenticatedSupabaseClient(request) {
+  const token = bearerToken(request);
+  if (!token) throw new Error("Authentication is required.");
+  const { url, anonKey } = getSupabaseConfig();
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
 }
 
 export function requiredPermissionForFolder(folder) {

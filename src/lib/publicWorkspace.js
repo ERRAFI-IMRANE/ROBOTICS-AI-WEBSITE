@@ -16,6 +16,7 @@ const STATIC_SITE_IMAGES = [
   "/partners/a4cLight.png",
   "/partners/estsLight.png",
   "/partners/GPS.png",
+  "/partners/GDGoC%20ESTSafi.png",
   "/partners/OCP.png",
   "/partners/Renault.png",
   "/partners/ucaLight.png",

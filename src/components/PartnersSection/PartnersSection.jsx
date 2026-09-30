@@ -48,6 +48,14 @@ const PARTNERS = [
     textFallback: "GPS",
     url: "#partners",
   },
+  {
+    id: "gdgoc-estsafi",
+    name: "Google Developer Groups on Campus EST Safi",
+    shortName: "GDGoC EST Safi",
+    logo: "/partners/GDGoC%20ESTSafi.png",
+    textFallback: "GDGoC EST Safi",
+    url: "#partners",
+  },
 ];
 
 export default function PartnersSection() {

@@ -9,6 +9,7 @@ const SPONSOR_LOGOS = [
   { id: "ocp", name: "OCP Group", src: "/partners/OCP.png" },
   { id: "renault", name: "Renault Group", src: "/partners/Renault.png" },
   { id: "gps", name: "GPS", src: "/partners/GPS.png" },
+  { id: "gdgoc-estsafi", name: "GDGoC EST Safi", src: "/partners/GDGoC%20ESTSafi.png" },
 ];
 
 export default function Footer({ onOpenAdmin, onNavigateRegister }) {

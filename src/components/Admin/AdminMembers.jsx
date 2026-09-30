@@ -90,6 +90,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
     }
   };
 
+
   const counts = useMemo(() => registrations.reduce((acc, row) => {
     const key = String(row.status || "pending").toLowerCase();
     acc[key] = (acc[key] || 0) + 1;
@@ -171,7 +172,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                       <td data-label="Applicant"><div className="admin-applicant-identity"><span className="admin-applicant-avatar" aria-hidden="true">{(app.full_name || "?").trim().slice(0, 1).toUpperCase()}</span><div><div className="admin-applicant-name"><strong>{app.full_name || "Unnamed applicant"}</strong>{app.interesting === true && <span className="admin-applicant-star" title="Interesting candidate" aria-label="Interesting candidate">★</span>}</div><span>{app.email || "No email"}</span><span>{app.phone || "No phone"}</span></div></div></td>
                       <td data-label="Studies"><div className="admin-applicant-studies"><strong>{app.department || "Not specified"}</strong><span>{app.filiere || "Filière not specified"}</span><small>{getYearOfStudyLabel(app.years_of_study) || app.years_of_study || "Study year not specified"}</small></div></td>
                       <td data-label="Season">{app.registration_season || "—"}</td>
-                      <td data-label="Application"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></td>
+                      <td data-label="Application"><div className="admin-applicant-status-stack"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></div></td>
                       <td data-label="Interview"><span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></td>
                       <td data-label="Received"><time dateTime={app.created_at || undefined}>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</time><small className="admin-applicant-received-time">{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small></td>
                       <td data-label="Review">{pending ? <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button> : <span className="admin-registration-history-label">Decision recorded</span>}</td>

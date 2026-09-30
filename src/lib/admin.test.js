@@ -504,21 +504,36 @@ test("root and Social Media permissions match between the UI and account service
   assert.deepEqual(normalizePermissions(["social_media", "social_media", "owner", null]), ["overview", "social_media"]);
 });
 
-test("attendance workflow protects bureau members and keeps WhatsApp credentials server-side", () => {
-  const migration = readFileSync(new URL("../../supabase/migration_attendance.sql", import.meta.url), "utf8");
+test("attendance workflow records unchecked people absent and keeps Gmail credentials server-side", () => {
+  const baseMigration = readFileSync(new URL("../../supabase/migration_attendance.sql", import.meta.url), "utf8");
+  const migration = readFileSync(new URL("../../supabase/migration_attendance_email_notifications.sql", import.meta.url), "utf8");
   const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
+  const absence = readFileSync(new URL("../components/Admin/AdminAbsence.jsx", import.meta.url), "utf8");
   const browserService = readFileSync(new URL("./attendance.js", import.meta.url), "utf8");
   const serverService = readFileSync(new URL("../../server/attendance.js", import.meta.url), "utf8");
-  assert.match(migration, /NOT IN \('SUP', 'CO-SUP', 'ADV'\)/);
+  assert.match(baseMigration, /NOT IN \('SUP', 'CO-SUP', 'ADV'\)/);
+  assert.match(migration, /attendance_status = 'absent'[\s\S]*attendance_status = 'unmarked'/);
   assert.match(migration, /status = 'refused'[\s\S]*5 consecutive absences/);
   assert.match(migration, /participant\.participant_type = 'team'[\s\S]*'team_warning'/);
   assert.match(migration, /participant\.participant_type = 'registration'[\s\S]*'warning_message'/);
+  assert.match(migration, /attendance_notification_recipients/);
+  assert.match(migration, /team_contact_emails/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.reopen_attendance_session/);
+  assert.match(migration, /Already-sent email records are retained/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.update_attendance_session/);
   assert.doesNotMatch(migration, /public\.members/);
   assert.match(dashboard, /id: "absence", permission: "absence"/);
-  assert.doesNotMatch(browserService, /WHATSAPP_ACCESS_TOKEN|graph\.facebook\.com/);
-  assert.match(serverService, /WHATSAPP_ACCESS_TOKEN/);
+  assert.match(absence, /Close &amp; send emails/);
+  assert.match(absence, /unchecked — these people will be recorded absent/);
+  assert.match(absence, /This session is already saved/);
+  assert.match(absence, /Search participant by name/);
+  assert.match(absence, /Calendar date/);
+  assert.doesNotMatch(browserService, /GMAIL_APP_PASSWORD|smtp|nodemailer/);
+  assert.match(serverService, /GMAIL_APP_PASSWORD/);
+  assert.match(serverService, /nodemailer/);
   assert.match(serverService, /requireClubPermission\(request, "absence"\)/);
 });
+
 
 test("Team initial passwords use the stored name order and supplied current year", () => {
   assert.equal(initialTeamPassword(" KACHBAL Ilham ", 2026), "kachbal@ilham//2026");

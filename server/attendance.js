@@ -1,6 +1,6 @@
 import { createAuthenticatedSupabaseClient, requireClubPermission } from "./adminAuth.js";
+import nodemailer from "nodemailer";
 
-const DEFAULT_GRAPH_VERSION = "v23.0";
 
 export function json(response, status, body) {
   response.statusCode = status;
@@ -22,84 +22,133 @@ export async function readJsonBody(request) {
   return size ? JSON.parse(Buffer.concat(chunks).toString("utf8")) : {};
 }
 
-function normalizeWhatsAppPhone(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("00")) return digits.slice(2);
-  if (digits.startsWith("0") && digits.length === 10) return `212${digits.slice(1)}`;
-  return digits;
+function cleanEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
-function whatsappConfig(env) {
+function uniqueEmails(values = []) {
+  return [...new Set(values.map(cleanEmail).filter(Boolean))];
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;",
+  })[character]);
+}
+
+function readableDate(value) {
+  if (!value) return "Date unavailable";
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "Africa/Casablanca",
+  }).format(new Date(value));
+}
+
+function gmailConfig(env) {
   return {
-    accessToken: env.WHATSAPP_ACCESS_TOKEN || "",
-    phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID || "",
-    groupId: env.WHATSAPP_GROUP_ID || "",
-    version: env.WHATSAPP_API_VERSION || DEFAULT_GRAPH_VERSION,
-    warningTemplate: env.WHATSAPP_WARNING_TEMPLATE || "",
-    templateLanguage: env.WHATSAPP_TEMPLATE_LANGUAGE || "en",
+    user: cleanEmail(env.GMAIL_USER),
+    password: String(env.GMAIL_APP_PASSWORD || "").replace(/\s/g, ""),
+    fromName: String(env.GMAIL_FROM_NAME || "Robotics & AI Club ESTS").trim(),
+    replyTo: cleanEmail(env.GMAIL_REPLY_TO),
   };
 }
 
-async function graphRequest(path, options, env) {
-  const config = whatsappConfig(env);
-  const response = await fetch(`https://graph.facebook.com/${config.version}/${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${config.accessToken}`, "Content-Type": "application/json", ...(options.headers || {}) },
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload?.error?.message || `WhatsApp returned HTTP ${response.status}.`);
-    error.statusCode = 502;
-    throw error;
+function participantDescription(action) {
+  return [
+    action.participant_type === "team" ? "Team" : "Accepted member",
+    action.role || action.filiere || action.department,
+    action.registration_season || action.session_season,
+  ].filter(Boolean).join(" · ");
+}
+
+function absenceRows(action) {
+  const rows = Array.isArray(action.absence_sessions) ? action.absence_sessions : [];
+  if (!rows.length) return "<li>Attendance history unavailable.</li>";
+  return rows.map((session) => `<li><strong>${escapeHtml(session.title || "Club session")}</strong> — ${escapeHtml(readableDate(session.starts_at))}${session.session_type ? ` · ${escapeHtml(session.session_type)}` : ""}</li>`).join("");
+}
+
+export function buildAttendanceEmail(action, { adminCopy = false } = {}) {
+  const name = action.full_name || "Club member";
+  const streak = Number(action.streak || 0);
+  const isRemoval = streak >= 5 || action.action_type === "membership_removal" || action.action_type === "group_removal";
+  const isFinalWarning = streak === 4;
+  const participantType = action.participant_type === "team" ? "team member" : "accepted member";
+  const subject = isRemoval
+    ? `[Attendance action required] ${name} reached 5 consecutive absences`
+    : `[Attendance warning ${streak}/5] ${name}`;
+  const headline = isRemoval
+    ? "Five consecutive absences recorded"
+    : isFinalWarning
+      ? "Final attendance warning"
+      : "Attendance warning";
+  const memberDecision = action.participant_type === "registration"
+    ? "Your club membership has been moved out of the active-member list under the attendance policy."
+    : "The bureau has been notified to review your Team membership under the attendance policy.";
+  const mainCopy = isRemoval
+    ? memberDecision
+    : `You have reached ${streak} consecutive absences. ${isFinalWarning ? "One more consecutive absence reaches the removal threshold." : "Please contact the bureau before the next club session."}`;
+  const adminInstruction = isRemoval
+    ? `<div style="margin:18px 0;padding:14px;border-left:4px solid #b42318;background:#fff1f0"><strong>Admin action required:</strong> ${escapeHtml(name)} (${escapeHtml(participantType)}) reached five consecutive absences. Verify the record and complete the club membership follow-up.</div>`
+    : `<div style="margin:18px 0;padding:14px;border-left:4px solid #1d4ed8;background:#eff6ff"><strong>Admin copy:</strong> this ${escapeHtml(participantType)} reached ${streak} consecutive absences.</div>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#eef3f9;font-family:Arial,sans-serif;color:#17233d"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #dce3ee"><div style="padding:22px 26px;background:#101b34;color:#fff"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.75">Robotics &amp; AI Club ESTS</div><h1 style="margin:8px 0 0;font-size:24px">${escapeHtml(headline)}</h1></div><div style="padding:26px"><p>Hello ${escapeHtml(name)},</p>${adminCopy ? adminInstruction : `<p>${escapeHtml(mainCopy)}</p>`}<table style="width:100%;border-collapse:collapse;margin:18px 0"><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Profile</td><td style="padding:9px;border:1px solid #dce3ee">${escapeHtml(participantDescription(action) || participantType)}</td></tr><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Current session</td><td style="padding:9px;border:1px solid #dce3ee">${escapeHtml(action.session_title || "Club session")} · ${escapeHtml(readableDate(action.session_date))}</td></tr><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Consecutive absences</td><td style="padding:9px;border:1px solid #dce3ee"><strong>${streak}</strong></td></tr></table><h2 style="font-size:16px">Absence details</h2><ul style="padding-left:20px;line-height:1.7">${absenceRows(action)}</ul>${!adminCopy && isRemoval ? `<p style="margin-top:20px">If you believe this record is incorrect, reply to this email and contact the bureau.</p>` : ""}</div></div></body></html>`;
+  const text = [
+    headline,
+    `Name: ${name}`,
+    `Profile: ${participantDescription(action) || participantType}`,
+    `Current session: ${action.session_title || "Club session"} — ${readableDate(action.session_date)}`,
+    `Consecutive absences: ${streak}`,
+    adminCopy && isRemoval ? "Admin action required: verify the record and complete the club membership follow-up." : mainCopy,
+    "Absence details:",
+    ...(Array.isArray(action.absence_sessions) ? action.absence_sessions.map((session) => `- ${session.title || "Club session"} — ${readableDate(session.starts_at)}`) : []),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+async function sendAttendanceEmail(action, env) {
+  const config = gmailConfig(env);
+  if (!config.user || !config.password) {
+    return { status: "not_configured", error: "Gmail sender credentials are not configured on the server." };
   }
-  return payload;
-}
+  const memberEmail = cleanEmail(action.email);
+  const adminEmails = uniqueEmails(action.admin_emails);
+  if (!memberEmail && !adminEmails.length) {
+    return { status: "not_configured", error: "This participant has no email and no attendance-admin recipients are configured." };
+  }
 
-function warningText(action) {
-  const ordinal = action.streak === 3 ? "third" : "fourth";
-  return `Hello ${action.full_name || "club member"}. This is an official Robotics & AI Club attendance warning after your ${ordinal} consecutive absence. Please contact the bureau before the next session. A fifth consecutive absence removes an accepted member from the club.`;
-}
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: config.user, pass: config.password },
+  });
+  const from = `"${config.fromName.replace(/["\r\n]/g, "")}" <${config.user}>`;
+  const ids = [];
 
-async function sendWarning(action, env) {
-  const config = whatsappConfig(env);
-  const phone = normalizeWhatsAppPhone(action.phone);
-  if (!config.accessToken || !config.phoneNumberId) return { status: "not_configured", error: "WhatsApp access token or phone number ID is not configured." };
-  if (!phone) return { status: "failed", error: "This member has no valid WhatsApp phone number." };
-  const message = config.warningTemplate ? {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to: phone,
-    type: "template",
-    template: {
-      name: config.warningTemplate,
-      language: { code: config.templateLanguage },
-      components: [{ type: "body", parameters: [
-        { type: "text", text: action.full_name || "Club member" },
-        { type: "text", text: String(action.streak) },
-      ] }],
-    },
-  } : {
-    messaging_product: "whatsapp", recipient_type: "individual", to: phone,
-    type: "text", text: { preview_url: false, body: warningText(action) },
-  };
-  const payload = await graphRequest(`${config.phoneNumberId}/messages`, {
-    method: "POST",
-    body: JSON.stringify(message),
-  }, env);
-  return { status: "sent", externalId: payload?.messages?.[0]?.id || "" };
-}
+  if (memberEmail) {
+    const memberMessage = buildAttendanceEmail(action);
+    const memberResult = await transporter.sendMail({
+      from,
+      to: memberEmail,
+      bcc: adminEmails.filter((email) => email !== memberEmail),
+      replyTo: config.replyTo || undefined,
+      ...memberMessage,
+    });
+    if (memberResult.messageId) ids.push(memberResult.messageId);
+  }
 
-async function removeFromGroup(action, env) {
-  const config = whatsappConfig(env);
-  const phone = normalizeWhatsAppPhone(action.phone);
-  if (!config.accessToken || !config.groupId) return { status: "not_configured", error: "WhatsApp access token or group ID is not configured." };
-  if (!phone) return { status: "failed", error: "This member has no valid WhatsApp phone number." };
-  await graphRequest(`${config.groupId}/participants`, {
-    method: "DELETE",
-    body: JSON.stringify({ messaging_product: "whatsapp", participants: [{ user: `+${phone}` }] }),
-  }, env);
-  return { status: "completed", externalId: config.groupId };
+  const isRemoval = Number(action.streak) >= 5 || ["membership_removal", "group_removal"].includes(action.action_type);
+  if (adminEmails.length && (!memberEmail || isRemoval)) {
+    const adminMessage = buildAttendanceEmail(action, { adminCopy: true });
+    const adminResult = await transporter.sendMail({
+      from,
+      to: adminEmails,
+      replyTo: config.replyTo || undefined,
+      ...adminMessage,
+    });
+    if (adminResult.messageId) ids.push(adminResult.messageId);
+  }
+
+  return { status: "sent", externalId: ids.join(",") };
 }
 
 async function recordDelivery(client, actionId, outcome) {
@@ -116,17 +165,19 @@ async function deliverAction(client, actionId, env) {
   const { data: action, error } = await client.rpc("get_attendance_action_for_delivery", { p_action_id: actionId });
   if (error) throw error;
   if (!["pending", "failed", "not_configured"].includes(action.delivery_status)) {
-    const deliveryError = new Error("This WhatsApp action was already processed. Refresh the attendance audit.");
+    const deliveryError = new Error("This email action was already processed. Refresh the attendance audit.");
     deliveryError.statusCode = 409;
     throw deliveryError;
   }
   let outcome;
   try {
-    if (action.action_type === "warning_message") outcome = await sendWarning(action, env);
-    else if (action.action_type === "group_removal") outcome = await removeFromGroup(action, env);
-    else outcome = { status: "skipped", error: "This action does not use WhatsApp." };
+    if (["warning_message", "membership_removal", "group_removal", "team_warning"].includes(action.action_type)) {
+      outcome = await sendAttendanceEmail(action, env);
+    } else {
+      outcome = { status: "skipped", error: "This action does not use email delivery." };
+    }
   } catch (deliveryError) {
-    outcome = { status: "failed", error: deliveryError.message || "WhatsApp delivery failed." };
+    outcome = { status: "failed", error: deliveryError.message || "Email delivery failed." };
   }
   await recordDelivery(client, action.id, outcome);
   return { id: action.id, actionType: action.action_type, ...outcome };

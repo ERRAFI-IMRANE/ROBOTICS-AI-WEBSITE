@@ -82,6 +82,7 @@ const getRolePriority = (roleStr = "") => {
 
 const getMemberName = (m) => m?.full_name || m?.name || m?.data?.name || "Member";
 const getMemberFiliere = (m) => m?.department || m?.filiere || m?.data?.filiere || "";
+const getMemberEmail = (m) => m?.email || m?.data?.email || "";
 const getMemberAvatar = (m) => m?.avatar_img || m?.image || m?.image_url || m?.data?.image || "/imrane-anime.png";
 const getMemberAvatarSource = (m) => m?.avatar_img || m?.image || m?.image_url || m?.data?.image || "";
 const getMemberNormal = (m) => m?.normal_img || m?.normal_image || m?.normalImage || m?.hover_image || m?.hoverImage || m?.data?.normalImage || "";
@@ -173,6 +174,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const [editingMember, setEditingMember] = useState(null);
   const [formName, setFormName] = useState("");
   const [formFiliere, setFormFiliere] = useState(FILIERES[0]);
+  const [formEmail, setFormEmail] = useState("");
   const [formBirthday, setFormBirthday] = useState("");
   const [formSex, setFormSex] = useState("M");
   const [formSeasonRoles, setFormSeasonRoles] = useState({ [DEFAULT_TEAM_SEASON]: "" });
@@ -285,7 +287,12 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
       if (error) throw error;
 
-      const rows = data && Array.isArray(data) ? data : [];
+      const contactResult = await supabase.from("team_contact_emails").select("team_id,email");
+      const contactByTeam = new Map((contactResult.data || []).map((contact) => [String(contact.team_id), contact.email]));
+      const rows = (data && Array.isArray(data) ? data : []).map((member) => ({
+        ...member,
+        email: contactByTeam.get(String(member.id)) || "",
+      }));
       setMembers(rows);
       onDataChange(rows);
 
@@ -303,8 +310,8 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   }, [onDataChange]);
 
   useEffect(() => {
-    if (!hasInitialMembers) loadTeamData();
-  }, [hasInitialMembers, loadTeamData]);
+    loadTeamData();
+  }, [loadTeamData]);
 
   useEffect(() => {
     loadSeasonSettings();
@@ -314,6 +321,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     setEditingMember(null);
     setFormName("");
     setFormFiliere(FILIERES[0]);
+    setFormEmail("");
     setFormBirthday("");
     setFormSex("M");
     const initialYear = TEAM_SEASONS.includes(selectedYear) ? selectedYear : DEFAULT_TEAM_SEASON;
@@ -336,6 +344,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     setEditingMember(m);
     setFormName(getMemberName(m));
     setFormFiliere(getMemberFiliere(m) || FILIERES[0]);
+    setFormEmail(getMemberEmail(m));
     setFormBirthday(m.birthday || "");
     setFormSex(getMemberSex(m));
 
@@ -414,6 +423,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       const teamPayload = {
         full_name: formName.trim(),
         department: formFiliere || "Génie Informatique",
+        email: formEmail.trim().toLowerCase() || null,
         avatar_img: finalAvatarUrl || "",
         normal_img: finalNormalImageUrl || "",
         birthday: formBirthday ? formBirthday : null,
@@ -472,6 +482,10 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     }
     if (!["M", "F"].includes(formSex)) {
       showToast("Choose Male or Female.", "error");
+      return;
+    }
+    if (formEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail.trim())) {
+      showToast("Enter a valid email address or leave it empty.", "error");
       return;
     }
 
@@ -855,6 +869,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                     {getMemberRoleForYear(selectedProfileMember, selectedYear)} ({selectedYear})
                   </div>
                   <div className="profile-dept-info">{getMemberFiliere(selectedProfileMember) || "EST Safi"}</div>
+                  {getMemberEmail(selectedProfileMember) && <div className="profile-dept-info">{getMemberEmail(selectedProfileMember)}</div>}
                   <div className="profile-dept-info">{getMemberSex(selectedProfileMember) === "F" ? "Female" : "Male"}</div>
                   {selectedProfileMember.birthday && (
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -1017,6 +1032,17 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                         <option key={f} value={f}>{f}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="form-field-label">Email (Optional)</label>
+                    <input
+                      type="email"
+                      placeholder="member@example.com"
+                      value={formEmail}
+                      onChange={(e) => setFormEmail(e.target.value)}
+                      className="form-text-input"
+                    />
                   </div>
 
                   <div className="form-field-group">

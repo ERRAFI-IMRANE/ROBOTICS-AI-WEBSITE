@@ -63,12 +63,10 @@ export default defineConfig(({ command, mode }) => {
     'TIKTOK_CLIENT_SECRET',
     'TIKTOK_REDIRECT_URI',
     'TIKTOK_SCOPES',
-    'WHATSAPP_ACCESS_TOKEN',
-    'WHATSAPP_PHONE_NUMBER_ID',
-    'WHATSAPP_GROUP_ID',
-    'WHATSAPP_API_VERSION',
-    'WHATSAPP_WARNING_TEMPLATE',
-    'WHATSAPP_TEMPLATE_LANGUAGE',
+    'GMAIL_USER',
+    'GMAIL_APP_PASSWORD',
+    'GMAIL_FROM_NAME',
+    'GMAIL_REPLY_TO',
   ]
   serverEnvironmentKeys.forEach((key) => {
     // During local development, prefer the current .env value so a Vite

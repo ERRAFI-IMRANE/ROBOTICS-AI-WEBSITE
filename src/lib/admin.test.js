@@ -12,6 +12,7 @@ import { adminLoginActivity } from "./adminLoginActivity.js";
 import { formSlug, newFormField, validateFormDraft, validatePublicAnswers } from "./dynamicForms.js";
 import { publicTeamSeasons, teamMembersForSeason } from "./publicTeam.js";
 import { ADMIN_PERMISSION_OPTIONS, getAdminPermissions, hasAdminPermission, isRootAdmin } from "./adminPermissions.js";
+import { normalizeClubWearWorkspace } from "./clubWear.js";
 import { createAdminUser, deleteAdminUser, initialTeamPassword, teamAdminCredentials, updateAdminUser } from "./adminUsers.js";
 import { assertManageableAccount, normalizePermissions, permissionIds } from "../../supabase/functions/admin-users/policy.js";
 import {
@@ -504,9 +505,30 @@ test("root and Social Media permissions match between the UI and account service
   assert.deepEqual(normalizePermissions(["social_media", "social_media", "owner", null]), ["overview", "social_media"]);
 });
 
+test("club wear tracks Team clothing per season and excludes senior supervisors", () => {
+  const migration = readFileSync(new URL("../../supabase/migration_club_wear.sql", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
+  const workspace = normalizeClubWearWorkspace({
+    season: "2026-2027",
+    seasons: ["2026-2027"],
+    members: [{ id: 7, full_name: "Club Member", tshirt: { status: "issued" }, hoodie: null }],
+  });
+  assert.equal(workspace.members[0].tshirt.status, "issued");
+  assert.equal(workspace.members[0].hoodie.status, "available");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.club_wear_assignments/);
+  assert.match(migration, /RESET ROLE;[\s\S]*BEGIN;/);
+  assert.match(migration, /FROM public\.team_seasons AS assignment[\s\S]*JOIN public\.team AS member/);
+  assert.match(migration, /assignment\.season[\s\S]*= selected_season/);
+  assert.match(migration, /NOT IN \('SUP', 'CO-SUP', 'ADV'\)/);
+  assert.match(migration, /public\.has_club_permission\('club_wear'\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.set_club_wear_item/);
+  assert.match(dashboard, /id: "club_wear", permission: "club_wear"/);
+});
+
 test("attendance workflow records unchecked people absent and keeps Gmail credentials server-side", () => {
   const baseMigration = readFileSync(new URL("../../supabase/migration_attendance.sql", import.meta.url), "utf8");
   const migration = readFileSync(new URL("../../supabase/migration_attendance_email_notifications.sql", import.meta.url), "utf8");
+  const deleteMigration = readFileSync(new URL("../../supabase/migration_attendance_session_delete.sql", import.meta.url), "utf8");
   const dashboard = readFileSync(new URL("../components/Admin/AdminDashboard.jsx", import.meta.url), "utf8");
   const absence = readFileSync(new URL("../components/Admin/AdminAbsence.jsx", import.meta.url), "utf8");
   const browserService = readFileSync(new URL("./attendance.js", import.meta.url), "utf8");
@@ -521,6 +543,9 @@ test("attendance workflow records unchecked people absent and keeps Gmail creden
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.reopen_attendance_session/);
   assert.match(migration, /Already-sent email records are retained/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.update_attendance_session/);
+  assert.match(deleteMigration, /RESET ROLE;[\s\S]*CREATE OR REPLACE FUNCTION public\.delete_attendance_session/);
+  assert.match(deleteMigration, /public\.has_club_permission\('absence'\)/);
+  assert.match(deleteMigration, /DELETE FROM public\.attendance_sessions/);
   assert.doesNotMatch(migration, /public\.members/);
   assert.match(dashboard, /id: "absence", permission: "absence"/);
   assert.match(absence, /Close &amp; send emails/);
@@ -528,6 +553,8 @@ test("attendance workflow records unchecked people absent and keeps Gmail creden
   assert.match(absence, /This session is already saved/);
   assert.match(absence, /Search participant by name/);
   assert.match(absence, /Calendar date/);
+  assert.match(absence, /Delete session/);
+  assert.match(browserService, /deleteAttendanceSession/);
   assert.doesNotMatch(browserService, /GMAIL_APP_PASSWORD|smtp|nodemailer/);
   assert.match(serverService, /GMAIL_APP_PASSWORD/);
   assert.match(serverService, /nodemailer/);

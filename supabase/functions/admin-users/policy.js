@@ -1,4 +1,4 @@
-export const permissionIds = ["overview", "team", "events", "registrations", "forms", "absence", "social_media", "users"];
+export const permissionIds = ["overview", "team", "events", "registrations", "forms", "absence", "social_media", "club_wear", "users"];
 
 export function isRootAdmin(user) {
   const metadata = user?.app_metadata;

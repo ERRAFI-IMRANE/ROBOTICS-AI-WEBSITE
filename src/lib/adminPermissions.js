@@ -9,6 +9,7 @@ export const ADMIN_PERMISSION_OPTIONS = [
   { id: "forms", label: "Forms", description: "Create forms, publish them, and read responses." },
   { id: "absence", label: "Absence", description: "Create attendance sessions, record presence, and manage warnings." },
   { id: "social_media", label: "Social Media", description: "View connected Instagram and TikTok analytics." },
+  { id: "club_wear", label: "Club wear", description: "Issue and return Team hoodies and T-shirts." },
   { id: "users", label: "Admin users", description: "View admin accounts. Only the root admin can create, edit, or delete them." },
 ];
 

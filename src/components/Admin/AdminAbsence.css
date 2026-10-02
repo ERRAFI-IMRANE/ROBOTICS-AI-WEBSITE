@@ -47,5 +47,7 @@
 .admin-attendance-session-panel .admin-attendance-session-list { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; padding:16px; max-height:none; overflow:visible; }
 .admin-attendance-session-panel .admin-attendance-session-card { min-height:132px; border:1px solid var(--attendance-line); padding:18px; }
 .admin-attendance-session-panel .admin-empty-state { grid-column:1/-1; padding:32px; }
-@media(max-width:760px){.admin-attendance-session-panel .admin-attendance-session-tools,.admin-attendance-session-panel .admin-attendance-session-list{grid-template-columns:minmax(0,1fr)}}
+.admin-attendance-session-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+@media(max-width:760px){.admin-attendance-session-panel .admin-attendance-session-tools,.admin-attendance-session-panel .admin-attendance-session-list{grid-template-columns:minmax(0,1fr)}.admin-attendance-session-actions{width:100%;justify-content:stretch}.admin-attendance-session-actions button{flex:1;min-width:140px}}
+@media(max-width:440px){.admin-attendance-session-actions{display:grid;grid-template-columns:1fr}.admin-attendance-session-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){.admin-attendance-session-card,.admin-attendance-progress i,.admin-attendance-person{transition:none}}

@@ -4,4 +4,28 @@
 .dynamic-public-form { margin-top: 5px; }.dynamic-public-form .reg-form-grid { grid-template-columns: 1fr; }.dynamic-public-form .reg-submit { margin-top: 22px; border-radius: 0; }.dynamic-public-field { padding: 16px 0; border-bottom: 1px solid #e5eaf1; }.dynamic-public-field > p { margin: -2px 0 2px; color: #667085; font-size: 11px; line-height: 1.5; }
 .dynamic-choice-list { display: grid; gap: 8px; padding: 0 !important; border: 0 !important; }.dynamic-choice-list label { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; background: #fff; border: 1px solid #c4cad4; cursor: pointer; }.dynamic-choice-list input { width: 17px !important; min-height: 17px !important; accent-color: #2563eb; }.dynamic-choice-list label:has(input:checked) { color: #174ea6; border-color: #2563eb; background: #edf4ff; }
 .dynamic-form-message { display: grid; gap: 12px; min-height: 300px; align-content: center; }.dynamic-form-message h1 { margin: 0; font-size: 35px; }.dynamic-form-message p { color: #596171; line-height: 1.6; }.dynamic-submit-another { color: #174ea6; background: transparent; border: 0; text-decoration: underline; cursor: pointer; }
-@media(max-width:760px){.dynamic-form-shell{padding:22px 16px;border-right:0;border-left:0}.dynamic-form-page .reg-nav-body{padding-right:0;padding-left:0}.dynamic-form-intro h1{font-size:34px}}
+@media(max-width:760px){
+  .dynamic-form-page { width:100%; max-width:100vw; overflow-x:hidden; }
+  .dynamic-form-page .reg-nav-header-bar { padding-inline:16px; }
+  .dynamic-form-page .reg-nav-body { display:block; width:100%; min-height:auto; padding:96px 0 28px; }
+  .dynamic-form-page .reg-nav-left-content { width:100%; min-width:0; padding:0; }
+  .dynamic-form-page .reg-nav-right-gallery { display:none; }
+  .dynamic-form-shell { width:100%; max-width:none; min-width:0; padding:24px 18px 28px; border-right:0; border-left:0; box-shadow:none; backdrop-filter:none; }
+  .dynamic-form-intro { padding-bottom:18px; }
+  .dynamic-form-intro h1 { max-width:100%; margin-top:10px; font-size:clamp(30px,10vw,40px); line-height:1.04; overflow-wrap:anywhere; }
+  .dynamic-form-intro p { font-size:14px; overflow-wrap:anywhere; }
+  .dynamic-public-form,.dynamic-public-form .reg-form-grid,.dynamic-public-field { width:100%; min-width:0; }
+  .dynamic-public-field { padding:15px 0; }
+  .dynamic-public-form .reg-field input,.dynamic-public-form .reg-field select,.dynamic-public-form .reg-field textarea { max-width:100%; min-width:0; min-height:48px; font-size:16px; }
+  .dynamic-choice-list label { align-items:flex-start; min-height:48px; padding:12px; }
+  .dynamic-choice-list label span { min-width:0; line-height:1.45; overflow-wrap:anywhere; }
+  .dynamic-choice-list input { flex:0 0 18px; margin-top:1px; }
+  .dynamic-public-form .reg-submit { min-height:52px; padding-inline:16px; }
+  .dynamic-form-message { min-height:50vh; padding:12px 0; }
+  .dynamic-form-message h1 { font-size:30px; overflow-wrap:anywhere; }
+  .dynamic-form-page > footer { max-width:100vw; overflow:hidden; }
+}
+@media(max-width:380px){
+  .dynamic-form-shell { padding-inline:14px; }
+  .dynamic-form-page .reg-nav-header-bar .nav-brand-logo { width:62px; }
+}

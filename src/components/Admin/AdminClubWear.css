@@ -1,0 +1,177 @@
+.admin-wear-view {
+  --wear-line: #d9e1eb;
+  --wear-ink: #17233d;
+  --wear-blue: #2057b5;
+  --wear-green: #177a61;
+  --wear-amber: #9a6700;
+}
+
+.admin-wear-view .btn-primary,
+.admin-wear-view .btn-secondary,
+.admin-wear-view input,
+.admin-wear-view select,
+.admin-wear-view .admin-panel { border-radius: 0; }
+
+.admin-wear-view .admin-page-desc { max-width: 72ch; }
+
+.admin-wear-current-season {
+  display: grid;
+  min-width: 184px;
+  min-height: 44px;
+  padding: 6px 11px;
+  color: #69768a;
+  background: #fff;
+  border: 1px solid var(--wear-line);
+  align-content: center;
+  gap: 2px;
+}
+
+.admin-wear-current-season small {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.admin-wear-current-season strong {
+  color: var(--wear-ink);
+  font: 700 11px var(--font-body);
+}
+
+.admin-wear-overview {
+  display: grid;
+  margin-bottom: 18px;
+  background: #fff;
+  border: 1px solid var(--wear-line);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-wear-overview article {
+  display: grid;
+  min-height: 112px;
+  padding: 21px 23px;
+  border-right: 1px solid var(--wear-line);
+  align-content: center;
+  gap: 6px;
+}
+
+.admin-wear-overview article:last-child { border-right: 0; }
+.admin-wear-overview span { color: #526078; font-size: 12px; font-weight: 700; }
+.admin-wear-overview strong { color: var(--wear-ink); font: 680 31px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.admin-wear-overview small { color: #7b8798; font-size: 10px; }
+
+.admin-wear-roster-panel { overflow: hidden; box-shadow: none; }
+
+.admin-wear-roster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--wear-line);
+  gap: 18px;
+}
+
+.admin-wear-roster-header h2 { margin: 0; color: var(--wear-ink); font: 700 19px/1.2 var(--font-display); }
+.admin-wear-roster-header p { margin: 4px 0 0; color: #718096; font-size: 10px; }
+
+.admin-wear-tools { display: flex; align-items: center; gap: 10px; }
+.admin-wear-tools label { width: min(260px, 28vw); }
+.admin-wear-tools input { width: 100%; height: 38px; padding: 0 11px; color: var(--wear-ink); background: #fff; border: 1px solid #cbd5e1; font-size: 11px; }
+
+.admin-wear-filters { display: flex; border: 1px solid #cbd5e1; }
+.admin-wear-filters button { min-height: 36px; padding: 0 11px; color: #5c687c; background: #fff; border: 0; border-right: 1px solid #cbd5e1; font-size: 10px; font-weight: 750; cursor: pointer; }
+.admin-wear-filters button:last-child { border-right: 0; }
+.admin-wear-filters button.is-active { color: #fff; background: var(--wear-ink); }
+
+.admin-wear-list { display: grid; }
+.admin-wear-member { display: grid; grid-template-columns: minmax(210px, .85fr) repeat(2, minmax(280px, 1fr)); min-width: 0; padding: 0; background: #fff; border-bottom: 1px solid var(--wear-line); }
+.admin-wear-member:last-child { border-bottom: 0; }
+.admin-wear-member:hover { background: #fbfcff; }
+
+.admin-wear-person { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; padding: 16px 18px; border-right: 1px solid var(--wear-line); gap: 11px; }
+.admin-wear-avatar { display: grid; width: 46px; height: 46px; overflow: hidden; color: #fff; background: var(--wear-ink); place-items: center; font: 750 12px var(--font-display); }
+.admin-wear-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.admin-wear-person > div { display: grid; min-width: 0; gap: 3px; }
+.admin-wear-person strong, .admin-wear-person span, .admin-wear-person small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-wear-person strong { color: var(--wear-ink); font-size: 12px; }
+.admin-wear-person span { color: #59667a; font-size: 10px; }
+.admin-wear-person small { color: #8a95a6; font-size: 9px; }
+
+.admin-wear-item { position: relative; display: grid; grid-template-columns: 37px minmax(0, 1fr) auto; align-items: center; min-width: 0; padding: 12px 14px; border-right: 1px solid var(--wear-line); gap: 9px; }
+.admin-wear-item:last-child { border-right: 0; }
+.admin-wear-item-icon { display: grid; width: 35px; height: 35px; color: #5f6d83; background: #f5f7fa; border: 1px solid #dfe5ed; place-items: center; }
+.admin-wear-item-icon svg { width: 19px; height: 19px; }
+.admin-wear-item.is-issued .admin-wear-item-icon { color: var(--wear-amber); background: #fff9e8; border-color: #eed89b; }
+.admin-wear-item.is-returned .admin-wear-item-icon { color: var(--wear-green); background: #edf9f5; border-color: #b9e0d4; }
+.admin-wear-item-copy { display: grid; min-width: 0; gap: 2px; }
+.admin-wear-item-copy > span { color: #7a8699; font-size: 8px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.admin-wear-item-copy strong { color: var(--wear-ink); font-size: 11px; }
+.admin-wear-item-copy small { overflow: hidden; color: #8a95a6; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+
+.admin-wear-state { position: absolute; top: 11px; right: 13px; display: inline-flex; align-items: center; color: #69768a; font-size: 7px; font-weight: 850; letter-spacing: .08em; gap: 4px; }
+.admin-wear-state i { width: 6px; height: 6px; background: #94a3b8; }
+.admin-wear-state.is-issued { color: var(--wear-amber); }
+.admin-wear-state.is-issued i { background: #d89a19; }
+.admin-wear-state.is-returned { color: var(--wear-green); }
+.admin-wear-state.is-returned i { background: var(--wear-green); }
+
+.admin-wear-check { grid-column: 3; display: inline-flex; align-items: center; min-width: 102px; min-height: 34px; margin-top: 15px; padding: 5px 9px; color: #526078; background: #fff; border: 1px solid #bdc8d7; cursor: pointer; gap: 7px; }
+.admin-wear-check input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.admin-wear-check > span { display: grid; flex: 0 0 17px; width: 17px; height: 17px; color: #fff; background: #fff; border: 1px solid #9ba9bc; place-items: center; font-size: 11px; font-weight: 900; }
+.admin-wear-check b { font-size: 9px; font-weight: 800; white-space: nowrap; }
+.admin-wear-check:hover { color: var(--wear-blue); border-color: #8fb0df; background: #f3f7ff; }
+.admin-wear-check.is-checked { color: #7c5100; background: #fff8e7; border-color: #d7b15c; }
+.admin-wear-check.is-checked > span { background: #b77908; border-color: #b77908; }
+.admin-wear-check:focus-within { outline: 2px solid #2563eb; outline-offset: 2px; }
+.admin-wear-check.is-busy { cursor: wait; opacity: .65; }
+
+.admin-wear-empty { display: grid; min-height: 270px; padding: 28px; text-align: center; place-content: center; gap: 7px; }
+.admin-wear-empty strong { color: var(--wear-ink); font-size: 17px; }
+.admin-wear-empty span { max-width: 470px; color: #748096; font-size: 11px; line-height: 1.5; }
+.admin-wear-skeleton { height: 82px; background: linear-gradient(90deg, #f4f6f9 25%, #e9edf3 45%, #f4f6f9 65%); background-size: 220% 100%; border-bottom: 1px solid var(--wear-line); animation: admin-wear-loading 1.2s linear infinite; }
+
+.admin-wear-view .admin-inline-error { display: flex; align-items: center; margin-bottom: 16px; gap: 10px; }
+.admin-wear-view .admin-inline-error span { flex: 1; }
+
+@keyframes admin-wear-loading { to { background-position: -220% 0; } }
+
+@media (max-width: 1180px) {
+  .admin-wear-member { grid-template-columns: minmax(200px, .7fr) minmax(300px, 1fr); }
+  .admin-wear-item:last-child { grid-column: 2; border-top: 1px solid var(--wear-line); }
+  .admin-wear-person { grid-row: 1 / span 2; }
+}
+
+@media (max-width: 900px) {
+  .admin-wear-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-wear-overview article:nth-child(2) { border-right: 0; }
+  .admin-wear-overview article:nth-child(-n + 2) { border-bottom: 1px solid var(--wear-line); }
+  .admin-wear-roster-header { align-items: stretch; flex-direction: column; }
+  .admin-wear-tools { align-items: stretch; }
+  .admin-wear-tools label { flex: 1; width: auto; }
+}
+
+@media (max-width: 670px) {
+  .admin-wear-view .admin-header-actions { width: 100%; }
+  .admin-wear-current-season { flex: 1; }
+  .admin-wear-overview article { min-height: 94px; padding: 16px; }
+  .admin-wear-tools { flex-direction: column; }
+  .admin-wear-filters, .admin-wear-filters button { width: 100%; }
+  .admin-wear-filters button { flex: 1; }
+  .admin-wear-member { grid-template-columns: 1fr; }
+  .admin-wear-person { grid-row: auto; border-right: 0; border-bottom: 1px solid var(--wear-line); }
+  .admin-wear-item, .admin-wear-item:last-child { grid-column: auto; border-right: 0; border-top: 0; border-bottom: 1px solid var(--wear-line); }
+  .admin-wear-item:last-child { border-bottom: 0; }
+  .admin-wear-view .admin-inline-error { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 430px) {
+  .admin-wear-overview { grid-template-columns: 1fr; }
+  .admin-wear-overview article, .admin-wear-overview article:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--wear-line); }
+  .admin-wear-overview article:last-child { border-bottom: 0; }
+  .admin-wear-item { grid-template-columns: 35px minmax(0, 1fr); }
+  .admin-wear-check { grid-column: 1 / -1; width: 100%; margin-top: 4px; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-wear-skeleton { animation: none; }
+}

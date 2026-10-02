@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { closeAttendanceSession, createAttendanceSession, deleteAttendanceNotificationRecipient, loadAttendanceSession, loadAttendanceWorkspace, reopenAttendanceSession, retryAttendanceDelivery, saveAttendance, saveAttendanceNotificationRecipient, updateAttendanceSession } from "../../lib/attendance";
+import { closeAttendanceSession, createAttendanceSession, deleteAttendanceNotificationRecipient, deleteAttendanceSession, loadAttendanceSession, loadAttendanceWorkspace, reopenAttendanceSession, retryAttendanceDelivery, saveAttendance, saveAttendanceNotificationRecipient, updateAttendanceSession } from "../../lib/attendance";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminConfirmDialog, AdminToast } from "./AdminActionFeedback";
 import { useAdminToast } from "./useAdminToast";
@@ -308,6 +308,30 @@ export default function AdminAbsence() {
     },
   });
 
+  const requestDeleteSession = (session) => setConfirmation({
+    title: "Delete this attendance session?",
+    message: `“${session.title}” and its attendance records will be permanently deleted. Emails already delivered cannot be recalled.`,
+    confirmLabel: "Delete session",
+    tone: "danger",
+    action: async () => {
+      setBusy(true);
+      try {
+        await deleteAttendanceSession(supabase, session.id);
+        setSelectedId("");
+        setDetail(null);
+        setRosterQuery("");
+        setParticipantFilter("all");
+        setEditor(null);
+        await load();
+        showToast("Attendance session deleted.");
+      } catch (deleteError) {
+        showToast(deleteError.message || "The attendance session could not be deleted.", "error");
+      } finally {
+        setBusy(false);
+      }
+    },
+  });
+
   const isOpen = detail?.session?.status === "open";
   const presentCount = detail?.records?.filter((record) => record.attendance_status === "present").length || 0;
   const totalCount = detail?.records?.length || 0;
@@ -352,7 +376,7 @@ export default function AdminAbsence() {
         {selectedId && <section className="admin-panel admin-attendance-roster-panel">
           {detailLoading && <div className="admin-attendance-detail-loading"><span className="skeleton-shimmer skeleton-line" /><span className="skeleton-shimmer skeleton-line" /><span className="skeleton-shimmer skeleton-line" /></div>}
           {!detailLoading && detail && <>
-            <header className="admin-attendance-roster-header"><div><span className={`admin-attendance-session-status is-${detail.session.status}`}>{detail.session.status === "closed" ? "saved" : "live"}</span><h2>{detail.session.title}</h2><p>{dateTime(detail.session.starts_at)} · {detail.session.season} · {detail.session.session_type}</p></div><div className="admin-attendance-roster-summary"><button type="button" className="btn-secondary" onClick={() => isOpen ? setEditor(sessionEditor(detail.session)) : requestReopenSession(detail.session)} disabled={busy}>{isOpen ? "Edit settings" : "Reopen & edit"}</button><div className="admin-attendance-completion"><strong>{presentCount}/{totalCount}</strong><span>present</span></div></div></header>
+            <header className="admin-attendance-roster-header"><div><span className={`admin-attendance-session-status is-${detail.session.status}`}>{detail.session.status === "closed" ? "saved" : "live"}</span><h2>{detail.session.title}</h2><p>{dateTime(detail.session.starts_at)} · {detail.session.season} · {detail.session.session_type}</p></div><div className="admin-attendance-roster-summary"><div className="admin-attendance-session-actions"><button type="button" className="btn-secondary" onClick={() => isOpen ? setEditor(sessionEditor(detail.session)) : requestReopenSession(detail.session)} disabled={busy}>{isOpen ? "Edit settings" : "Reopen & edit"}</button><button type="button" className="btn-secondary btn-danger" onClick={() => requestDeleteSession(detail.session)} disabled={busy}>Delete session</button></div><div className="admin-attendance-completion"><strong>{presentCount}/{totalCount}</strong><span>present</span></div></div></header>
             {isOpen && <div className="admin-attendance-bulkbar"><p><strong>Presence checklist</strong><span>Check present people only. Unchecked people become absent when you close the session.</span></p><div><button type="button" className="btn-secondary" onClick={() => setDetail((current) => ({ ...current, records: current.records.map((record) => ({ ...record, attendance_status: "unmarked" })) }))} disabled={busy}>Clear</button><button type="button" className="btn-secondary" onClick={() => setDetail((current) => ({ ...current, records: current.records.map((record) => ({ ...record, attendance_status: "present" })) }))} disabled={busy}>Mark all present</button></div></div>}
 
             <div className="admin-attendance-roster-tools"><label><span className="sr-only">Search participants by name</span><input type="search" value={rosterQuery} onChange={(event) => setRosterQuery(event.target.value)} placeholder="Search participant by name…" /></label><div className="admin-attendance-participant-filters" aria-label="Filter participants">{[{ id: "all", label: "All" }, { id: "registration", label: "Members" }, { id: "team", label: "Team" }].map((filter) => <button type="button" key={filter.id} className={participantFilter === filter.id ? "is-active" : ""} onClick={() => setParticipantFilter(filter.id)}>{filter.label}<span>{filter.id === "all" ? totalCount : detail.records.filter((record) => record.participant_type === filter.id).length}</span></button>)}</div></div>

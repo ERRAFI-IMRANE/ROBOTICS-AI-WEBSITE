@@ -119,6 +119,16 @@ export async function reopenAttendanceSession(client, sessionId) {
   }), "Could not reopen the attendance session.");
 }
 
+export async function deleteAttendanceSession(client, sessionId) {
+  const result = unwrapRpc(await client.rpc("delete_attendance_session", {
+    p_session_id: sessionId,
+  }), "Could not delete the attendance session.");
+  if (!result?.deleted || String(result.session_id) !== String(sessionId)) {
+    throw new Error("The attendance session was not deleted. Refresh and try again.");
+  }
+  return result;
+}
+
 export async function saveAttendance(client, sessionId, records) {
   return unwrapRpc(await client.rpc("mark_attendance_records", {
     p_session_id: sessionId,

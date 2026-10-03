@@ -8,6 +8,7 @@ import tikTokConnect from './api/tiktok/connect.js'
 import tikTokDashboard from './api/tiktok/dashboard.js'
 import tikTokDisconnect from './api/tiktok/disconnect.js'
 import attendanceActions from './api/attendance/actions.js'
+import acceptanceNotification from './api/registrations/notify.js'
 
 function localStorageApi() {
   return {
@@ -26,6 +27,7 @@ function localStorageApi() {
           '/api/tiktok/dashboard': tikTokDashboard,
           '/api/tiktok/disconnect': tikTokDisconnect,
           '/api/attendance/actions': attendanceActions,
+          '/api/registrations/notify': acceptanceNotification,
         }
         const handler = staticHandlers[pathname]
         if (!handler) return next()

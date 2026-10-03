@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getYearOfStudyLabel } from "../../constants/registrationConstants";
 import { readRegistrationSettings, setRegistrationOpen } from "../../lib/registration";
 import { canReviewRegistration, completeRegistrationReview } from "../../lib/registrationInterview";
+import { loadAcceptanceNotifications, notifyAdminOfAcceptance } from "../../lib/registrationNotifications";
 import { supabase } from "../../lib/supabaseClient";
 import { AdminToast } from "./AdminActionFeedback";
 import AdminInterviewWizard from "./AdminInterviewWizard";
+import AdminRegistrationRecipients from "./AdminRegistrationRecipients";
 import { useAdminToast } from "./useAdminToast";
 import "./AdminDashboard.css";
 import "./AdminRegistrations.css";
@@ -24,7 +26,22 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
   const [interviewing, setInterviewing] = useState(null);
   const [interviewBusy, setInterviewBusy] = useState(false);
   const reviewLock = useRef(false);
+  const notificationLocks = useRef(new Set());
+  const [acceptanceNotifications, setAcceptanceNotifications] = useState({});
+  const [notificationError, setNotificationError] = useState("");
+  const [notifyingId, setNotifyingId] = useState(null);
+  const [recipientPanel, setRecipientPanel] = useState(false);
   const { toast, showToast, clearToast } = useAdminToast();
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      setAcceptanceNotifications(await loadAcceptanceNotifications(supabase));
+      setNotificationError("");
+    } catch (err) {
+      // Missing email setup must not hide applicants or block decisions.
+      setNotificationError(err.message || "Could not load admin email status.");
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,14 +55,51 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
       setRegistrations(registrationResult.data || []);
       setSettings(portal);
       onDataChange(registrationResult.data || [], portal);
+      await loadNotifications();
     } catch (err) {
       setError(err.message || "Could not load registrations.");
     } finally {
       setLoading(false);
     }
-  }, [onDataChange]);
+  }, [onDataChange, loadNotifications]);
 
-  useEffect(() => { if (!hasInitialData) load(); }, [hasInitialData, load]);
+  useEffect(() => { if (!hasInitialData) load(); else loadNotifications(); }, [hasInitialData, load, loadNotifications]);
+
+  const sendAcceptanceNotification = useCallback(async (applicant) => {
+    const id = String(applicant.id);
+    if (notificationLocks.current.size) return;
+    notificationLocks.current.add(id);
+    setNotifyingId(id);
+    try {
+      const outcome = await notifyAdminOfAcceptance(supabase, applicant.id);
+      setAcceptanceNotifications((current) => ({ ...current, [id]: { registration_id: applicant.id, status: outcome.status, last_error: outcome.error || null } }));
+      if (outcome.status === "sent") {
+        setNotificationError("");
+        showToast(outcome.alreadySent ? "The admin has already been notified." : `${applicant.full_name || "Member"} is accepted. Admin emailed to add them to WhatsApp.`);
+      } else if (outcome.status === "sending") {
+        showToast("The admin email is already being sent. Refresh to check delivery.");
+      } else {
+        throw new Error(outcome.error || "The admin email could not be sent.");
+      }
+    } catch (err) {
+      const message = `Acceptance is saved. ${err.message || "Admin email failed."} Use Retry admin email after checking the email settings.`;
+      setAcceptanceNotifications((current) => ({ ...current, [id]: { ...current[id], registration_id: applicant.id, status: "failed", last_error: message } }));
+      setNotificationError(message);
+      showToast(message, "error");
+    } finally {
+      notificationLocks.current.delete(id);
+      setNotifyingId(null);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (loading || interviewBusy || notifyingId !== null || notificationLocks.current.size) return;
+    const pendingEmail = registrations.find((applicant) => applicant.status === "accepted"
+      && acceptanceNotifications[String(applicant.id)]?.status === "pending");
+    // Recover newly queued acceptances if the browser closed before sending.
+    // Failed attempts need an explicit retry, avoiding repeated error emails.
+    if (pendingEmail) void sendAcceptanceNotification(pendingEmail);
+  }, [loading, interviewBusy, notifyingId, registrations, acceptanceNotifications, sendAcceptanceNotification]);
 
   const togglePortal = async () => {
     if (!settings?.id || busy) return;
@@ -80,6 +134,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
       setInterviewing(null);
       showToast(`${interviewing.full_name || "Applicant"} was ${decision}.`);
       await load();
+      if (decision === "accepted") await sendAcceptanceNotification({ ...interviewing, ...updated });
       return updated;
     } catch (reviewError) {
       showToast(reviewError.message || "The application review could not be completed.", "error");
@@ -116,6 +171,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
       <div className="admin-view-header">
         <div><p className="admin-eyebrow">Membership intake</p><h1 className="admin-page-title">Registrations</h1><p className="admin-page-desc">Review new member applications, accept or refuse candidates, and control the public form.</p></div>
         <div className="admin-header-actions">
+          <button type="button" className="btn-secondary" onClick={() => setRecipientPanel(true)} disabled={busy || interviewBusy}>Notification emails</button>
           <button className="btn-secondary" onClick={load} disabled={loading || busy}>Refresh</button>
           <button className={`admin-portal-control ${settings?.is_open ? "is-open" : "is-closed"}`} onClick={togglePortal} disabled={!settings?.id || busy}>
             <span className="status-chip-dot" />
@@ -125,6 +181,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
       </div>
 
       {error && <div className="admin-inline-error" role="alert"><span>{error}</span><button className="btn-secondary" onClick={load}>Retry</button></div>}
+      {notificationError && <div className="admin-inline-error" role="alert"><span>{notificationError}</span><button type="button" className="btn-secondary" onClick={loadNotifications}>Check email status</button></div>}
 
       <div className="admin-registration-summary">
         <div><small>PORTAL</small><strong>{settings?.is_open ? "OPEN" : "CLOSED"}</strong><span>{settings?.season || "No active cycle"}</span></div>
@@ -166,6 +223,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
               {!loading && filtered.map((app) => {
                 const appStatus = String(app.status || "pending").toLowerCase();
                 const pending = canReviewRegistration(app);
+                const adminEmail = acceptanceNotifications[String(app.id)];
                 return (
                   <React.Fragment key={app.id}>
                     <tr className="admin-applicant-row">
@@ -175,7 +233,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
                       <td data-label="Application"><div className="admin-applicant-status-stack"><span className={`status-chip status-chip-${pending ? "warning" : appStatus === "accepted" ? "positive" : "critical"}`}><span className="status-chip-dot" />{appStatus}</span></div></td>
                       <td data-label="Interview"><span className={`admin-interview-status ${app.interview_completed === true ? "is-complete" : ""}`}>{app.interview_completed === true ? "Interviewed" : "Not interviewed"}</span></td>
                       <td data-label="Received"><time dateTime={app.created_at || undefined}>{app.created_at ? new Date(app.created_at).toLocaleDateString() : "—"}</time><small className="admin-applicant-received-time">{app.created_at ? new Date(app.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</small></td>
-                      <td data-label="Review">{pending ? <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button> : <span className="admin-registration-history-label">Decision recorded</span>}</td>
+                      <td data-label="Review">{pending ? <button type="button" className="btn-secondary admin-interview-action" onClick={() => setInterviewing(app)} disabled={busy || interviewBusy} aria-label={`Review ${app.full_name || "applicant"}`}>Review <span aria-hidden="true">↗</span></button> : <div className="admin-registration-notification"><span className="admin-registration-history-label">Decision recorded</span>{appStatus === "accepted" && (adminEmail?.status === "sent" ? <span className="admin-registration-email-sent">✓ Admin notified</span> : <button type="button" className="btn-secondary" onClick={() => sendAcceptanceNotification(app)} disabled={busy || interviewBusy || notifyingId !== null} aria-label={`Email admin to add ${app.full_name || "member"} to WhatsApp`}>{notifyingId === String(app.id) ? "Emailing…" : adminEmail ? "Retry admin email" : "Notify admin"}</button>)}</div>}</td>
                     </tr>
                     <tr className="admin-applicant-notes-row"><td colSpan="7"><details className="admin-applicant-notes"><summary>Application message<span>{app.message ? String(app.message).slice(0, 90) : "No message provided"}</span></summary><p>{app.message || "No message provided."}</p></details>{appStatus === "refused" && <div className="admin-applicant-refusal"><strong>Refusal reason</strong><p>{app.refusal_reason || "No refusal reason recorded"}</p></div>}</td></tr>
                   </React.Fragment>
@@ -186,6 +244,7 @@ export default function AdminMembers({ initialRegistrations = null, initialSetti
         </div>
       </div>
 
+      {recipientPanel && <AdminRegistrationRecipients onClose={() => setRecipientPanel(false)} onFeedback={showToast} />}
       {interviewing && canReviewRegistration(interviewing) && <AdminInterviewWizard
         key={`${interviewing.id}-${interviewing.interviewed_at || "new"}`}
         applicant={interviewing}

@@ -60,6 +60,15 @@ For the current wizard, run `migration_registration_review_decision.sql` after b
 
 ## Controls
 
+Accepted-member admin notifications use the existing Gmail sender. Run
+`migration_registration_acceptance_notifications.sql` followed by
+`migration_registration_notification_recipients.sql` and follow
+`REGISTRATION-EMAIL-SETUP.md`. Accepting a candidate emails the admin their contact
+details and asks them to add the member to the WhatsApp group manually. Email
+failure never reverses the decision; the accepted row exposes a retry action.
+Manage recipient addresses in **Registrations → Notification emails**, independently
+of Presence recipients; only active addresses receive these acceptance notices.
+
 - **Registrations:** The interview wizard updates the existing application through permission-checked RPCs. The gold Interesting flag remains independent from Accept/Refuse, which updates `public.registrations.status` in place and requires a reason for refusals. Processed applications remain in the same table as history.
 - **Staff:** The existing add/edit/delete forms remain. Profile and season edits are saved atomically. Removing a season preserves other assignments; permanent deletion remains a separate explicit action.
 - **Events:** The dashboard uses the flat `title`, `date`, `image_url`, `link`, and `created_at` columns. New dates are saved as `DD/MM/YYYY`; legacy ranges still display until an admin chooses a normalized date while editing.

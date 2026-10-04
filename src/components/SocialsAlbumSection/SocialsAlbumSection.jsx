@@ -7,7 +7,7 @@ const SOCIAL_LINKS = [
   { name: "INSTAGRAM", url: "https://www.instagram.com/robotics_aiclub.ests/" },
   { name: "LINKEDIN", url: "https://www.linkedin.com/in/robotics-ai-club/" },
   { name: "TIKTOK", url: "https://www.tiktok.com/@robotics.ai.club" },
-  { name: "DISCORD", url: "https://discord.gg/GdDsZjJTF" },
+  { name: "DISCORD", url: "https://discord.gg/7vNy4rtrsq" },
 ];
 
 export default function SocialsAlbumSection() {

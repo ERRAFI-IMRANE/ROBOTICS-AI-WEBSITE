@@ -180,7 +180,7 @@ export default function FullNavMenu({ isOpen, onClose }) {
               <a href="https://www.tiktok.com/@robotics.ai.club" target="_blank" rel="noreferrer">TIKTOK</a>
               <a href="https://www.instagram.com/robotics_aiclub.ests/" target="_blank" rel="noreferrer">INSTAGRAM</a>
               <a href="https://www.linkedin.com/in/robotics-ai-club/" target="_blank" rel="noreferrer">LINKEDIN</a>
-              <a href="https://discord.gg/GdDsZjJTF" target="_blank" rel="noreferrer">DISCORD</a>
+              <a href="https://discord.gg/7vNy4rtrsq" target="_blank" rel="noreferrer">DISCORD</a>
             </div>
           </div>
         </div>

@@ -195,7 +195,7 @@ export default function Footer({ onOpenAdmin, onNavigateRegister }) {
                 </li>
                 <li>
                   <a
-                    href="https://discord.gg/GdDsZjJTF"
+                    href="https://discord.gg/7vNy4rtrsq"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="anim-link-underline"

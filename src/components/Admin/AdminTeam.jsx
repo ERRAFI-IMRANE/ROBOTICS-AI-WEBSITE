@@ -9,9 +9,10 @@ import { useAdminToast } from "./useAdminToast";
 import {
   DEFAULT_TEAM_SEASON,
   TEAM_POSTS,
-  TEAM_SEASONS,
+  availableTeamSeasons,
   createTeamAssignment,
-  getEquivalentTeamSeasonKeys,
+  getTeamMemberPostOrder,
+  getTeamPostOrder,
   getTeamPost,
   normalizeTeamRole,
   normalizeTeamSeason,
@@ -90,43 +91,7 @@ const getMemberSocials = (m) => m?.social_media_links || m?.links || m?.socials 
 const getMemberSex = (m) => ["M", "F"].includes(m?.sex) ? m.sex : "M";
 
 // Helper to extract post order attribute for a specific season from team_seasons
-const getMemberPostOrder = (m, season) => {
-  if (!m) return Infinity;
-  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const keys = getEquivalentTeamSeasonKeys(season);
-    const found = m.team_seasons.find((ts) => keys.includes(String(ts.season)));
-    if (found && found.post_order !== null && found.post_order !== undefined && !isNaN(Number(found.post_order))) {
-      return Number(found.post_order);
-    }
-  }
-
-  // legacy fallback
-  const data = m.data || {};
-  const orderSources = [
-    m.order_post,
-    m.post_order,
-    data.order_post,
-    data.post_order,
-    m.order,
-    data.order,
-  ];
-
-  for (const src of orderSources) {
-    if (src !== undefined && src !== null && src !== "") {
-      if (typeof src === "object" && !Array.isArray(src)) {
-        if (src[season] !== undefined && src[season] !== null && src[season] !== "") {
-          const parsed = Number(src[season]);
-          if (!isNaN(parsed)) return parsed;
-        }
-      } else {
-        const parsed = Number(src);
-        if (!isNaN(parsed)) return parsed;
-      }
-    }
-  }
-
-  return Infinity;
-};
+const getMemberPostOrder = getTeamMemberPostOrder;
 
 const getMemberSeasonAssignments = (member) => {
   const rows = Array.isArray(member?.team_seasons) && member.team_seasons.length
@@ -140,8 +105,8 @@ const getMemberSeasonAssignments = (member) => {
     }))
     .filter((row) => row.season)
     .sort((a, b) => {
-      const orderA = Number.isFinite(Number(a.post_order)) ? Number(a.post_order) : getRolePriority(a.role);
-      const orderB = Number.isFinite(Number(b.post_order)) ? Number(b.post_order) : getRolePriority(b.role);
+      const orderA = getTeamPostOrder(a);
+      const orderB = getTeamPostOrder(b);
       return orderA - orderB || a.season.localeCompare(b.season);
     });
 };
@@ -150,16 +115,16 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
   const hasInitialMembers = Array.isArray(initialMembers);
   const seededMembers = hasInitialMembers ? initialMembers : [];
   const [members, setMembers] = useState(seededMembers);
-  const yearsList = useMemo(() => [...new Set([
-    ...TEAM_SEASONS,
-    ...members.flatMap((member) => getMemberYears(member)),
-  ])].sort((a, b) => b.localeCompare(a)), [members]);
   const [selectedYear, setSelectedYear] = useState(DEFAULT_TEAM_SEASON);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(!hasInitialMembers);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [seasonSettings, setSeasonSettings] = useState(null);
+  const yearsList = useMemo(() => availableTeamSeasons(
+    members.flatMap((member) => getMemberYears(member)),
+    seasonSettings?.current_season,
+  ), [members, seasonSettings?.current_season]);
   const [seasonSettingsLoading, setSeasonSettingsLoading] = useState(true);
   const [publishingSeason, setPublishingSeason] = useState(false);
   const [isPublicSeasonsModalOpen, setIsPublicSeasonsModalOpen] = useState(false);
@@ -296,11 +261,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
       setMembers(rows);
       onDataChange(rows);
 
-      const loadedSeasons = [...new Set([
-        ...TEAM_SEASONS,
-        ...rows.flatMap((member) => getMemberYears(member)),
-      ])];
-      setSelectedYear((current) => loadedSeasons.includes(current) ? current : DEFAULT_TEAM_SEASON);
+      setSelectedYear((current) => normalizeTeamSeason(current) || DEFAULT_TEAM_SEASON);
     } catch (err) {
       console.warn("Could not fetch team from database:", err);
       setLoadError("Could not load staff from Supabase: " + (err.message || "Check your connection and access permissions."));
@@ -324,7 +285,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
     setFormEmail("");
     setFormBirthday("");
     setFormSex("M");
-    const initialYear = TEAM_SEASONS.includes(selectedYear) ? selectedYear : DEFAULT_TEAM_SEASON;
+    const initialYear = normalizeTeamSeason(selectedYear) || DEFAULT_TEAM_SEASON;
     setFormSeasonRoles({ [initialYear]: "" });
 
     setAvatarFile(null);
@@ -350,10 +311,10 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
 
     const sRoles = getMemberSeasonRoles(m);
     const activeRoles = Object.fromEntries(Object.entries(sRoles)
-      .filter(([season]) => TEAM_SEASONS.includes(season))
+      .filter(([season]) => normalizeTeamSeason(season))
       .map(([season, role]) => [season, normalizeTeamRole(role)]));
     if (Object.keys(activeRoles).length === 0) {
-      activeRoles[TEAM_SEASONS.includes(selectedYear) ? selectedYear : DEFAULT_TEAM_SEASON] = "";
+      activeRoles[normalizeTeamSeason(selectedYear) || DEFAULT_TEAM_SEASON] = "";
     }
     setFormSeasonRoles(activeRoles);
 
@@ -1208,7 +1169,7 @@ export default function AdminTeam({ initialMembers = null, onDataChange = () => 
                   </div>
 
                   <div className="admin-team-season-fields">
-                    {Object.keys(formSeasonRoles).sort((a, b) => TEAM_SEASONS.indexOf(a) - TEAM_SEASONS.indexOf(b)).map((yr) => (
+                    {Object.keys(formSeasonRoles).sort((a, b) => a.localeCompare(b)).map((yr) => (
                       <div key={yr} className="admin-team-season-row">
                         <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>
                           {yr}

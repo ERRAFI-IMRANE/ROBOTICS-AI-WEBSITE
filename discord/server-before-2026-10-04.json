@@ -1,0 +1,639 @@
+{
+  "guild": {
+    "afk_channel_id": null,
+    "afk_timeout": 300,
+    "application_id": null,
+    "approximate_member_count": 29,
+    "approximate_presence_count": 1,
+    "banner": null,
+    "default_message_notifications": 0,
+    "description": null,
+    "discovery_splash": null,
+    "embed_channel_id": null,
+    "embed_enabled": false,
+    "emojis": [],
+    "explicit_content_filter": 0,
+    "features": [
+      "SOUNDBOARD"
+    ],
+    "home_header": null,
+    "hub_type": null,
+    "icon": "f2135dfb075d74faa146c355825a6da3",
+    "id": "1428711248903798977",
+    "incidents_data": null,
+    "inventory_settings": null,
+    "latest_onboarding_question_id": null,
+    "max_members": 25000000,
+    "max_presences": null,
+    "max_stage_video_channel_users": 50,
+    "max_video_channel_users": 25,
+    "mfa_level": 0,
+    "name": "ROBOTICS AND AI ESTS",
+    "nsfw": false,
+    "nsfw_level": 0,
+    "official_message_color": null,
+    "owner_configured_content_level": 0,
+    "owner_id": "716382807613636738",
+    "preferred_locale": "en-US",
+    "premium_progress_bar_enabled": false,
+    "premium_progress_bar_enabled_user_updated_at": null,
+    "premium_subscription_count": 0,
+    "premium_tier": 0,
+    "public_updates_channel_id": null,
+    "region": "southafrica",
+    "roles": [
+      {
+        "color": 0,
+        "colors": {
+          "primary_color": 0,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1428711248903798977",
+        "managed": false,
+        "mentionable": false,
+        "name": "@everyone",
+        "permissions": "1720707884502593",
+        "position": 0,
+        "unicode_emoji": null
+      },
+      {
+        "color": 12745742,
+        "colors": {
+          "primary_color": 12745742,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1429103472027893882",
+        "managed": false,
+        "mentionable": false,
+        "name": "President",
+        "permissions": "4360658820268031",
+        "position": 6,
+        "unicode_emoji": null
+      },
+      {
+        "color": 3066993,
+        "colors": {
+          "primary_color": 3066993,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1429104272213147789",
+        "managed": false,
+        "mentionable": false,
+        "name": "Vice President",
+        "permissions": "4360658820268023",
+        "position": 5,
+        "unicode_emoji": null
+      },
+      {
+        "color": 2123412,
+        "colors": {
+          "primary_color": 2123412,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1429105308331933716",
+        "managed": false,
+        "mentionable": false,
+        "name": "Bureau Member",
+        "permissions": "1535994372808533",
+        "position": 4,
+        "unicode_emoji": null
+      },
+      {
+        "color": 15277667,
+        "colors": {
+          "primary_color": 15277667,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1429105721240195315",
+        "managed": false,
+        "mentionable": false,
+        "name": "Member",
+        "permissions": "70781061356608",
+        "position": 2,
+        "unicode_emoji": null
+      },
+      {
+        "color": 0,
+        "colors": {
+          "primary_color": 0,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1544476635716259904",
+        "managed": true,
+        "mentionable": false,
+        "name": "Composio",
+        "permissions": "274877974528",
+        "position": 1,
+        "tags": {
+          "bot_id": "1501160137694642207"
+        },
+        "unicode_emoji": null
+      },
+      {
+        "color": 0,
+        "colors": {
+          "primary_color": 0,
+          "secondary_color": null,
+          "tertiary_color": null
+        },
+        "description": null,
+        "flags": 0,
+        "hoist": false,
+        "icon": null,
+        "id": "1556097093913939968",
+        "managed": false,
+        "mentionable": false,
+        "name": "RAI Setup",
+        "permissions": "268435504",
+        "position": 3,
+        "unicode_emoji": null
+      }
+    ],
+    "rules_channel_id": null,
+    "safety_alerts_channel_id": null,
+    "splash": null,
+    "stickers": [],
+    "system_channel_flags": 0,
+    "system_channel_id": "1428711250560286906",
+    "theme": null,
+    "vanity_url_code": null,
+    "verification_level": 0,
+    "verification_role_id": null,
+    "widget_channel_id": null,
+    "widget_enabled": false
+  },
+  "channels": [
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250111500309",
+      "name": "Informations",
+      "parent_id": null,
+      "permission_overwrites": [],
+      "position": 0,
+      "type": 4
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250111500310",
+      "last_message_id": "1458614452654969095",
+      "name": "rules",
+      "nsfw": false,
+      "parent_id": "1428711250111500309",
+      "permission_overwrites": [
+        {
+          "allow": "0",
+          "deny": "0",
+          "id": "1429105721240195315",
+          "type": 0
+        },
+        {
+          "allow": "1024",
+          "deny": "4012103703197777",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 0,
+      "rate_limit_per_user": 0,
+      "topic": "Read the club’s rules to keep our community respectful, safe, and inspiring.\n\n اقرأ قواعد النادي للحفاظ على بيئة محترمة وآمنة وملهمة للجميع.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250111500311",
+      "last_message_id": "1458614364792946801",
+      "name": "announcements",
+      "nsfw": false,
+      "parent_id": "1428711250111500309",
+      "permission_overwrites": [
+        {
+          "allow": "66560",
+          "deny": "4012103703132241",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 1,
+      "rate_limit_per_user": 0,
+      "topic": "**Official announcements and updates about the Robotics & AI Club events, meetings, and activities.\n\n إعلانات رسمية وتحديثات حول فعاليات وأنشطة نادي الروبوتات والذكاء الاصطناعي.\n**",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286904",
+      "last_message_id": "1458614386942804041",
+      "name": "about",
+      "nsfw": false,
+      "parent_id": "1428711250111500309",
+      "permission_overwrites": [
+        {
+          "allow": "66560",
+          "deny": "4012103703132241",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 2,
+      "rate_limit_per_user": 0,
+      "topic": "** Learn more about the Robotics & AI Club at EST Safi — our vision, mission, and projects.\n\n تعرّف أكثر على نادي الروبوتات والذكاء الاصطناعي في المدرسة العليا للتكنولوجيا بآسفي — رؤيتنا، رسالتنا، ومشاريعنا.**",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286905",
+      "name": "Salons textuels",
+      "parent_id": null,
+      "permission_overwrites": [],
+      "position": 4,
+      "type": 4
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286906",
+      "last_message_id": "1555306927930474557",
+      "name": "général",
+      "nsfw": false,
+      "parent_id": "1428711250560286905",
+      "permission_overwrites": [
+        {
+          "allow": "1197267231431744",
+          "deny": "2814836471767057",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 3,
+      "rate_limit_per_user": 0,
+      "topic": "General discussion about robotics, AI, and club life.\n\n نقاش عام حول الروبوتات، الذكاء الاصطناعي، وحياة النادي.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286907",
+      "last_message_id": "1498833431260299285",
+      "name": "introductions",
+      "nsfw": false,
+      "parent_id": "1428711250560286905",
+      "permission_overwrites": [
+        {
+          "allow": "1197267231431745",
+          "deny": "2251886518345744",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 4,
+      "rate_limit_per_user": 0,
+      "topic": "Welcome new members! Introduce yourself and tell us what inspires you about robotics and AI.\n\n مرحباً بالأعضاء الجدد! قدم نفسك وشاركنا ما يلهمك في عالم الروبوتات والذكاء الاصطناعي.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286908",
+      "last_message_id": "1458614430236676180",
+      "name": "ideas",
+      "nsfw": false,
+      "parent_id": "1428711250560286905",
+      "permission_overwrites": [
+        {
+          "allow": "1197267231431745",
+          "deny": "2814836471767056",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 5,
+      "rate_limit_per_user": 0,
+      "topic": "Share your ideas for projects, workshops, or club improvements.\n\n شارك أفكارك حول المشاريع، الورشات، أو تطوير النادي.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286909",
+      "name": "Salons vocaux",
+      "parent_id": null,
+      "permission_overwrites": [],
+      "position": 8,
+      "type": 4
+    },
+    {
+      "application_id": null,
+      "bitrate": 96000,
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1428711250560286910",
+      "last_message_id": null,
+      "name": "President",
+      "nsfw": false,
+      "parent_id": "1428711250560286909",
+      "permission_overwrites": [
+        {
+          "allow": "0",
+          "deny": "1049600",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 9,
+      "rate_limit_per_user": 0,
+      "rtc_region": null,
+      "type": 2,
+      "user_limit": 2,
+      "video_quality_mode": 2
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1429095109923831869",
+      "last_message_id": "1458614517851492447",
+      "name": "roles",
+      "nsfw": false,
+      "parent_id": "1428711250111500309",
+      "permission_overwrites": [
+        {
+          "allow": "66560",
+          "deny": "4012103703132241",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 6,
+      "rate_limit_per_user": 0,
+      "topic": "React below to choose your role: department, study year, or project team.\n\n اختر دورك بالضغط على الرموز أدناه: الشعبة، السنة الدراسية، أو فريق المشروع.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1429096783698464821",
+      "last_message_id": "1458614541112971336",
+      "name": "projects",
+      "nsfw": false,
+      "parent_id": "1428711250560286905",
+      "permission_overwrites": [
+        {
+          "allow": "1760217184853057",
+          "deny": "2251886518345744",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 7,
+      "rate_limit_per_user": 0,
+      "topic": "Updates and discussions about current Robotics & AI projects.\n\n تحديثات ومناقشات حول مشاريع الروبوتات والذكاء الاصطناعي الحالية.",
+      "type": 0
+    },
+    {
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1429097253968154685",
+      "last_message_id": "1458614341015175221",
+      "name": "resources",
+      "nsfw": false,
+      "parent_id": "1428711250560286905",
+      "permission_overwrites": [
+        {
+          "allow": "1760217184853057",
+          "deny": "2251886518345744",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 8,
+      "rate_limit_per_user": 0,
+      "topic": "Educational materials, tutorials, and research papers shared by members.\n\n مواد تعليمية، دروس، وأبحاث علمية يشاركها الأعضاء.",
+      "type": 0
+    },
+    {
+      "application_id": null,
+      "bitrate": 64000,
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1495540263551111258",
+      "last_message_id": "1546686877711597618",
+      "name": "Bureau",
+      "nsfw": false,
+      "parent_id": "1428711250560286909",
+      "permission_overwrites": [
+        {
+          "allow": "1049600",
+          "deny": "0",
+          "id": "1429104272213147789",
+          "type": 0
+        },
+        {
+          "allow": "1049600",
+          "deny": "0",
+          "id": "1429105308331933716",
+          "type": 0
+        },
+        {
+          "allow": "0",
+          "deny": "1049600",
+          "id": "1428711248903798977",
+          "type": 0
+        }
+      ],
+      "position": 0,
+      "rate_limit_per_user": 0,
+      "rtc_region": null,
+      "type": 2,
+      "user_limit": 0
+    },
+    {
+      "application_id": null,
+      "bitrate": 64000,
+      "flags": 0,
+      "guild_id": "1428711248903798977",
+      "id": "1551541838685540362",
+      "last_message_id": null,
+      "name": "GDGoC ESTSafi",
+      "nsfw": false,
+      "parent_id": "1428711250560286909",
+      "permission_overwrites": [],
+      "position": 10,
+      "rate_limit_per_user": 0,
+      "rtc_region": null,
+      "type": 2,
+      "user_limit": 0
+    }
+  ],
+  "roles": [
+    {
+      "color": 0,
+      "colors": {
+        "primary_color": 0,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1428711248903798977",
+      "managed": false,
+      "mentionable": false,
+      "name": "@everyone",
+      "permissions": "1720707884502593",
+      "position": 0,
+      "unicode_emoji": null
+    },
+    {
+      "color": 12745742,
+      "colors": {
+        "primary_color": 12745742,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1429103472027893882",
+      "managed": false,
+      "mentionable": false,
+      "name": "President",
+      "permissions": "4360658820268031",
+      "position": 6,
+      "unicode_emoji": null
+    },
+    {
+      "color": 3066993,
+      "colors": {
+        "primary_color": 3066993,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1429104272213147789",
+      "managed": false,
+      "mentionable": false,
+      "name": "Vice President",
+      "permissions": "4360658820268023",
+      "position": 5,
+      "unicode_emoji": null
+    },
+    {
+      "color": 2123412,
+      "colors": {
+        "primary_color": 2123412,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1429105308331933716",
+      "managed": false,
+      "mentionable": false,
+      "name": "Bureau Member",
+      "permissions": "1535994372808533",
+      "position": 4,
+      "unicode_emoji": null
+    },
+    {
+      "color": 15277667,
+      "colors": {
+        "primary_color": 15277667,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1429105721240195315",
+      "managed": false,
+      "mentionable": false,
+      "name": "Member",
+      "permissions": "70781061356608",
+      "position": 2,
+      "unicode_emoji": null
+    },
+    {
+      "color": 0,
+      "colors": {
+        "primary_color": 0,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1544476635716259904",
+      "managed": true,
+      "mentionable": false,
+      "name": "Composio",
+      "permissions": "274877974528",
+      "position": 1,
+      "tags": {
+        "bot_id": "1501160137694642207"
+      },
+      "unicode_emoji": null
+    },
+    {
+      "color": 0,
+      "colors": {
+        "primary_color": 0,
+        "secondary_color": null,
+        "tertiary_color": null
+      },
+      "description": null,
+      "flags": 0,
+      "hoist": false,
+      "icon": null,
+      "id": "1556097093913939968",
+      "managed": false,
+      "mentionable": false,
+      "name": "RAI Setup",
+      "permissions": "268435504",
+      "position": 3,
+      "unicode_emoji": null
+    }
+  ],
+  "autoMod": []
+}

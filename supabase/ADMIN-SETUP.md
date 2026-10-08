@@ -16,7 +16,24 @@ Do not rerun the older permissive-policy migrations after this migration: they c
 
 For an existing deployment, review and run `migration_team_controlled_fields.sql` once in the Supabase SQL editor. It updates the atomic staff save function so `sex` is stored as `M` or `F`, seasons are stored only as full `YYYY-YYYY` values, and each selected role is saved with its generated abbreviation and display order. It also creates the missing `club_settings` row. It does not delete staff profiles or their season history. Its older Supabase Storage policy block is superseded by the R2 migration below.
 
-The approved post list and the four available seasons live in `src/constants/teamPosts.js`. The Add/Edit forms and the public roster both use this shared configuration. Legacy spellings are normalized when an existing member is edited; all new writes use the canonical values.
+The approved post list and base season list live in `src/constants/teamPosts.js`. The Add/Edit forms and the public roster both use this shared configuration. Legacy spellings are normalized when an existing member is edited; all new writes use the canonical values.
+
+### Human Resources cell
+
+The shared post list includes `HR-PRES` (President of the Human Resources Cell)
+and `HR-VP` (Vice President of the Human Resources Cell), immediately after Media
+and before Design. Add/Edit uses the existing `save_club_staff` workflow: profiles
+stay in `team`, and the assigned role, abbreviation and canonical `post_order`
+are saved in `team_seasons`. No new table, role placeholder, or database migration
+is required by the existing text-column schema and staff RPCs.
+
+Both roster views resolve known posts from the shared hierarchy rather than stale
+pre-HR numeric orders. Existing rows and profiles are not rewritten; editing a
+member saves the new canonical ordering. Unknown legacy posts still use their
+stored order. Valid consecutive `YYYY-YYYY` assignments are supported beyond the
+original season list. The admin season picker includes stored seasons, the current
+club season and its following season. HR also appears in season-filtered team-cell
+analytics, but no unassigned HR member cards are generated.
 
 ## Multiple public team seasons
 

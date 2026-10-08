@@ -5,6 +5,7 @@ import { publicTeamSeasons, teamMembersForSeason } from "../../lib/publicTeam";
 import {
   DEFAULT_TEAM_SEASON,
   getEquivalentTeamSeasonKeys,
+  getTeamMemberPostOrder,
   normalizeTeamSeason,
 } from "../../constants/teamPosts";
 import { RevealHeadingLine } from "../common/TextAnimations";
@@ -99,24 +100,7 @@ const getMemberRoleForYear = (m, year) => {
 };
 
 // Helper to extract post order
-const getMemberPostOrder = (m, year) => {
-  const equivKeys = getEquivalentSeasonKeys(year);
-  if (Array.isArray(m?.team_seasons) && m.team_seasons.length > 0) {
-    const found = m.team_seasons.find((ts) => ts.season && equivKeys.includes(ts.season));
-    if (found && found.post_order !== null && found.post_order !== undefined && !isNaN(Number(found.post_order))) {
-      return Number(found.post_order);
-    }
-  }
-  if (m?.post_order && typeof m.post_order === "object") {
-    for (const k of equivKeys) {
-      if (m.post_order[k] !== undefined) return Number(m.post_order[k]);
-    }
-  }
-  if (m?.post_order !== null && m?.post_order !== undefined && !isNaN(Number(m.post_order))) {
-    return Number(m.post_order);
-  }
-  return Infinity;
-};
+const getMemberPostOrder = getTeamMemberPostOrder;
 
 // Helper to extract member data object
 const mapMemberRecord = (m, year) => ({

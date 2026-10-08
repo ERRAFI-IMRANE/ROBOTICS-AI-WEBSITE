@@ -4,6 +4,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const TEAM_CELL_ORDER = [
   "Leadership / Supervision",
   "Media",
+  "Human Resources",
   "Design",
   "Organization",
   "Communication",
@@ -23,6 +24,8 @@ const POST_CELL = Object.freeze({
   "MED-VP": "Media",
   SMM: "Media",
   "VID-EDIT": "Media",
+  "HR-PRES": "Human Resources",
+  "HR-VP": "Human Resources",
   "DES-PRES": "Design",
   "DES-VP": "Design",
   PHOTO: "Photography",

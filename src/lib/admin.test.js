@@ -191,6 +191,7 @@ test("overview analytics normalize team cells and count each member once per gro
   const expectedGroups = {
     PRES: "Leadership / Supervision", VP: "Leadership / Supervision", SUP: "Leadership / Supervision", "CO-SUP": "Leadership / Supervision", ADV: "Leadership / Supervision", MENTOR: "Leadership / Supervision",
     "MED-PRES": "Media", "MED-VP": "Media", SMM: "Media", "VID-EDIT": "Media",
+    "HR-PRES": "Human Resources", "HR-VP": "Human Resources",
     "DES-PRES": "Design", "DES-VP": "Design", PHOTO: "Photography", "SEC-PRES": "Secretary", "SEC-VP": "Secretary",
     "ORG-PRES": "Organization", "ORG-VP": "Organization", "EVT-COORD": "Organization",
     "COM-PRES": "Communication", "COM-VP": "Communication", FDBK: "Communication",
@@ -405,13 +406,13 @@ test("season keys normalize and require consecutive years", () => {
   assert.equal(shortSeason("2027-2028"), "27-28");
 });
 test("controlled team posts generate internal metadata and full season keys", () => {
-  assert.equal(TEAM_POSTS.length, 24);
+  assert.equal(TEAM_POSTS.length, 26);
   assert.deepEqual(TEAM_SEASONS, ["2023-2024", "2024-2025", "2025-2026", "2026-2027"]);
   assert.deepEqual(createTeamAssignment("2025-2026", "Photographer"), {
     season: "2025-2026",
     role: "Photographer",
     post_abbr: "PHOTO",
-    post_order: 13,
+    post_order: 15,
   });
   assert.equal(normalizeTeamRole("Media Vice President"), "Vice President of the Media Cell");
   assert.equal(normalizeTeamRole("President of the Oraganization Cell"), "President of the Organization Cell");
@@ -743,7 +744,7 @@ test("staff save and season-only delete preserve the existing workflow through a
   await saveStaff(client, 8, { full_name: "Test Staff", sex: "F" }, [{ season: "2026-2027", role: "Photographer", post_abbr: "WRONG", post_order: 99 }]);
   await deleteStaff(client, 8, "2026-2027");
   assert.equal(client.calls[0].name, "save_club_staff");
-  assert.deepEqual(client.calls[0].args.p_seasons, [{ season: "2026-2027", role: "Photographer", post_abbr: "PHOTO", post_order: 13 }]);
+  assert.deepEqual(client.calls[0].args.p_seasons, [{ season: "2026-2027", role: "Photographer", post_abbr: "PHOTO", post_order: 15 }]);
   assert.deepEqual(client.calls[1], { name: "delete_club_staff", args: { p_team_id: 8, p_season: "2026-2027" } });
   await assert.rejects(
     saveStaff(client, null, { full_name: "Test", sex: "M" }, [{ season: "2026-2027", role: "Unknown role" }]),

@@ -658,13 +658,15 @@ test("admin user calls go through the protected Edge Function", async () => {
   const calls = [];
   const client = { functions: { async invoke(name, options) {
     calls.push({ name, body: options.body });
-    return { data: { ok: true, user: { id: "admin-id" } }, error: null };
+    return { data: options.body.action === "capabilities"
+      ? { ok: true, supportedPermissions: permissionIds }
+      : { ok: true, user: { id: "admin-id", permissions: normalizePermissions(options.body.permissions) } }, error: null };
   } } };
   await createAdminUser(client, { teamId: "team-profile-id", permissions: ["events", "social_media"] });
   await updateAdminUser(client, "admin-id", { permissions: ["team"] });
-  assert.deepEqual(calls.map((call) => call.name), ["admin-users", "admin-users"]);
-  assert.deepEqual(calls.map((call) => call.body.action), ["create", "update"]);
-  assert.deepEqual(calls[0].body, { action: "create", teamId: "team-profile-id", permissions: ["events", "social_media"] });
+  assert.deepEqual(calls.map((call) => call.name), ["admin-users", "admin-users", "admin-users", "admin-users"]);
+  assert.deepEqual(calls.map((call) => call.body.action), ["capabilities", "create", "capabilities", "update"]);
+  assert.deepEqual(calls[1].body, { action: "create", teamId: "team-profile-id", permissions: ["events", "social_media"] });
 });
 test("granular permission migration protects writes and the service key remains server-side", () => {
   const migration = readFileSync(new URL("../../supabase/migration_admin_user_permissions.sql", import.meta.url), "utf8");

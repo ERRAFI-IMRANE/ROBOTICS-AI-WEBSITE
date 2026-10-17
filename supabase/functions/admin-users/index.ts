@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { assertManageableAccount, isRootAdmin, normalizePermissions, permissionIds, teamAdminCredentials } from "./policy.js";
+import { adminUsersPolicyVersion, assertManageableAccount, assertSavedPermissions, isRootAdmin, validatePermissions, permissionIds, teamAdminCredentials } from "./policy.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +76,10 @@ Deno.serve(async (request) => {
   }
 
   try {
+    if (body.action === "capabilities") {
+      return response({ ok: true, policyVersion: adminUsersPolicyVersion, supportedPermissions: permissionIds });
+    }
+
     if (body.action === "list") {
       const users: any[] = [];
       const perPage = 200;
@@ -99,7 +103,7 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === "create") {
-      const permissions = normalizePermissions(body.permissions);
+      const permissions = validatePermissions(body.permissions);
       const teamId = String(body.teamId || "").trim();
       if (!teamId) return response({ ok: false, error: "Choose a Team profile." }, 400);
       const { data: profile, error: profileError } = await adminClient.from("team")
@@ -122,6 +126,7 @@ Deno.serve(async (request) => {
         },
       });
       if (error) throw error;
+      assertSavedPermissions(data.user, permissions);
       return response({ ok: true, user: sanitizeUser(data.user) }, 201);
     }
 
@@ -142,7 +147,7 @@ Deno.serve(async (request) => {
         return response({ ok: true, deletedUserId: userId });
       }
 
-      const permissions = normalizePermissions(body.permissions);
+      const permissions = validatePermissions(body.permissions);
       const displayName = String(body.displayName || "").trim().slice(0, 120);
       const { data, error } = await adminClient.auth.admin.updateUserById(userId, {
         user_metadata: { ...target.user_metadata, display_name: displayName },
@@ -154,6 +159,7 @@ Deno.serve(async (request) => {
         },
       });
       if (error) throw error;
+      assertSavedPermissions(data.user, permissions);
       return response({ ok: true, user: sanitizeUser(data.user) });
     }
 

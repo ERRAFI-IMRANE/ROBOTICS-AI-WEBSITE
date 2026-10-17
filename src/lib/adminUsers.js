@@ -1,4 +1,5 @@
 export { initialTeamPassword, teamAdminCredentials } from "../../supabase/functions/admin-users/policy.js";
+import { normalizePermissions, validatePermissions } from "../../supabase/functions/admin-users/policy.js";
 
 export async function invokeAdminUsers(client, action, values = {}) {
   const { data, error } = await client.functions.invoke("admin-users", {
@@ -29,15 +30,44 @@ export async function listAdminUsers(client) {
 }
 
 export async function createAdminUser(client, values) {
+  await verifyPermissionSupport(client, values.permissions);
   const result = await invokeAdminUsers(client, "create", values);
   if (!result.user?.id) throw new Error("The new admin account was not confirmed.");
+  verifyReturnedPermissions(result.user, values.permissions);
   return result.user;
 }
 
 export async function updateAdminUser(client, userId, values) {
+  await verifyPermissionSupport(client, values.permissions);
   const result = await invokeAdminUsers(client, "update", { userId, ...values });
   if (!result.user?.id) throw new Error("The admin permissions update was not confirmed.");
+  verifyReturnedPermissions(result.user, values.permissions);
   return result.user;
+}
+
+const DEPLOY_PERMISSIONS_MESSAGE = "The deployed admin-users function is outdated and cannot safely save these permissions. Redeploy admin-users, then assign Club wear again. No permission update was submitted.";
+
+async function verifyPermissionSupport(client, requested) {
+  const permissions = validatePermissions(requested);
+  let capabilities;
+  try {
+    capabilities = await invokeAdminUsers(client, "capabilities");
+  } catch (error) {
+    if (/unsupported.*action|not confirmed|non-2xx/i.test(error.message)) throw new Error(DEPLOY_PERMISSIONS_MESSAGE);
+    throw new Error(`${error.message} If this function predates permission support, redeploy admin-users before saving.`);
+  }
+  if (!Array.isArray(capabilities.supportedPermissions)
+      || permissions.some((permission) => !capabilities.supportedPermissions.includes(permission))) {
+    throw new Error(DEPLOY_PERMISSIONS_MESSAGE);
+  }
+}
+
+function verifyReturnedPermissions(user, requested) {
+  const saved = user.permissions;
+  const expected = normalizePermissions(requested);
+  if (!Array.isArray(saved) || [...new Set(saved)].sort().join("|") !== expected.sort().join("|")) {
+    throw new Error("The server did not preserve every requested permission. Reload the user, redeploy admin-users, and retry. Do not assume Club wear access was saved.");
+  }
 }
 
 export async function deleteAdminUser(client, userId) {

@@ -41,7 +41,7 @@ const dateTime = (value) => value ? new Intl.DateTimeFormat(undefined, {
 function actionLabel(action) {
   if (action.action_type === "warning_message") return `Member email warning · ${action.streak} absences`;
   if (action.action_type === "group_removal") return "Legacy removal email";
-  if (action.action_type === "membership_removal") return "Membership removal email · 5 absences";
+  if (action.action_type === "membership_removal") return `Membership removal email · ${action.streak} absences`;
   return `Team attendance email · ${action.streak} absences`;
 }
 
@@ -145,7 +145,7 @@ export default function AdminAbsence() {
     const unmarked = detail?.records?.filter((record) => record.attendance_status === "unmarked").length || 0;
     setConfirmation({
       title: "Close this attendance session?",
-      message: `${unmarked} participant${unmarked === 1 ? "" : "s"} not marked present will be saved as absent. The roster will be locked and Gmail notifications will be processed.`,
+      message: `${unmarked} participant${unmarked === 1 ? "" : "s"} not marked present will be saved as absent. Members reaching 3 consecutive absences will be moved to refused and emailed. Team profiles receive warnings only. The roster will be locked.`,
       confirmLabel: "Close session",
       action: async () => {
         setBusy(true);
@@ -340,7 +340,7 @@ export default function AdminAbsence() {
     <div className="admin-tab-content admin-attendance-view" aria-busy={loading || detailLoading || busy}>
       <AdminToast toast={toast} onClose={clearToast} />
       <div className="admin-view-header">
-        <div><h1 className="admin-page-title">Absence</h1><p className="admin-page-desc">Mark only who is present. Everyone left unchecked becomes absent when the session is closed.</p></div>
+        <div><h1 className="admin-page-title">Absence</h1><p className="admin-page-desc">Unchecked people become absent when a session closes. Members are automatically refused after 3 consecutive absences; Team profiles receive warnings only.</p></div>
         <div className="admin-header-actions"><button type="button" className="btn-secondary" onClick={() => setRecipientPanel(true)} disabled={busy}>Notification emails ({workspace.recipients.filter((item) => item.is_active).length})</button><button type="button" className="btn-secondary" onClick={() => load(selectedId)} disabled={loading || busy}>Refresh</button><button type="button" className="btn-primary" onClick={() => setEditor({ ...emptyDraft(), season: workspace.seasons[0] || "", teamSeason: teamSeasons.find((row) => row.season === workspace.seasons[0])?.season || teamSeasons[0]?.season || "" })} disabled={busy}>+ New session</button></div>
       </div>
 

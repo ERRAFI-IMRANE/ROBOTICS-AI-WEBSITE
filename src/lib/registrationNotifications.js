@@ -1,27 +1,7 @@
-export async function loadAcceptanceNotifications(client) {
-  const { data, error } = await client.from('registration_acceptance_notifications').select('registration_id,status,last_error');
-  if (error) {
-    throw new Error(error.code === 'PGRST205' || error.code === '42P01'
-      ? 'Run migration_registration_acceptance_notifications.sql in Supabase to enable admin acceptance emails.'
-      : error.message || 'Could not load admin email delivery status.');
-  }
-  return Object.fromEntries((data || []).map((row) => [String(row.registration_id), row]));
-}
-
-export async function notifyAdminOfAcceptance(client, registrationId) {
-  const { data, error } = await client.auth.getSession();
-  const token = data?.session?.access_token;
-  if (error || !token) throw new Error('Sign in again to send the admin notification. The application decision remains saved.');
-  const response = await fetch('/api/registrations/notify', {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ registrationId }),
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || !body.success) throw new Error(body.error || 'Admin notification failed. The application decision remains saved.');
-  const outcome = body.data;
-  if (!outcome || !['sent', 'sending', 'failed', 'not_configured'].includes(outcome.status)) throw new Error('Admin email delivery was not confirmed.');
-  return outcome;
-}
+// Historical recipient management remains available for existing imports, but
+// acceptance must never read a delivery queue or issue an email request.
+export async function loadAcceptanceNotifications() { return {}; }
+export async function notifyAdminOfAcceptance() { return { status: 'disabled' }; }
 
 function recipientErrorMessage(error) {
   return ['PGRST205', 'PGRST202', '42P01'].includes(error.code)

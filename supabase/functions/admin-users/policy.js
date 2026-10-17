@@ -1,4 +1,5 @@
 export const permissionIds = ["overview", "team", "events", "registrations", "forms", "absence", "social_media", "club_wear", "users"];
+export const adminUsersPolicyVersion = 2;
 
 export function isRootAdmin(user) {
   const metadata = user?.app_metadata;
@@ -11,6 +12,22 @@ export function normalizePermissions(input) {
   const valid = new Set(permissionIds);
   return [...new Set(["overview", ...(Array.isArray(input)
     ? input.filter((item) => typeof item === "string" && valid.has(item)) : [])])];
+}
+
+// Mutations must not silently discard a permission the dashboard submitted.
+// normalizePermissions remains tolerant for reading legacy metadata.
+export function validatePermissions(input) {
+  if (!Array.isArray(input) || input.some((item) => !permissionIds.includes(item))) {
+    throw new Error("Unsupported dashboard permissions. Refresh the app and redeploy the admin-users Edge Function.");
+  }
+  return normalizePermissions(input);
+}
+
+export function assertSavedPermissions(user, requested) {
+  const stored = user?.app_metadata?.club_permissions;
+  if (!Array.isArray(stored) || [...new Set(requested)].sort().join("|") !== [...new Set(stored)].sort().join("|")) {
+    throw new Error("Supabase did not confirm every requested permission. Reload the account before retrying.");
+  }
 }
 
 export function initialTeamPassword(fullName, year = new Date().getFullYear()) {

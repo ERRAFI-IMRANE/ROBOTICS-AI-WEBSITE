@@ -61,6 +61,15 @@ Run `migration_club_wear.sql` once in the Supabase SQL editor to enable the **Cl
 npx supabase functions deploy admin-users --project-ref zsqajmlmobiqscggwnbq
 ```
 
+If Club wear disappears after saving an officer's permissions, verify that the
+deployed function includes the current `policy.js`, not just the new frontend.
+The dashboard now checks the function's supported permissions before create/edit,
+and both sides verify the saved permission array. An outdated function is reported
+before a mutation instead of silently stripping `club_wear`. After redeploying,
+assign Club wear to the HR officer again; they must sign out/in or refresh their
+session to obtain the new permission in their access token. No Auth account is
+automatically modified by installing this code.
+
 The creation form requires only an existing Team profile and the selected permissions. Both login credentials are generated on the server from the name's stored order: `Kachbal Ilham` becomes `kachbal.ilham@gmail.com` and `kachbal@ilham//2026`. The form shows a read-only credential preview; it never submits an email, display name, or password override. Names are lowercased and accent-normalized; additional name words are hyphen-joined in the password and concatenated in the Gmail identifier. A Latin-letter first and last name are required for email generation. Existing accounts are not renamed, and duplicate generated emails are reported by Supabase rather than creating a second account.
 
 The generated address is a Supabase login identifier only: creating an admin account does not create a Gmail inbox or establish ownership of that address. No welcome email is sent by this flow. The current year is generated on the server. Passwords are not saved in public tables or metadata. This requested scheme is predictable and should be replaced by the recipient immediately; the dashboard does not enforce a first-login password change.
@@ -77,14 +86,16 @@ For the current wizard, run `migration_registration_review_decision.sql` after b
 
 ## Controls
 
-Accepted-member admin notifications use the existing Gmail sender. Run
-`migration_registration_acceptance_notifications.sql` followed by
-`migration_registration_notification_recipients.sql` and follow
-`REGISTRATION-EMAIL-SETUP.md`. Accepting a candidate emails the admin their contact
-details and asks them to add the member to the WhatsApp group manually. Email
-failure never reverses the decision; the accepted row exposes a retry action.
-Manage recipient addresses in **Registrations → Notification emails**, independently
-of Presence recipients; only active addresses receive these acceptance notices.
+Accepted-member emails are retired. Apply `migration_member_attendance_policy.sql`
+after the attendance email/roster migrations. It disables the acceptance queue
+trigger and retires queue claims without deleting history. The old notification
+endpoint returns HTTP 410 and never sends mail, and the registration UI no longer
+loads, sends or retries acceptance notifications. Gmail remains enabled for absence
+warnings and three-absence member removals; configure recipients under **Absence →
+Notification emails**. See `ATTENDANCE-SETUP.md`.
+
+`REGISTRATION-EMAIL-SETUP.md` describes retirement of the old acceptance feature.
+Keep the Gmail sender configured for attendance delivery.
 
 - **Registrations:** The interview wizard updates the existing application through permission-checked RPCs. The gold Interesting flag remains independent from Accept/Refuse, which updates `public.registrations.status` in place and requires a reason for refusals. Processed applications remain in the same table as history.
 - **Staff:** The existing add/edit/delete forms remain. Profile and season edits are saved atomically. Removing a season preserves other assignments; permanent deletion remains a separate explicit action.

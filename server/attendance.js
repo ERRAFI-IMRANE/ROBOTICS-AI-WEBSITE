@@ -72,25 +72,20 @@ function absenceRows(action) {
 export function buildAttendanceEmail(action, { adminCopy = false } = {}) {
   const name = action.full_name || "Club member";
   const streak = Number(action.streak || 0);
-  const isRemoval = streak >= 5 || action.action_type === "membership_removal" || action.action_type === "group_removal";
-  const isFinalWarning = streak === 4;
+  const isRemoval = isAttendanceRemoval(action);
   const participantType = action.participant_type === "team" ? "team member" : "accepted member";
   const subject = isRemoval
-    ? `[Attendance action required] ${name} reached 5 consecutive absences`
-    : `[Attendance warning ${streak}/5] ${name}`;
+    ? `[Membership removed] ${name} — ${streak} consecutive absences`
+    : `[Attendance warning] ${name} — ${streak} consecutive absences`;
   const headline = isRemoval
-    ? "Five consecutive absences recorded"
-    : isFinalWarning
-      ? "Final attendance warning"
-      : "Attendance warning";
-  const memberDecision = action.participant_type === "registration"
-    ? "Your club membership has been moved out of the active-member list under the attendance policy."
-    : "The bureau has been notified to review your Team membership under the attendance policy.";
+    ? "Club membership removed"
+    : "Attendance warning";
+  const memberDecision = `Your registration has been changed from accepted to refused after ${streak} consecutive absences. The member attendance removal threshold is 3 consecutive absences.`;
   const mainCopy = isRemoval
     ? memberDecision
-    : `You have reached ${streak} consecutive absences. ${isFinalWarning ? "One more consecutive absence reaches the removal threshold." : "Please contact the bureau before the next club session."}`;
+    : `You have reached ${streak} consecutive absences. Please contact the bureau before the next club session.${action.participant_type === "team" ? " This is a warning only; your Team profile has not been removed." : ""}`;
   const adminInstruction = isRemoval
-    ? `<div style="margin:18px 0;padding:14px;border-left:4px solid #b42318;background:#fff1f0"><strong>Admin action required:</strong> ${escapeHtml(name)} (${escapeHtml(participantType)}) reached five consecutive absences. Verify the record and complete the club membership follow-up.</div>`
+    ? `<div style="margin:18px 0;padding:14px;border-left:4px solid #b42318;background:#fff1f0"><strong>Membership removed:</strong> ${escapeHtml(name)} reached ${streak} consecutive absences. Their registration changed from accepted to refused. Verify the absence details and complete the membership follow-up.<p>Email: ${escapeHtml(action.email || "Not provided")}<br>Phone: ${escapeHtml(action.phone || "Not provided")}</p></div>`
     : `<div style="margin:18px 0;padding:14px;border-left:4px solid #1d4ed8;background:#eff6ff"><strong>Admin copy:</strong> this ${escapeHtml(participantType)} reached ${streak} consecutive absences.</div>`;
   const html = `<!doctype html><html><body style="margin:0;background:#eef3f9;font-family:Arial,sans-serif;color:#17233d"><div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #dce3ee"><div style="padding:22px 26px;background:#101b34;color:#fff"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.75">Robotics &amp; AI Club ESTS</div><h1 style="margin:8px 0 0;font-size:24px">${escapeHtml(headline)}</h1></div><div style="padding:26px"><p>Hello ${escapeHtml(name)},</p>${adminCopy ? adminInstruction : `<p>${escapeHtml(mainCopy)}</p>`}<table style="width:100%;border-collapse:collapse;margin:18px 0"><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Profile</td><td style="padding:9px;border:1px solid #dce3ee">${escapeHtml(participantDescription(action) || participantType)}</td></tr><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Current session</td><td style="padding:9px;border:1px solid #dce3ee">${escapeHtml(action.session_title || "Club session")} · ${escapeHtml(readableDate(action.session_date))}</td></tr><tr><td style="padding:9px;border:1px solid #dce3ee;color:#64748b">Consecutive absences</td><td style="padding:9px;border:1px solid #dce3ee"><strong>${streak}</strong></td></tr></table><h2 style="font-size:16px">Absence details</h2><ul style="padding-left:20px;line-height:1.7">${absenceRows(action)}</ul>${!adminCopy && isRemoval ? `<p style="margin-top:20px">If you believe this record is incorrect, reply to this email and contact the bureau.</p>` : ""}</div></div></body></html>`;
   const text = [
@@ -99,14 +94,24 @@ export function buildAttendanceEmail(action, { adminCopy = false } = {}) {
     `Profile: ${participantDescription(action) || participantType}`,
     `Current session: ${action.session_title || "Club session"} — ${readableDate(action.session_date)}`,
     `Consecutive absences: ${streak}`,
-    adminCopy && isRemoval ? "Admin action required: verify the record and complete the club membership follow-up." : mainCopy,
+    `Email: ${action.email || "Not provided"}`,
+    `Phone: ${action.phone || "Not provided"}`,
+    adminCopy && isRemoval ? "Membership removed: registration changed from accepted to refused. Verify the record and complete the membership follow-up." : mainCopy,
     "Absence details:",
     ...(Array.isArray(action.absence_sessions) ? action.absence_sessions.map((session) => `- ${session.title || "Club session"} — ${readableDate(session.starts_at)}`) : []),
   ].join("\n");
   return { subject, html, text };
 }
 
-async function sendAttendanceEmail(action, env) {
+export function isAttendanceRemoval(action) {
+  return action.participant_type === "registration"
+    && ["membership_removal", "group_removal"].includes(action.action_type);
+}
+
+export async function sendAttendanceEmail(action, env, createTransport = nodemailer.createTransport) {
+  if (isAttendanceRemoval(action) && action.registration_status && action.registration_status !== "refused") {
+    return { status: "skipped", error: "The member is no longer refused. The outdated removal notice was not sent." };
+  }
   const config = gmailConfig(env);
   if (!config.user || !config.password) {
     return { status: "not_configured", error: "Gmail sender credentials are not configured on the server." };
@@ -117,7 +122,7 @@ async function sendAttendanceEmail(action, env) {
     return { status: "not_configured", error: "This participant has no email and no attendance-admin recipients are configured." };
   }
 
-  const transporter = nodemailer.createTransport({
+  const transporter = createTransport({
     service: "gmail",
     auth: { user: config.user, pass: config.password },
   });
@@ -136,7 +141,7 @@ async function sendAttendanceEmail(action, env) {
     if (memberResult.messageId) ids.push(memberResult.messageId);
   }
 
-  const isRemoval = Number(action.streak) >= 5 || ["membership_removal", "group_removal"].includes(action.action_type);
+  const isRemoval = isAttendanceRemoval(action);
   if (adminEmails.length && (!memberEmail || isRemoval)) {
     const adminMessage = buildAttendanceEmail(action, { adminCopy: true });
     const adminResult = await transporter.sendMail({
